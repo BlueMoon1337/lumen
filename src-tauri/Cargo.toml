@@ -1,0 +1,30 @@
+[package]
+name = "lumen"
+version = "0.1.0"
+description = "Lumen: live presentation software for worship services and events"
+edition = "2024"
+rust-version = "1.90"
+
+[lib]
+name = "lumen_lib"
+crate-type = ["staticlib", "cdylib", "rlib"]
+
+[build-dependencies]
+tauri-build = { version = "2.7.4", features = [] }
+
+[dependencies]
+tauri = { version = "2.12.5", features = ["image-png"] }
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+
+[profile.release]
+codegen-units = 1
+lto = true
+opt-level = "s"
+strip = true
+
+# macOS: display names from AppKit and the Dock icon. Same versions Tauri itself uses.
+[target.'cfg(target_os = "macos")'.dependencies]
+objc2 = "0.6"
+objc2-foundation = { version = "0.3", features = ["NSArray", "NSData", "NSDictionary", "NSString", "NSValue"] }
+objc2-app-kit = { version = "0.3", features = ["NSApplication", "NSResponder", "NSGraphics", "NSImage", "NSScreen", "objc2-core-foundation"] }

@@ -14,7 +14,7 @@ export interface DesktopOutputRequest {
   displayId?: number;
 }
 
-/** Exposed by electron/preload.cjs when running as a desktop app. */
+/** Lumen's desktop app (src-tauri), as connected in src/desktop.ts. */
 export interface DesktopBridge {
   platform: string;
   getDisplays(): Promise<DetectedDisplay[]>;

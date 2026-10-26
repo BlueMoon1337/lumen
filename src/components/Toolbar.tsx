@@ -84,7 +84,8 @@ export function Toolbar({ onBible, onSettings, onScreens }: { onBible: () => voi
   const macInset = window.lumenDesktop?.platform === 'darwin';
 
   return (
-    <header className={`toolbar ${macInset ? 'mac-inset' : ''}`}>
+    // In the desktop app, dragging the toolbar's background moves the window (data-tauri-drag-region).
+    <header className={`toolbar ${macInset ? 'mac-inset' : ''}`} data-tauri-drag-region>
       <div className="tool-group">
         <Tool icon="search" label="Search" active={pop === 'search'} onClick={() => toggle('search')}>
           <Popover open={pop === 'search'} onClose={close} className="search-pop">
@@ -115,7 +116,7 @@ export function Toolbar({ onBible, onSettings, onScreens }: { onBible: () => voi
           </Popover>
         </Tool>
       </div>
-      <div className="toolbar-spacer" />
+      <div className="toolbar-spacer" data-tauri-drag-region />
       <div className="tool-group">
         <Tool
           icon="image"

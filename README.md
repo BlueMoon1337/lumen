@@ -27,16 +27,24 @@ The first time Lumen starts, it asks you to choose its icon: the **Projector** (
 
 Click **Audience** or **Stage** in the toolbar to open the output windows. In Chrome or Edge, open **Screens → Configure Screens…** (More menu, or right-click Audience) and press **Detect Screens** once: the outputs then open fullscreen on your TV or projector by themselves. In other browsers, drag the window to the projector and double-click it for fullscreen.
 
-### As a desktop app (Electron)
+### As a desktop app
 
-The desktop shell opens each output fullscreen on its display, with no browser chrome, and adds ProPresenter's **Screens** menu (⌘1 Audience, ⌘2 Stage, ⌥⌘1 Configure Screens…, Identify Screens). Outputs come up as soon as an HDMI cable goes in and return when an unplugged screen is reconnected.
+The desktop app is built with [Tauri](https://tauri.app). It's a small native app that uses the web engine already in the computer (Safari's on a Mac, WebView2 on Windows) instead of bundling a browser. It opens each output fullscreen on its display, adds ProPresenter's **Screens** menu (⌘1 Audience, ⌘2 Stage, ⌥⌘1 Configure Screens…, Identify Screens), and lists displays by their real names. Outputs come up as soon as an HDMI cable goes in and return when an unplugged screen is reconnected.
+
+One-time setup:
+
+- **Mac:** install Apple's command-line tools with `xcode-select --install`, then Rust with `curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh`. Close and reopen Terminal afterwards.
+- **Windows:** install the Microsoft C++ Build Tools (the "Desktop development with C++" workload), then Rust from [rustup.rs](https://rustup.rs). WebView2 already comes with Windows 10 and 11.
+- **Linux:** the WebKitGTK packages in [Tauri's prerequisites](https://tauri.app/start/prerequisites/), then Rust.
 
 ```sh
-npm run electron     # build, then launch the desktop app
-# or, while developing:
-npm run dev          # terminal 1
-npm run electron:dev # terminal 2, loads the dev server with hot reload
+npm run desktop        # run the desktop app while you work on it (reloads as you edit)
+npm run desktop:build  # build the finished, installable app
 ```
+
+`desktop:build` puts the app in `src-tauri/target/release/bundle/`. On a Mac that's `macos/Lumen.app` (drag it into Applications) and a `.dmg` disk image; on Windows, an `.msi` installer and a setup `.exe`. The first build downloads and compiles the Rust libraries and takes several minutes; later builds are much quicker.
+
+An app you build runs on your own computer. Before it can be handed to other Macs without the "unidentified developer" warning, it has to be signed and notarized with an Apple Developer account. Until then, right-click the app and choose **Open** the first time.
 
 ### Other scripts
 
@@ -194,11 +202,12 @@ src/
   import/          readers for ProPresenter .pro (protobuf + RTF), .proplaylist and .rvbible (zip of USX books),
                    and a zip reader that tolerates ProPresenter's Zip64 layout
   frame.ts         derives the OutputFrame from the store
-  sync.ts          BroadcastChannel between the operator and output windows
+  sync.ts          sends frames from the operator window to output windows (desktop app events or BroadcastChannel)
+  desktop.ts       connects the shared code to the desktop app (window.lumenDesktop)
   liveFrame.ts     pushes each new frame to output windows and the operator's monitor
   media.ts         IndexedDB storage for images and videos
   screens.ts       screen setup: matching outputs to displays, corner pin and color math
-  outputs.ts       display detection and hot-plug, opening and closing output windows (browser popups or Electron windows)
+  outputs.ts       display detection and hot-plug, opening and closing output windows (desktop app windows or browser popups)
   components/
     ControlApp     window layout per mode and keyboard shortcuts
     Toolbar        ProPresenter-style toolbar with Search / Text / Theme / More popovers
@@ -216,13 +225,17 @@ src/
                    #/output and #/stage show the first audience or stage screen, e.g. as a browser source in OBS
     StageView      stage display layout
     ThemeEditor, Dialogs
-electron/          desktop shell: display detection, one fullscreen window per output, Screens menu, app:// protocol
-build/             app icons: Projector, the default (icon.*, also what a packaged app is built with), Star, Camera and Film Camera
-                   (icon-star.*, icon-camera.*, icon-film.*): .svg source, .png, .icns (macOS), .ico (Windows)
+src-tauri/          the desktop app (Tauri, Rust)
+  src/displays.rs  display list with real names (macOS: from AppKit), hot-plug watcher
+  src/outputs.rs   output windows: one fullscreen per display, or a window per output without one
+  src/menu.rs      menu bar with the Screens menu
+  src/icon.rs      app icon choice: Dock on macOS, window icons elsewhere, remembered on disk
+  icons/           the packaged app's icon (Projector) and the four choices
+design/icons/      .svg sources of the four icons
 public/icons/      browser tab, home-screen and picker images for each icon
 ```
 
-The operator window owns all state. Every change produces an `OutputFrame`, a self-contained description of what each screen should show, which goes to the output windows over `BroadcastChannel`. Output windows hold no library data. They render the frame and load media from the IndexedDB they share with the operator window. Every view renders onto the same fixed 1920×1080 canvas and scales it, so text wraps the same way in thumbnails, the monitor and the projector.
+The operator window owns all state. Every change produces an `OutputFrame`, a self-contained description of what each screen should show, which goes to the output windows (as desktop app events, or over `BroadcastChannel` in a browser). Output windows hold no library data. They render the frame and load media from the IndexedDB they share with the operator window. Every view renders onto the same fixed 1920×1080 canvas and scales it, so text wraps the same way in thumbnails, the monitor and the projector.
 
 ## Roadmap ideas
 
@@ -234,4 +247,4 @@ The operator window owns all state. Every change produces an `OutputFrame`, a se
 - NDI and Syphon outputs (listed in Screen Configuration's Output menu), or capture-card output for livestreams
 - Import ProPresenter 6, media bundled in playlists, OpenLP, OpenSong, CCLI SongSelect and Planning Center
 - CCLI usage reporting
-- Installers with electron-builder
+- Signed and notarized installers, and automatic updates

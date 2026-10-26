@@ -1,11 +1,15 @@
 import { lazy, StrictMode, Suspense } from 'react';
 import { createRoot } from 'react-dom/client';
+import { installDesktopBridge } from './desktop';
 import './styles.css';
 // Bundled open-licensed fonts (SIL OFL); Cinzel stands in for Copperplate where it isn't installed.
 import '@fontsource/cinzel/latin-400.css';
 import '@fontsource/cinzel/latin-ext-400.css';
 import '@fontsource/cinzel/latin-700.css';
 import '@fontsource/cinzel/latin-ext-700.css';
+
+// In the desktop app, connect to it before anything reads window.lumenDesktop.
+installDesktopBridge();
 
 // One bundle, two kinds of window: the operator view, and output windows that
 // show one or more audience or stage outputs.

@@ -1,0 +1,2 @@
+# Same line width as the web code (.prettierrc.json).
+max_width = 140

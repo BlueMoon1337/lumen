@@ -332,11 +332,6 @@ kbd {
 
 .toolbar.mac-inset {
   padding-left: 84px;
-  -webkit-app-region: drag;
-}
-
-.toolbar.mac-inset .tool-group {
-  -webkit-app-region: no-drag;
 }
 
 .toolbar-spacer {
