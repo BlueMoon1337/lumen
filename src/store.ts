@@ -76,6 +76,8 @@ interface Actions {
   movePlaylistItem(from: number, to: number): void;
   removePlaylistItem(itemId: string): void;
   createPlaylist(name: string): void;
+  /** Adds a complete playlist (e.g. an imported one), makes it active and returns its id. */
+  addPlaylist(name: string, items: PlaylistItem[]): string;
   renamePlaylist(id: string, name: string): void;
   deletePlaylist(id: string): void;
   setActivePlaylist(id: string): void;
@@ -363,6 +365,14 @@ export const useStore = create<AppState>()(
         createPlaylist: (name) => {
           const pl: Playlist = { id: uid(), name, items: [] };
           set((s) => ({ playlists: [...s.playlists, pl], activePlaylistId: pl.id }));
+        },
+        addPlaylist: (name, items) => {
+          const taken = new Set(get().playlists.map((p) => p.name.toLowerCase()));
+          let unique = name;
+          for (let n = 2; taken.has(unique.toLowerCase()); n++) unique = `${name} ${n}`;
+          const pl: Playlist = { id: uid(), name: unique, items };
+          set((s) => ({ playlists: [...s.playlists, pl], activePlaylistId: pl.id, sidebar: 'playlist' }));
+          return pl.id;
         },
         renamePlaylist: (id, name) => set((s) => ({ playlists: s.playlists.map((p) => (p.id === id ? { ...p, name } : p)) })),
         deletePlaylist: (id) =>

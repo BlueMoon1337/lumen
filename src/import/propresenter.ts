@@ -86,8 +86,12 @@ function readSlide(cue: PbMessage): ImportedSlide {
   return { text: '' };
 }
 
-/** Reads a ProPresenter 7 `.pro` presentation. Text and structure come across; slide layouts do not. */
-export function parseProPresenter7(bytes: Uint8Array, fallbackTitle = 'Imported'): ImportedPresentation {
+/**
+ * Reads a ProPresenter 7 `.pro` presentation. Text and structure come across;
+ * slide layouts do not. `arrangementId` picks an arrangement other than the
+ * one saved as selected, as playlist items can.
+ */
+export function parseProPresenter7(bytes: Uint8Array, fallbackTitle = 'Imported', arrangementId?: string): ImportedPresentation {
   const head = utf8.decode(bytes.subarray(0, 64)).trimStart();
   if (head.startsWith('<?xml') || head.startsWith('<RVPresentationDocument')) {
     throw new Error('This is a ProPresenter 6 file. Only ProPresenter 7 .pro files can be imported.');
@@ -118,7 +122,7 @@ export function parseProPresenter7(bytes: Uint8Array, fallbackTitle = 'Imported'
     // Group names must be unique so Reflow can tell groups apart.
     const base = group?.string(GROUP.name)?.trim() || 'Group';
     let name = base;
-    for (let n = 2; usedNames.has(name.toLowerCase()); n++) name = `${base} ${n}`;
+    for (let n = 2; usedNames.has(name.toLowerCase()); n++) name = /\d$/.test(base) ? `${base} (${n})` : `${base} ${n}`;
     usedNames.add(name.toLowerCase());
     const color = group?.message(GROUP.color);
     indexByGroupId.set(uuidOf(group?.message(GROUP.uuid)), groups.length);
@@ -126,8 +130,9 @@ export function parseProPresenter7(bytes: Uint8Array, fallbackTitle = 'Imported'
   }
 
   const arrangements = root.messages(PRESENTATION.arrangements);
-  const selected = uuidOf(root.message(PRESENTATION.selectedArrangement));
-  const chosen = arrangements.find((a) => uuidOf(a.message(ARRANGEMENT.uuid)) === selected) ?? arrangements[0];
+  const selected = arrangementId || uuidOf(root.message(PRESENTATION.selectedArrangement));
+  // With no arrangement selected, ProPresenter plays every group in order.
+  const chosen = selected ? arrangements.find((a) => uuidOf(a.message(ARRANGEMENT.uuid)) === selected) : undefined;
   let arrangement = chosen
     ? chosen
         .messages(ARRANGEMENT.groupIds)

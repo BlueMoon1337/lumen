@@ -72,21 +72,22 @@ npm run format       # Prettier
 - **Countdown timer**, either a duration or a time of day, shown on the stage display and usable in messages.
 - **Messages** on the audience screen, with `{countdown}` and `{clock}` tokens.
 - **Stage display** showing the current and next slide, notes, clock, timer, and a flashing message to the stage.
-- **ProPresenter import** of `.pro` presentations and `.rvbible` Bibles (see below).
+- **ProPresenter import** of `.pro` presentations, `.proplaylist` playlists and `.rvbible` Bibles (see below).
 - **Bible** lookups from imported Bibles (offline, with book and chapter pickers) or public-domain translations via [bible-api.com](https://bible-api.com), or paste any text.
 - **Persistence**: everything saves automatically, and the library exports to and imports from JSON.
 
 ## Importing from ProPresenter
 
-Use the import button in the Library header, **More → Import**, or drag files onto the Library. You can select many files at once.
+Use the import buttons in the Library and Playlist headers, **More → Import**, or drag files onto the sidebar. You can select many files at once.
 
 | File | What comes across |
 | --- | --- |
 | `.pro` (ProPresenter 7 presentation) | Title, groups with their names and colors, slide text (from every text box), slide notes, the selected arrangement, CCLI details (author, publisher, year, song number, "show on screen") and the transition length. Slide layouts, fonts and media don't import; your Lumen theme applies instead. |
+| `.proplaylist` (ProPresenter 7 playlist) | Each playlist inside (folders included) with its headers and songs in order. Songs come from the copies bundled in the file and import like `.pro` files, using the arrangement the playlist item chose. Media cues and placeholders are skipped. |
 | `.rvbible` (ProPresenter Bible) | The whole translation, stored on this computer so lookups work offline. Pick it in the **Bible** dialog and type references in the Bible's language or in English: `Juan 3:16-18`, `Sal 23`, `1 Co 13`, `John 3:16`. Manage imported Bibles in Settings. |
 | `.txt` | Lyrics in the Reflow format below. |
 
-ProPresenter 6 files (`.pro6`) and playlists (`.proplaylist`) aren't supported yet. Bible text and media stay on the computer; library exports don't include them. Check that your licence covers projecting the translations you import.
+Songs already in your library (same title and slides) are reused rather than duplicated, so re-importing is safe. ProPresenter 6 files (`.pro6`) aren't supported yet. Bible text and media stay on the computer; library exports don't include them. Check that your licence covers projecting the translations you import.
 
 ## Writing lyrics
 
@@ -139,7 +140,8 @@ src/
   theme.ts         theme → presentation → slide formatting, backgrounds, copyright line
   bible.ts         imported Bibles: storage, reference parsing (local + English book names), lookup
   commands.ts      new presentation, file import
-  import/          readers for ProPresenter .pro (protobuf + RTF) and .rvbible (zip of USX books)
+  import/          readers for ProPresenter .pro (protobuf + RTF), .proplaylist and .rvbible (zip of USX books),
+                   and a zip reader that tolerates ProPresenter's Zip64 layout
   frame.ts         derives the OutputFrame from the store
   sync.ts          BroadcastChannel between the operator and output windows
   liveFrame.ts     pushes each new frame to output windows and the operator's monitor
@@ -171,6 +173,6 @@ The operator window owns all state. Every change produces an `OutputFrame`, a se
 - Audio bin and video playback with sound and transport controls
 - Remote control from a phone over WebSocket
 - NDI or capture-card output for livestreams
-- Import ProPresenter 6 and playlists, OpenLP, OpenSong, CCLI SongSelect and Planning Center
+- Import ProPresenter 6, media bundled in playlists, OpenLP, OpenSong, CCLI SongSelect and Planning Center
 - CCLI usage reporting
 - Installers with electron-builder

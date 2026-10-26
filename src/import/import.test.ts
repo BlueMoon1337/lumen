@@ -1,10 +1,14 @@
 import { strToU8, zipSync } from 'fflate';
 import { describe, expect, it } from 'vitest';
 import { findBook, formatRange, parseReference, type BibleBookMeta } from '../bible';
+import { importPlaylistFile } from '../commands';
+import { useStore } from '../store';
+import { parseProPlaylist } from './proplaylist';
 import { parseProPresenter7 } from './propresenter';
 import { rtfToText } from './rtf';
 import { parseRvBible } from './rvbible';
 import { parseUsx } from './usx';
+import { readZip } from './zip';
 
 // ---- A tiny protobuf writer for building test .pro files ----
 
@@ -223,5 +227,137 @@ describe('Bible references', () => {
     expect(ref('Juan 3:99')).toMatch(/36 verses/);
     expect(ref('Hechos 2:1')).toMatch(/No book/);
     expect(ref('hola')).toMatch(/reference like/);
+  });
+});
+
+/** Stored entries with Zip64 sizes in the extra field and a plain end record, as ProPresenter writes them. */
+function proPresenterZip(entries: [string, Uint8Array][]): Uint8Array {
+  const parts: Uint8Array[] = [];
+  const central: Uint8Array[] = [];
+  let offset = 0;
+  for (const [name, data] of entries) {
+    const nameBytes = enc.encode(name);
+    const extra = new Uint8Array(28);
+    const x = new DataView(extra.buffer);
+    x.setUint16(0, 1, true);
+    x.setUint16(2, 24, true);
+    x.setBigUint64(4, BigInt(data.length), true);
+    x.setBigUint64(12, BigInt(data.length), true);
+    x.setBigUint64(20, BigInt(offset), true);
+    const local = new Uint8Array(30);
+    const l = new DataView(local.buffer);
+    l.setUint32(0, 0x04034b50, true);
+    l.setUint16(4, 45, true);
+    l.setUint32(18, 0xffffffff, true);
+    l.setUint32(22, 0xffffffff, true);
+    l.setUint16(26, nameBytes.length, true);
+    l.setUint16(28, extra.length, true);
+    parts.push(local, nameBytes, extra, data);
+    const header = new Uint8Array(46);
+    const c = new DataView(header.buffer);
+    c.setUint32(0, 0x02014b50, true);
+    c.setUint16(6, 45, true);
+    c.setUint32(20, 0xffffffff, true);
+    c.setUint32(24, 0xffffffff, true);
+    c.setUint16(28, nameBytes.length, true);
+    c.setUint16(30, extra.length, true);
+    c.setUint32(42, offset, true);
+    central.push(header, nameBytes, extra);
+    offset += 30 + nameBytes.length + extra.length + data.length;
+  }
+  const cd = concat(central);
+  const end = new Uint8Array(22);
+  const e = new DataView(end.buffer);
+  e.setUint32(0, 0x06054b50, true);
+  e.setUint16(8, entries.length, true);
+  e.setUint16(10, entries.length, true);
+  e.setUint32(12, cd.length, true);
+  e.setUint32(16, offset, true);
+  return concat([...parts, cd, end]);
+}
+
+describe('ProPresenter playlists', () => {
+  const song = concat([
+    str(3, 'Alabanza Uno'),
+    msg(11, uuid(1, 'ARR-SHORT'), uuid(3, 'G2')),
+    group('G1', 'Verse 1', [0, 0, 1], ['C1']),
+    group('G2', 'Chorus', [1, 0, 0], ['C2']),
+    cue('C1', ['Verso']),
+    cue('C2', ['Coro']),
+  ]);
+  const item = (...parts: Uint8Array[]) => msg(1, ...parts);
+  const presentationItem = (name: string, path: string, arrangement?: string) =>
+    item(
+      str(2, name),
+      msg(
+        4,
+        msg(1, str(1, `file:///Users/x/${encodeURI(path)}`), msg(4, num(1, 10), str(2, path))),
+        ...(arrangement ? [uuid(2, arrangement)] : []),
+      ),
+    );
+  const data = msg(
+    3,
+    str(2, 'PLAYLIST'),
+    msg(
+      12,
+      msg(
+        1,
+        str(2, 'Domingo'),
+        msg(
+          13,
+          item(str(2, 'Alabanza'), msg(3)),
+          presentationItem('Alabanza Uno', 'Libraries/Songs/Alabanza Uno.pro'),
+          presentationItem('Alabanza Uno', 'Libraries/Songs/Alabanza Uno.pro', 'ARR-SHORT'),
+          presentationItem('Perdida', 'Libraries/Songs/Perdida.pro'),
+          item(str(2, 'Video de bienvenida'), msg(5)),
+        ),
+      ),
+      msg(
+        1,
+        str(2, 'Carpeta'),
+        msg(12, msg(1, str(2, 'Miércoles'), msg(13, presentationItem('Alabanza Uno', 'Libraries/Songs/Alabanza Uno.pro')))),
+      ),
+    ),
+  );
+  const zip = proPresenterZip([
+    ['Alabanza Uno.pro', song],
+    ['data', data],
+  ]);
+
+  it('reads zips with ProPresenter’s Zip64 layout', () => {
+    expect([...readZip(zip).keys()]).toEqual(['Alabanza Uno.pro', 'data']);
+  });
+
+  it('reads playlists, folders, headers and arrangement choices', () => {
+    const bundle = parseProPlaylist(zip);
+    expect(bundle.playlists.map((p) => p.name)).toEqual(['Domingo', 'Miércoles']);
+    expect(bundle.playlists[0].items).toEqual([
+      { type: 'header', label: 'Alabanza' },
+      { type: 'presentation', name: 'Alabanza Uno', file: 'Alabanza Uno.pro', arrangementId: undefined },
+      { type: 'presentation', name: 'Alabanza Uno', file: 'Alabanza Uno.pro', arrangementId: 'ARR-SHORT' },
+      { type: 'presentation', name: 'Perdida', file: undefined, arrangementId: undefined },
+    ]);
+  });
+
+  it('imports each song once, builds the playlists, and reuses songs on re-import', async () => {
+    const file = new File([zip.slice()], 'Domingo.proplaylist');
+    const before = Object.keys(useStore.getState().presentations).length;
+    const first = await importPlaylistFile(file);
+    const s = useStore.getState();
+    // The full arrangement and the chorus-only arrangement are different presentations.
+    expect(first).toMatchObject({ names: ['Domingo', 'Miércoles'], added: 2, reused: 0, missing: ['Perdida'] });
+    expect(Object.keys(s.presentations).length).toBe(before + 2);
+    const domingo = s.playlists.find((p) => p.id === first.playlistIds[0])!;
+    expect(domingo.items.map((i) => (i.type === 'header' ? `# ${i.label}` : s.presentations[i.presentationId].arrangement.length))).toEqual(
+      ['# Alabanza', 2, 1],
+    );
+
+    const again = await importPlaylistFile(file);
+    expect(again).toMatchObject({ added: 0, reused: 2 });
+    expect(useStore.getState().playlists.find((p) => p.id === again.playlistIds[0])!.name).toBe('Domingo 2');
+  });
+
+  it('rejects other files', () => {
+    expect(() => parseProPlaylist(enc.encode('nope'))).toThrow(/Not a ProPresenter playlist/);
   });
 });

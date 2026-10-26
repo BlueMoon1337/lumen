@@ -1,14 +1,15 @@
 import { putBibleText, type BibleMeta } from './bible';
+import { parseProPlaylist } from './import/proplaylist';
 import { parseProPresenter7, type ImportedPresentation } from './import/propresenter';
 import { parseRvBible } from './import/rvbible';
-import { colorForGroup } from './lyrics';
+import { colorForGroup, getSequence } from './lyrics';
 import { dismiss, notify } from './notices';
 import { useStore } from './store';
-import type { Category, Group } from './types';
+import type { Category, Group, PlaylistItem } from './types';
 import { uid } from './util';
 
 /** File types the Import command and drag-and-drop accept. */
-export const IMPORT_ACCEPT = '.pro,.txt,.rvbible,text/plain';
+export const IMPORT_ACCEPT = '.pro,.proplaylist,.txt,.rvbible,text/plain';
 
 /** Creates an empty presentation in a library and opens it in Reflow for typing lyrics. */
 export function newPresentation(category: Category = 'song'): string {
@@ -45,6 +46,66 @@ export function createFromImport(data: ImportedPresentation, category: Category)
   });
 }
 
+/** A library presentation with the same title and slides, so re-importing doesn't duplicate songs. */
+function findIdentical(data: ImportedPresentation): string | undefined {
+  const texts = data.arrangement.flatMap((i) => data.groups[i].slides.map((s) => s.text)).join('\u0000');
+  const title = data.title.toLowerCase();
+  return Object.values(useStore.getState().presentations).find(
+    (p) =>
+      p.title.toLowerCase() === title &&
+      getSequence(p)
+        .map((e) => e.slide.text)
+        .join('\u0000') === texts,
+  )?.id;
+}
+
+export interface PlaylistImportResult {
+  playlistIds: string[];
+  names: string[];
+  added: number;
+  reused: number;
+  missing: string[];
+}
+
+/** Imports a ProPresenter `.proplaylist`: its songs (once each) and then the playlist(s) in order. */
+export async function importPlaylistFile(file: File, category: Category = 'song'): Promise<PlaylistImportResult> {
+  const bundle = parseProPlaylist(new Uint8Array(await file.arrayBuffer()));
+  if (!bundle.playlists.length) throw new Error('This playlist file has no playlists in it.');
+  const s = useStore.getState();
+  const result: PlaylistImportResult = { playlistIds: [], names: [], added: 0, reused: 0, missing: [] };
+  const done = new Map<string, string>();
+
+  for (const playlist of bundle.playlists) {
+    const items: PlaylistItem[] = [];
+    for (const item of playlist.items) {
+      if (item.type === 'header') {
+        items.push({ id: uid(), type: 'header', label: item.label });
+        continue;
+      }
+      if (!item.file) {
+        result.missing.push(item.name);
+        continue;
+      }
+      const key = `${item.file}#${item.arrangementId ?? ''}`;
+      let id = done.get(key);
+      if (!id) {
+        const data = parseProPresenter7(bundle.files.get(item.file)!, item.name, item.arrangementId);
+        id = findIdentical(data);
+        if (id) result.reused++;
+        else {
+          id = createFromImport(data, category);
+          result.added++;
+        }
+        done.set(key, id);
+      }
+      items.push({ id: uid(), type: 'presentation', presentationId: id });
+    }
+    result.playlistIds.push(s.addPlaylist(playlist.name, items));
+    result.names.push(playlist.name);
+  }
+  return result;
+}
+
 export async function importBibleFile(file: File): Promise<BibleMeta> {
   const bible = parseRvBible(new Uint8Array(await file.arrayBuffer()), baseName(file));
   const meta: BibleMeta = {
@@ -60,32 +121,50 @@ export async function importBibleFile(file: File): Promise<BibleMeta> {
 }
 
 /**
- * Imports ProPresenter 7 presentations (.pro), plain-text lyrics (.txt) and
- * ProPresenter Bibles (.rvbible), then reports what happened.
+ * Imports ProPresenter 7 presentations (.pro) and playlists (.proplaylist),
+ * plain-text lyrics (.txt) and ProPresenter Bibles (.rvbible), then reports
+ * what happened.
  */
 export async function importFiles(files: File[], category: Category = useStore.getState().libraryCategory) {
   if (!files.length) return;
   const working =
-    files.length > 3 || files.some((f) => extension(f) === 'rvbible')
+    files.length > 3 || files.some((f) => ['rvbible', 'proplaylist'].includes(extension(f)))
       ? notify(`Importing ${files.length} file${files.length === 1 ? '' : 's'}…`, 'info', 0)
       : null;
   const s = useStore.getState();
   const failed: string[] = [];
   const bibles: string[] = [];
+  const playlists: string[] = [];
+  const missing: string[] = [];
   let presentations = 0;
+  let reused = 0;
   let lastId: string | null = null;
+  let openPlaylist: string | null = null;
 
   for (const file of files) {
     try {
       switch (extension(file)) {
-        case 'pro':
-          lastId = createFromImport(parseProPresenter7(new Uint8Array(await file.arrayBuffer()), baseName(file)), category);
-          presentations++;
+        case 'pro': {
+          const data = parseProPresenter7(new Uint8Array(await file.arrayBuffer()), baseName(file));
+          const existing = findIdentical(data);
+          if (existing) reused++;
+          else presentations++;
+          lastId = existing ?? createFromImport(data, category);
           break;
+        }
         case 'txt':
           lastId = s.createPresentation({ title: baseName(file), category }, await file.text());
           presentations++;
           break;
+        case 'proplaylist': {
+          const r = await importPlaylistFile(file, category);
+          playlists.push(...r.names);
+          missing.push(...r.missing);
+          presentations += r.added;
+          reused += r.reused;
+          openPlaylist = r.playlistIds[0] ?? openPlaylist;
+          break;
+        }
         case 'rvbible':
           bibles.push((await importBibleFile(file)).abbreviation);
           break;
@@ -100,15 +179,31 @@ export async function importFiles(files: File[], category: Category = useStore.g
   }
 
   if (working) dismiss(working);
-  if (lastId) {
+  if (openPlaylist) {
+    // Show the imported playlist with its first song selected, ready to run.
+    const st = useStore.getState();
+    const first = st.playlists.find((p) => p.id === openPlaylist)?.items.find((it) => it.type === 'presentation');
+    st.setActivePlaylist(openPlaylist);
+    st.setUI({ sidebar: 'playlist', mode: 'show' });
+    if (first?.type === 'presentation') st.select(first.presentationId, first.id);
+  } else if (lastId) {
     s.select(lastId);
     s.setUI({ sidebar: 'library', libraryCategory: category, mode: 'show' });
   }
+  const plural = (n: number, word: string) => `${n} ${word}${n === 1 ? '' : 's'}`;
   const done = [
-    presentations && `${presentations} presentation${presentations === 1 ? '' : 's'}`,
+    playlists.length && `playlist${playlists.length === 1 ? '' : 's'} ${playlists.map((n) => `“${n}”`).join(', ')}`,
+    presentations && plural(presentations, playlists.length ? 'new song' : 'presentation'),
     bibles.length && `Bible ${bibles.join(', ')} (use it from the Bible button)`,
   ].filter(Boolean);
-  if (done.length) notify(`Imported ${done.join(' and ')}.`, 'success');
+  if (!done.length && reused) notify(`${plural(reused, 'song')} already in your library, so nothing was duplicated.`, 'success');
+  if (done.length) {
+    const kept = reused
+      ? ` ${plural(reused, 'song')} already in your library ${reused === 1 ? 'was' : 'were'} kept instead of duplicated.`
+      : '';
+    notify(`Imported ${done.join(' and ')}.${kept}`, 'success');
+  }
+  if (missing.length) notify(`Not included in the playlist file, so skipped: ${missing.join(', ')}`, 'error');
   if (failed.length)
     notify(`Could not import ${failed.length === 1 ? failed[0] : `${failed.length} files:\n${failed.join('\n')}`}`, 'error');
 }

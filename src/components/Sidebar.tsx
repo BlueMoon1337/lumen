@@ -45,7 +45,7 @@ function Collections() {
       >
         <IconButton
           icon="download"
-          title="Import ProPresenter (.pro), lyrics (.txt) or Bible (.rvbible) files"
+          title="Import ProPresenter songs (.pro), playlists (.proplaylist), lyrics (.txt) or Bibles (.rvbible)"
           onClick={() => pickFiles(IMPORT_ACCEPT).then((files) => importFiles(files))}
         />
       </SectionHeader>
@@ -88,7 +88,13 @@ function Collections() {
         addTitle="New playlist"
         collapsed={!plOpen}
         onToggle={() => setPlOpen(!plOpen)}
-      />
+      >
+        <IconButton
+          icon="download"
+          title="Import a ProPresenter playlist (.proplaylist)"
+          onClick={() => pickFiles('.proplaylist').then((files) => importFiles(files))}
+        />
+      </SectionHeader>
       {plOpen &&
         playlists.map((pl) => (
           <PlaylistRow
@@ -279,6 +285,7 @@ function PlaylistItems() {
   const count = items.filter((it) => it.type === 'presentation').length;
 
   const onDragOver = (e: DragEvent, index: number) => {
+    if (hasDrag(e, 'Files')) return e.preventDefault();
     if (!hasDrag(e, DRAG_PRESENTATION) && !hasDrag(e, DRAG_PLAYLIST_ITEM)) return;
     e.preventDefault();
     e.stopPropagation();
@@ -287,6 +294,7 @@ function PlaylistItems() {
   };
   const onDrop = (e: DragEvent) => {
     e.preventDefault();
+    if (e.dataTransfer.files.length) return void importFiles(Array.from(e.dataTransfer.files));
     const to = dropIndex ?? items.length;
     setDropIndex(null);
     const presentationId = e.dataTransfer.getData(DRAG_PRESENTATION);
@@ -350,7 +358,7 @@ function PlaylistItems() {
             </li>
           );
         })}
-        {items.length === 0 && <li className="empty">Drag presentations here, or onto the playlist name above.</li>}
+        {items.length === 0 && <li className="empty">Drag presentations here, or drop a ProPresenter .proplaylist file.</li>}
       </ul>
       <FilterField value={filter} onChange={setFilter} />
     </div>

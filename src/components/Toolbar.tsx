@@ -314,7 +314,7 @@ function MoreMenu({ onDone, onBible, onSettings }: { onDone: () => void; onBible
   return (
     <div className="menu">
       {item('New Presentation', () => newPresentation(useStore.getState().libraryCategory))}
-      {item('Import ProPresenter, Lyrics or Bible…', () => pickFiles(IMPORT_ACCEPT).then((files) => importFiles(files)))}
+      {item('Import Songs, Playlists or Bibles…', () => pickFiles(IMPORT_ACCEPT).then((files) => importFiles(files)))}
       {item('Add Scripture…', onBible)}
       <hr />
       {item('Settings & Shortcuts…', onSettings)}

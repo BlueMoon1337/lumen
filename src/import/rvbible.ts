@@ -1,6 +1,6 @@
-import { strFromU8, unzipSync } from 'fflate';
 import { BOOK_CODES, englishBookName } from '../bible';
 import { attr, decodeXml, parseUsx } from './usx';
+import { readZip } from './zip';
 
 export interface ImportedBibleBook {
   code: string;
@@ -27,14 +27,16 @@ const tagText = (xml: string, tag: string) => {
  * with `metadata.xml`, `rvmetadata.xml` and one USX file per book.
  */
 export function parseRvBible(bytes: Uint8Array, fallbackName = 'Bible'): ImportedBible {
-  let files: Record<string, Uint8Array>;
+  let entries: Map<string, Uint8Array>;
   try {
-    files = unzipSync(bytes, { filter: (f) => /\.(xml|usx)$/i.test(f.name) });
+    entries = readZip(bytes, (name) => /\.(xml|usx)$/i.test(name));
   } catch {
     throw new Error('Not a Bible file (expected a ProPresenter .rvbible).');
   }
+  const utf8 = new TextDecoder('utf-8');
+  const files = Object.fromEntries(entries);
   const find = (re: RegExp) => Object.keys(files).find((n) => re.test(n));
-  const read = (name: string | undefined) => (name ? strFromU8(files[name]) : '');
+  const read = (name: string | undefined) => (name ? utf8.decode(files[name]) : '');
 
   const rvMeta = read(find(/(^|\/)rvmetadata\.xml$/i));
   const dblMeta = read(find(/(^|\/)metadata\.xml$/i));
