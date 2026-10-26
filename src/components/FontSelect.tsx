@@ -2,6 +2,7 @@ import { useMemo } from 'react';
 import { addFontFiles } from '../commands';
 import { BUNDLED_FONTS, cssFamilyFor, FONT_ACCEPT, fontLabel, fontValue, SYSTEM_FONTS, type FontChoice } from '../fonts';
 import { useStore } from '../store';
+import { promptDialog } from './Ask';
 import { pickFiles } from './ui';
 
 const CURRENT = '__current';
@@ -36,8 +37,13 @@ export function FontSelect({ value, onChange, className }: { value: string; onCh
       const [first] = await addFontFiles(await pickFiles(FONT_ACCEPT));
       if (first) onChange(cssFamilyFor(first.family));
     } else if (v === INSTALLED) {
-      const name = prompt('Name of a font installed on this computer, as your font list shows it (for example "Avenir Next"):');
-      if (name?.trim()) onChange(cssFamilyFor(name));
+      const name = await promptDialog({
+        title: 'Use a font installed on this computer',
+        message: 'Type its name as your font list shows it, for example “Avenir Next”.',
+        placeholder: 'Font name',
+        confirmLabel: 'Use Font',
+      });
+      if (name) onChange(cssFamilyFor(name));
     } else if (v !== CURRENT) onChange(v);
   };
 

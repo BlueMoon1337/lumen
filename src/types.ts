@@ -62,7 +62,17 @@ export interface Group {
   slides: Slide[];
 }
 
-export type Category = 'song' | 'scripture' | 'announcement' | 'other';
+/**
+ * The library a presentation is in: the id of one of `LibraryData.libraries`. Lumen's own
+ * four are "song", "scripture", "announcement" and "other"; New Library adds more.
+ */
+export type Category = string;
+
+/** A library in the sidebar (Songs, Scripture…, or one made with File ▸ New Library). */
+export interface Library {
+  id: Category;
+  name: string;
+}
 
 export interface Presentation {
   id: string;

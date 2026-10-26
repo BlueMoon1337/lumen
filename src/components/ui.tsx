@@ -1,4 +1,5 @@
 import { useEffect, useRef, type ReactNode } from 'react';
+import { notify } from '../notices';
 
 const paths = {
   plus: 'M12 5v14M5 12h14',
@@ -231,24 +232,85 @@ export function FilterField({
   );
 }
 
-export function pickFiles(accept: string, multiple = true): Promise<File[]> {
+const IS_MAC = /Mac|iPhone|iPad/.test(navigator.platform);
+
+/** How a shortcut reads on this computer: "⌥⌘C" or "⇧⌘Z" on a Mac, "Ctrl+Alt+C" or "Ctrl+Shift+Z" elsewhere. */
+export const shortcut = (key: string, alt = false, shift = false) =>
+  IS_MAC ? `${alt ? '⌥' : ''}${shift ? '⇧' : ''}⌘${key}` : `Ctrl+${alt ? 'Alt+' : ''}${shift ? 'Shift+' : ''}${key}`;
+
+/** File extensions for the types a file input's `accept` names, for the desktop app's Open panel. */
+const EXTENSIONS_BY_TYPE: Record<string, string[]> = {
+  'image/*': ['jpg', 'jpeg', 'png', 'gif', 'webp', 'heic', 'heif', 'bmp', 'tif', 'tiff', 'avif'],
+  'video/*': ['mp4', 'm4v', 'mov', 'webm', 'mkv'],
+  'audio/*': ['mp3', 'm4a', 'wav', 'aac', 'ogg', 'flac', 'aif', 'aiff'],
+  'text/plain': ['txt'],
+  'application/json': ['json'],
+};
+
+export function extensionsOf(accept: string): string[] {
+  const out = new Set<string>();
+  for (const part of accept.split(',').map((p) => p.trim().toLowerCase())) {
+    if (part.startsWith('.')) out.add(part.slice(1));
+    else for (const ext of EXTENSIONS_BY_TYPE[part] ?? []) out.add(ext);
+  }
+  return [...out];
+}
+
+const opened = (e: unknown) => {
+  notify(`Couldn’t open that: ${e instanceof Error ? e.message : String(e)}`, 'error');
+  return { folder: null, files: [] as File[] };
+};
+
+/**
+ * Asks for files. The desktop app shows the system's Open panel itself: its web view only opens
+ * a file chooser for a click in the page, not for a menu command.
+ */
+export function pickFiles(accept: string, multiple = true, kind = 'Supported Files'): Promise<File[]> {
+  const bridge = window.lumenDesktop;
+  if (bridge)
+    return bridge
+      .openFiles({ extensions: extensionsOf(accept), kind, multiple, folder: false })
+      .catch(opened)
+      .then((r) => r.files);
   return new Promise((resolve) => {
     const input = document.createElement('input');
     input.type = 'file';
     input.accept = accept;
     input.multiple = multiple;
     input.onchange = () => resolve(Array.from(input.files ?? []));
+    input.oncancel = () => resolve([]);
     input.click();
   });
 }
 
-export function downloadFile(name: string, contents: string, type = 'application/json') {
+/** Asks for a folder: its name, and the files in it and its subfolders with these extensions. Nothing when cancelled. */
+export async function pickFolder(extensions: string[]): Promise<{ name: string; files: File[] }> {
+  const bridge = window.lumenDesktop;
+  if (bridge) {
+    const r = await bridge.openFiles({ extensions, kind: 'Folder', multiple: true, folder: true }).catch(opened);
+    return { name: r.folder ?? '', files: r.files };
+  }
+  const files = await new Promise<File[]>((resolve) => {
+    const input = document.createElement('input');
+    input.type = 'file';
+    input.webkitdirectory = true;
+    input.multiple = true;
+    input.onchange = () => resolve(Array.from(input.files ?? []));
+    input.oncancel = () => resolve([]);
+    input.click();
+  });
+  const wanted = (f: File) => extensions.some((ext) => f.name.toLowerCase().endsWith(`.${ext}`)) && !f.name.startsWith('.');
+  return { name: files[0]?.webkitRelativePath.split('/')[0] ?? '', files: files.filter(wanted) };
+}
+
+/** Saves a file through the browser's downloads. The desktop app saves with a Save panel instead (src/components/fileCommands.ts). */
+export function downloadFile(name: string, contents: BlobPart, type = 'application/octet-stream') {
   const url = URL.createObjectURL(new Blob([contents], { type }));
   const a = document.createElement('a');
   a.href = url;
   a.download = name;
   a.click();
-  setTimeout(() => URL.revokeObjectURL(url), 1000);
+  setTimeout(() => URL.revokeObjectURL(url), 10000);
 }
 
 /** Drag payload type for library items dropped onto the playlist. */

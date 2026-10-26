@@ -8,7 +8,10 @@ import { exportLibrary, isLibraryData, useStore } from '../store';
 import type { ColorLabel } from '../types';
 import { IconPicker } from './IconChooser';
 import { TransitionButton } from './TransitionPicker';
-import { Dialog, downloadFile, IconButton, pickFiles } from './ui';
+import { alertDialog, confirmDialog, confirmThen } from './Ask';
+import { deleteBible, deleteFont, undoHint } from './deleting';
+import { saveBytes } from './fileCommands';
+import { Dialog, IconButton, pickFiles } from './ui';
 
 const IS_MAC = /Mac|iPhone|iPad/.test(navigator.platform);
 const MOD = IS_MAC ? '⌘' : 'Ctrl';
@@ -36,16 +39,26 @@ export function SettingsDialog({ onClose, onScreens }: { onClose: () => void; on
   const importJson = async () => {
     const [file] = await pickFiles('.json,application/json', false);
     if (!file) return;
+    let data: unknown;
     try {
-      const data: unknown = JSON.parse(await file.text());
-      if (!isLibraryData(data)) throw new Error();
-      if (confirm('Replace your entire library, playlists and themes with this file?')) {
-        s.importLibrary(data);
-        onClose();
-      }
+      data = JSON.parse(await file.text());
     } catch {
-      alert('That file is not a Lumen library export.');
+      data = null;
     }
+    if (!isLibraryData(data))
+      return alertDialog({
+        title: 'That file isn’t a Lumen backup.',
+        message: 'Choose a file made with Back Up Library. To add songs or playlists, use File ▸ Import instead.',
+      });
+    const replace = await confirmDialog({
+      title: 'Replace your whole library with this backup?',
+      message: `Your presentations, playlists, themes and settings are replaced by the backup’s. ${undoHint()}`,
+      confirmLabel: 'Replace',
+      danger: true,
+    });
+    if (!replace) return;
+    s.importLibrary(data);
+    onClose();
   };
 
   return (
@@ -137,10 +150,7 @@ export function SettingsDialog({ onClose, onScreens }: { onClose: () => void; on
               <b>{b.abbreviation}</b> {b.name}
             </span>
             <span className="muted">{b.books.length} books</span>
-            <button
-              className="btn small danger"
-              onClick={() => confirm(`Remove ${b.abbreviation} from this computer?`) && s.deleteBible(b.id)}
-            >
+            <button className="btn small danger" onClick={() => deleteBible(b.id)}>
               Remove
             </button>
           </div>
@@ -174,7 +184,7 @@ export function SettingsDialog({ onClose, onScreens }: { onClose: () => void; on
               {f.family}
             </span>
             <span className="muted">{faceName(f)}</span>
-            <button className="btn small danger" onClick={() => confirm(`Remove ${f.family} ${faceName(f)}?`) && s.deleteFont(f.id)}>
+            <button className="btn small danger" onClick={() => deleteFont(f.id, `${f.family} ${faceName(f)}`)}>
               Remove
             </button>
           </div>
@@ -195,27 +205,44 @@ export function SettingsDialog({ onClose, onScreens }: { onClose: () => void; on
           <button
             className="btn"
             onClick={() =>
-              downloadFile(`lumen-library-${new Date().toISOString().slice(0, 10)}.json`, JSON.stringify(exportLibrary(), null, 2))
+              void saveBytes(
+                `Lumen Backup ${new Date().toISOString().slice(0, 10)}.json`,
+                new TextEncoder().encode(JSON.stringify(exportLibrary(), null, 2)),
+                'Lumen Backup',
+                ['json'],
+                'application/json',
+              )
             }
           >
-            Export library
+            Back Up Library…
           </button>
-          <button className="btn" onClick={importJson}>
-            Import library
+          <button className="btn" onClick={() => void importJson()}>
+            Restore Backup…
           </button>
           <button
             className="btn danger"
-            onClick={() => {
-              if (!confirm('Erase everything and restore the sample library?')) return;
-              useStore.persist.clearStorage();
-              location.reload();
-            }}
+            onClick={() =>
+              confirmThen(
+                {
+                  title: 'Erase everything and start again with the sample library?',
+                  message:
+                    'Every presentation, playlist, theme and setting is deleted. This can’t be undone, so back up your library first.',
+                  confirmLabel: 'Erase Everything',
+                  danger: true,
+                },
+                () => {
+                  useStore.persist.clearStorage();
+                  location.reload();
+                },
+              )
+            }
           >
-            Reset
+            Reset…
           </button>
         </div>
         <p className="muted small-print">
-          Exports include songs, playlists, themes and messages. Media files and Bible text stay on this computer.
+          A backup holds every presentation, playlist, theme, message and setting; media files and Bible text stay on this computer. To
+          share songs or playlists, use File ▸ Export.
         </p>
       </section>
       <section className="settings-section">
@@ -328,7 +355,11 @@ function PresetList({
         <button
           className="btn"
           disabled={items === defaults}
-          onClick={() => confirm(`Put back the standard ${noun.toLowerCase()}s?`) && onChange(undefined)}
+          onClick={() =>
+            confirmThen({ title: `Put back the standard ${noun.toLowerCase()}s?`, message: undoHint(), confirmLabel: 'Restore' }, () =>
+              onChange(undefined),
+            )
+          }
         >
           Restore Defaults
         </button>

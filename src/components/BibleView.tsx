@@ -22,8 +22,9 @@ import { defaultThemes } from '../seed';
 import type { BibleReferences, BibleSettings, BibleSlot, BibleTranslation, Category, Theme } from '../types';
 import { SlidePreview } from './Canvas';
 import { openContextMenu, type ContextEntries } from './ContextMenu';
+import { deleteBible } from './deleting';
 import { MenuSelect, type MenuEntry } from './MenuSelect';
-import { LIBRARIES } from './Sidebar';
+import { LibraryOptions } from './Sidebar';
 import { Dialog, IconButton, pickFiles, Popover } from './ui';
 
 /** A translation Bible mode can read: imported (on this computer) or online. */
@@ -529,7 +530,7 @@ export function BibleView() {
           onSave={(title, category) => {
             const id = s.saveBible({ title, category });
             setSaving(false);
-            if (id) notify(`Saved “${title}” to ${LIBRARIES.find((l) => l.category === category)?.label ?? 'the library'}.`, 'success');
+            if (id) notify(`Saved “${title}” to ${s.libraries.find((l) => l.id === category)?.name ?? 'the library'}.`, 'success');
           }}
         />
       )}
@@ -694,11 +695,7 @@ function BibleOptions({
           <div className="bible-options-row">
             <span>Import Library</span>
             <select value={b.library} onChange={(e) => update({ library: e.target.value as Category })}>
-              {LIBRARIES.map((l) => (
-                <option key={l.category} value={l.category}>
-                  {l.label}
-                </option>
-              ))}
+              <LibraryOptions />
             </select>
           </div>
           <p className="muted small-print">
@@ -713,10 +710,7 @@ function BibleOptions({
               <span className="list-label">
                 <b>{m.abbreviation}</b> {m.name}
               </span>
-              <button
-                className="btn small danger"
-                onClick={() => confirm(`Remove ${m.abbreviation} from this computer?`) && s.deleteBible(m.id)}
-              >
+              <button className="btn small danger" onClick={() => deleteBible(m.id)}>
                 Remove
               </button>
             </div>
@@ -765,11 +759,7 @@ function SaveDialog({
         <label className="field">
           Library
           <select value={category} onChange={(e) => setCategory(e.target.value as Category)}>
-            {LIBRARIES.map((l) => (
-              <option key={l.category} value={l.category}>
-                {l.label}
-              </option>
-            ))}
+            <LibraryOptions />
           </select>
         </label>
         <div className="dialog-actions">

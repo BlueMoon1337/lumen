@@ -1,5 +1,4 @@
-import { useCallback, useMemo, useState, type ReactNode } from 'react';
-import { IMPORT_ACCEPT, importFiles, newPresentation } from '../commands';
+import { useCallback, useMemo, useState, type MouseEvent, type ReactNode } from 'react';
 import { runHistoryCommand, useHistory } from '../history';
 import { setScreensEnabled, syncBrowserWindows, useDisplays } from '../outputs';
 import { activeOutputs, hostKey } from '../screens';
@@ -7,11 +6,12 @@ import { useStore, type Mode } from '../store';
 import { applyStyles, resolveTheme } from '../theme';
 import type { ScreenKind, TextStyle, Theme } from '../types';
 import { SlidePreview } from './Canvas';
+import { openContextMenu } from './ContextMenu';
+import { fileEntries } from './fileCommands';
 import { FontSelect } from './FontSelect';
-import { shortcut } from './menus';
-import { Icon, IconButton, pickFiles, Popover, type IconName } from './ui';
+import { Icon, IconButton, Popover, shortcut, type IconName } from './ui';
 
-type PopoverName = 'search' | 'text' | 'theme' | 'more';
+type PopoverName = 'search' | 'text' | 'theme';
 
 function Tool({
   icon,
@@ -26,7 +26,7 @@ function Tool({
   label: string;
   active?: boolean;
   disabled?: boolean;
-  onClick: () => void;
+  onClick: (e: MouseEvent<HTMLButtonElement>) => void;
   children?: ReactNode;
   glyph?: ReactNode;
 }) {
@@ -112,11 +112,11 @@ export function Toolbar({ onSettings, onScreens }: { onSettings: () => void; onS
         <Tool icon="edit" label="Edit" active={mode === 'edit'} disabled={!hasSelection} onClick={() => setMode('edit')} />
         <Tool icon="reflow" label="Reflow" active={mode === 'reflow'} disabled={!hasSelection} onClick={() => setMode('reflow')} />
         <Tool icon="bible" label="Bible" active={mode === 'bible'} onClick={() => setMode(mode === 'bible' ? 'show' : 'bible')} />
-        <Tool icon="more" label="More" active={pop === 'more'} onClick={() => toggle('more')}>
-          <Popover open={pop === 'more'} onClose={close} className="menu-pop">
-            <MoreMenu onDone={close} onBible={() => setMode('bible')} onSettings={onSettings} onScreens={onScreens} />
-          </Popover>
-        </Tool>
+        <Tool
+          icon="more"
+          label="More"
+          onClick={(e) => openMoreMenu(e.currentTarget, { onBible: () => setMode('bible'), onSettings, onScreens })}
+        />
       </div>
       <div className="toolbar-spacer" data-tauri-drag-region />
       <div className="tool-group">
@@ -320,41 +320,29 @@ function ThemePopover() {
   );
 }
 
-function MoreMenu({
-  onDone,
-  onBible,
-  onSettings,
-  onScreens,
-}: {
-  onDone: () => void;
-  onBible: () => void;
-  onSettings: () => void;
-  onScreens: () => void;
-}) {
-  const history = useHistory();
-  const item = (label: string, action: () => void, disabled = false, shortcut?: string) => (
-    <button
-      disabled={disabled}
-      onClick={() => {
-        onDone();
-        action();
-      }}
-    >
-      {label}
-      {shortcut && <span className="menu-shortcut">{shortcut}</span>}
-    </button>
-  );
-  return (
-    <div className="menu">
-      {item(history.undo ? `Undo ${history.undo}` : 'Undo', () => runHistoryCommand('undo'), !history.undo, shortcut('Z'))}
-      {item(history.redo ? `Redo ${history.redo}` : 'Redo', () => runHistoryCommand('redo'), !history.redo, shortcut('Z', false, true))}
-      <hr />
-      {item('New Presentation', () => newPresentation(useStore.getState().libraryCategory))}
-      {item('Import Songs, Playlists or Bibles…', () => pickFiles(IMPORT_ACCEPT).then((files) => importFiles(files)))}
-      {item('Bible…', onBible)}
-      <hr />
-      {item('Configure Screens…', onScreens)}
-      {item('Settings & Shortcuts…', onSettings)}
-    </div>
-  );
+/**
+ * More: Undo and Redo, the File menu (New, Import, Export, as in ProPresenter's menu bar, for a
+ * browser, which has none), and the windows.
+ */
+function openMoreMenu(
+  button: HTMLElement,
+  { onBible, onSettings, onScreens }: { onBible: () => void; onSettings: () => void; onScreens: () => void },
+) {
+  const { undo, redo } = useHistory.getState();
+  const r = button.getBoundingClientRect();
+  openContextMenu({ clientX: r.left, clientY: r.bottom + 4, preventDefault() {}, stopPropagation() {}, currentTarget: button }, [
+    { label: undo ? `Undo ${undo}` : 'Undo', shortcut: shortcut('Z'), disabled: !undo, action: () => runHistoryCommand('undo') },
+    {
+      label: redo ? `Redo ${redo}` : 'Redo',
+      shortcut: shortcut('Z', false, true),
+      disabled: !redo,
+      action: () => runHistoryCommand('redo'),
+    },
+    '-',
+    ...fileEntries(),
+    '-',
+    { label: 'Bible…', action: onBible },
+    { label: 'Configure Screens…', shortcut: shortcut('1', true), action: onScreens },
+    { label: 'Settings & Shortcuts…', action: onSettings },
+  ]);
 }

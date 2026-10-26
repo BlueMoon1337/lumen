@@ -1,4 +1,5 @@
 /** The right-click menus: what each thing in the window offers, as in ProPresenter. */
+import { newPresentation } from '../commands';
 import { groupPresets, LABEL_SWATCHES, labelPresets } from '../labels';
 import { colorForGroup } from '../lyrics';
 import type { SlideScope } from '../slideOps';
@@ -14,17 +15,21 @@ import {
   transitionLabel,
   withChanges,
 } from '../transitions';
-import type { Group, MediaItem, Playlist, PlaylistItem, Presentation, Slide, SlideTransition, VideoPlayback } from '../types';
+import type { Group, Library, MediaItem, Playlist, PlaylistItem, Presentation, Slide, SlideTransition, VideoPlayback } from '../types';
 import { NamePopup, openPopupAtMenu, type ContextEntries } from './ContextMenu';
-import { LIBRARIES } from './Sidebar';
-import type { IconName } from './ui';
+import { deleteGroup, deleteLibrary, deleteMedia, deletePlaylist, deletePresentation, deleteSlide, removePlaylistItem } from './deleting';
+import {
+  exportBundle,
+  exportPlaylist,
+  exportPresentation,
+  exportSlideImagesCommand,
+  exportText,
+  importFileCommand,
+  newLibrary,
+  newPlaylist,
+} from './fileCommands';
+import { shortcut, type IconName } from './ui';
 import { setTransitionFor, TargetTransitionPicker, transitionState, type TransitionTarget } from './TransitionPicker';
-
-const IS_MAC = /Mac|iPhone|iPad/.test(navigator.platform);
-
-/** How a shortcut reads on this computer: "⌥⌘C" or "⇧⌘Z" on a Mac, "Ctrl+Alt+C" or "Ctrl+Shift+Z" elsewhere. */
-export const shortcut = (key: string, alt = false, shift = false) =>
-  IS_MAC ? `${alt ? '⌥' : ''}${shift ? '⇧' : ''}⌘${key}` : `Ctrl+${alt ? 'Alt+' : ''}${shift ? 'Shift+' : ''}${key}`;
 
 const st = () => useStore.getState();
 
@@ -184,7 +189,7 @@ export function slideMenu(
     },
     { label: 'Duplicate', shortcut: key('D'), action: () => select(s.duplicateSlide(p.id, slide.id)) },
     { label: 'Insert Blank Slide', action: () => select(s.addSlide(p.id, slide.id)) },
-    { label: 'Delete Slide…', danger: true, action: () => confirm('Delete this slide?') && s.deleteSlide(p.id, slide.id) },
+    { label: 'Delete Slide', shortcut: inEdit ? '⌫' : undefined, danger: true, action: () => deleteSlide(p.id, slide.id) },
     '-',
     ...styleEntries(p, slide, group, inEdit),
     '-',
@@ -250,13 +255,7 @@ export function groupMenu(p: Presentation, group: Group): ContextEntries {
     { label: 'Clear Text Style', disabled: !group.slides.some((sl) => sl.style), action: () => s.clearTextStyle(p.id, scope) },
     { label: 'Transition', submenu: () => transitionEntries({ presentationId: p.id, scope }) },
     '-',
-    {
-      label: 'Delete Group…',
-      danger: true,
-      action: () =>
-        confirm(`Delete “${group.name}” and its ${group.slides.length} slide${group.slides.length === 1 ? '' : 's'}?`) &&
-        s.deleteGroup(p.id, group.id),
-    },
+    { label: group.slides.length > 1 ? 'Delete Group…' : 'Delete Group', danger: true, action: () => deleteGroup(p.id, group.id) },
   ];
 }
 
@@ -289,11 +288,12 @@ export function presentationMenu(p: Presentation, playlistItemId?: string): Cont
     },
     {
       label: 'Library',
-      submenu: LIBRARIES.map((l) => ({
-        label: l.label,
-        checked: p.category === l.category,
-        action: () => s.updatePresentation(p.id, { category: l.category }),
-      })),
+      submenu: () =>
+        st().libraries.map((l) => ({
+          label: l.name,
+          checked: p.category === l.id,
+          action: () => s.updatePresentation(p.id, { category: l.id }),
+        })),
     },
     {
       label: 'Theme',
@@ -353,20 +353,49 @@ export function presentationMenu(p: Presentation, playlistItemId?: string): Cont
         ),
     },
     { label: 'Duplicate', action: () => s.duplicatePresentation(p.id) },
+    {
+      label: 'Export',
+      submenu: [
+        { label: 'Presentation…', action: () => void exportPresentation(p.id) },
+        { label: 'Presentation Bundle…', action: () => void exportBundle(p.id) },
+        { label: 'Text…', action: () => void exportText(p.id) },
+        { label: 'Slide Images…', action: () => exportSlideImagesCommand(p.id) },
+      ],
+    },
+    '-',
     playlistItemId
-      ? { label: 'Remove from Playlist', action: () => s.removePlaylistItem(playlistItemId) }
-      : {
-          label: 'Delete…',
-          danger: true,
-          action: () => confirm(`Delete "${p.title}"? This cannot be undone.`) && s.deletePresentation(p.id),
-        },
+      ? { label: 'Remove from Playlist', shortcut: '⌫', action: () => removePlaylistItem(playlistItemId) }
+      : { label: 'Delete…', shortcut: '⌫', danger: true, action: () => deletePresentation(p.id) },
+    // A presentation in a playlist can be deleted from the library from here too.
+    !!playlistItemId && { label: 'Delete from Library…', danger: true, action: () => deletePresentation(p.id) },
   ];
 }
 
 export function playlistHeaderMenu(item: Extract<PlaylistItem, { type: 'header' }>, onRename: () => void): ContextEntries {
   return [
     { label: 'Rename Header', action: onRename },
-    { label: 'Remove Header', action: () => st().removePlaylistItem(item.id) },
+    { label: 'Remove Header', shortcut: '⌫', action: () => removePlaylistItem(item.id) },
+  ];
+}
+
+export function libraryMenu(lib: Library, onRename: () => void): ContextEntries {
+  const s = st();
+  const open = () => s.setUI({ sidebar: 'library', libraryCategory: lib.id });
+  return [
+    { label: 'Open', action: open },
+    { label: 'Rename…', action: onRename },
+    '-',
+    { label: 'New Presentation', action: () => newPresentation(lib.id) },
+    {
+      label: 'Import Files…',
+      action: () => {
+        open();
+        void importFileCommand(lib.id);
+      },
+    },
+    { label: 'New Library…', action: () => void newLibrary() },
+    '-',
+    { label: 'Delete Library…', danger: true, disabled: s.libraries.length <= 1, action: () => deleteLibrary(lib.id) },
   ];
 }
 
@@ -389,27 +418,14 @@ export function playlistMenu(pl: Playlist, onRename: () => void): ContextEntries
       },
     },
     '-',
-    {
-      label: 'New Playlist…',
-      action: () =>
-        openPopupAtMenu(
-          <NamePopup
-            title="New Playlist"
-            colors={false}
-            action="Create"
-            initial={{ name: 'New Service', color: '' }}
-            onSave={(v) => {
-              s.createPlaylist(v.name);
-              s.setUI({ sidebar: 'playlist' });
-            }}
-          />,
-        ),
-    },
+    { label: 'New Playlist…', action: () => void newPlaylist() },
+    { label: 'Export Playlist…', action: () => void exportPlaylist(pl.id) },
+    '-',
     {
       label: 'Delete Playlist…',
       danger: true,
       disabled: s.playlists.length <= 1,
-      action: () => confirm(`Delete playlist "${pl.name}"?`) && s.deletePlaylist(pl.id),
+      action: () => deletePlaylist(pl.id),
     },
   ];
 }
@@ -484,13 +500,12 @@ export function mediaMenu(m: MediaItem, playlistId?: string | null): ContextEntr
           />,
         ),
     },
-    { label: 'Delete…', danger: true, action: () => confirm(`Delete "${m.name}"?`) && s.deleteMedia(m.id) },
+    { label: 'Delete…', danger: true, action: () => deleteMedia(m.id) },
   ];
 }
 
 /** The text box on Edit mode's canvas. */
 export function canvasMenu(p: Presentation, slide: Slide, group: Group, editText: () => void): ContextEntries {
-  const s = st();
   return [
     { label: 'Edit Text', shortcut: '↩', action: editText },
     '-',
@@ -499,6 +514,6 @@ export function canvasMenu(p: Presentation, slide: Slide, group: Group, editText
     { label: 'Label', swatch: slide.label?.color, submenu: () => labelEntries(p, slide) },
     { label: 'Transition', submenu: () => transitionEntries({ presentationId: p.id, scope: { slideId: slide.id } }) },
     '-',
-    { label: 'Delete Slide…', danger: true, action: () => confirm('Delete this slide?') && s.deleteSlide(p.id, slide.id) },
+    { label: 'Delete Slide', danger: true, action: () => deleteSlide(p.id, slide.id) },
   ];
 }

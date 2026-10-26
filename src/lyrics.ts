@@ -90,6 +90,43 @@ export function parseLyrics(text: string): { groups: Group[]; arrangement: strin
   return { groups, arrangement };
 }
 
+/**
+ * Text with a new slide every `n` lines, for text with no blank lines between its slides
+ * (lyrics copied from a web page, say). Blank lines and [Group] headers still start one.
+ */
+export function slidesEvery(text: string, n: number): string {
+  const out: string[] = [];
+  let lines = 0;
+  for (const raw of text.replace(/\r\n?/g, '\n').split('\n')) {
+    const line = raw.trim();
+    if (!line || HEADER.test(line)) {
+      if (out.length && out[out.length - 1] !== '') out.push('');
+      if (line) out.push(line);
+      lines = 0;
+      continue;
+    }
+    if (lines === n) {
+      out.push('');
+      lines = 0;
+    }
+    out.push(line);
+    lines++;
+  }
+  return out.join('\n');
+}
+
+/** A title for text: its first line that isn't a [Group] header, without closing punctuation. */
+export function titleFromText(text: string): string {
+  const line = text
+    .split(/\r?\n/)
+    .map((l) => l.trim())
+    .find((l) => l && !HEADER.test(l));
+  return (line ?? '')
+    .replace(/[.,;:!?]+$/, '')
+    .slice(0, 60)
+    .trim();
+}
+
 /** Inverse of parseLyrics, used to load a presentation into the text editor. */
 export function presentationToText(p: Presentation): string {
   const seen = new Set<string>();

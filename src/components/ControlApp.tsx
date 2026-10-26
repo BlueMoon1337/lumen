@@ -8,6 +8,7 @@ import { dismiss, useNotices } from '../notices';
 import { setScreensEnabled, startScreenManager } from '../outputs';
 import { useStore } from '../store';
 import { isTypingTarget } from '../util';
+import { AskHost } from './Ask';
 import { AudioPlayer } from './AudioPlayer';
 import { BibleView } from './BibleView';
 import { ClearGroupsDialog } from './ClearGroups';
@@ -15,6 +16,8 @@ import { MediaClock } from './MediaClock';
 import { ContextMenuHost } from './ContextMenu';
 import { LabelsDialog, SettingsDialog } from './Dialogs';
 import { EditView, findSlide } from './EditView';
+import { exportTarget, importFileCommand, newPresentationCommand, runFileCommand } from './fileCommands';
+import { ExportThemesDialog, SlideImagesDialog, TextImportDialog } from './FileDialogs';
 import { WelcomeDialog } from './IconChooser';
 import { LivePanel } from './LivePanel';
 import { MediaContent, MediaSidebar } from './MediaBin';
@@ -211,6 +214,41 @@ function useScreenCommands(configure: () => void) {
   }, [configure]);
 }
 
+/**
+ * File menu commands. The desktop app's menu sends them (with ⌘N and ⇧⌘I); in a browser those
+ * keys are caught here, where the browser lets them through. The desktop menu's Export items
+ * follow whether a presentation is selected.
+ */
+function useFileCommands() {
+  useEffect(() => {
+    const bridge = window.lumenDesktop;
+    if (bridge) {
+      const stopMenu = bridge.onMenu((command) => runFileCommand(command));
+      let selected: boolean | null = null;
+      const sync = () => {
+        const now = !!exportTarget();
+        if (now !== selected) bridge.setFileState({ presentation: (selected = now) });
+      };
+      sync();
+      const stopSync = useStore.subscribe(sync);
+      return () => {
+        stopMenu();
+        stopSync();
+      };
+    }
+    const onKey = (e: KeyboardEvent) => {
+      if (!(e.metaKey || e.ctrlKey) || e.altKey || isTypingTarget(e.target)) return;
+      const action =
+        e.code === 'KeyI' && e.shiftKey ? () => void importFileCommand() : e.code === 'KeyN' && !e.shiftKey ? newPresentationCommand : null;
+      if (!action) return;
+      e.preventDefault();
+      action();
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, []);
+}
+
 function Notices() {
   const notices = useNotices((s) => s.notices);
   if (!notices.length) return null;
@@ -333,6 +371,7 @@ export default function ControlApp() {
     void deleteUnusedBlobs(new Set([...media.map((m) => m.id), ...fonts.map((f) => f.id)])).catch(() => {});
   }, []);
   useUndoKeys();
+  useFileCommands();
   useAutoAdvance();
   useEffect(() => startScreenManager(), []);
   const openScreens = useCallback(() => setDialog('screens'), [setDialog]);
@@ -389,10 +428,14 @@ export default function ControlApp() {
       {dialog === 'screens' && <ScreenConfigDialog onClose={() => setDialog(null)} />}
       {dialog === 'labels' && <LabelsDialog onClose={() => setDialog(null)} />}
       {dialog === 'clearGroups' && <ClearGroupsDialog onClose={() => setDialog(null)} />}
+      {dialog === 'textImport' && <TextImportDialog onClose={() => setDialog(null)} />}
+      {dialog === 'slideImages' && <SlideImagesDialog onClose={() => setDialog(null)} />}
+      {dialog === 'exportThemes' && <ExportThemesDialog onClose={() => setDialog(null)} />}
       {editingTheme && <ThemeEditorDialog />}
       {!appIcon && <WelcomeDialog />}
       <Notices />
       <ContextMenuHost />
+      <AskHost />
       <AudioPlayer />
       <MediaClock />
     </div>

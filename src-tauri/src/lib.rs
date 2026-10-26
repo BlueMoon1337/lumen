@@ -1,10 +1,11 @@
 //! Lumen's desktop app: hosts the operator window and opens output windows on the
 //! connected displays. The interface itself is the web app in src/; this side gives it
-//! the display list, output windows, the Screens menu and the app icon (see the
-//! `DesktopBridge` in src/outputs.ts and src/desktop.ts).
+//! the display list, output windows, the File and Screens menus, Save panels, the clipboard
+//! and the app icon (see the `DesktopBridge` in src/outputs.ts and src/desktop.ts).
 
 mod camera;
 mod displays;
+mod files;
 mod icon;
 mod menu;
 mod outputs;
@@ -15,7 +16,11 @@ use tauri::{Manager, WebviewUrl, WebviewWindowBuilder};
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
+        .plugin(tauri_plugin_dialog::init())
+        .plugin(tauri_plugin_clipboard_manager::init())
         .manage(outputs::Outputs::default())
+        .manage(files::ExportFolder::default())
+        .manage(files::OpenedFiles::default())
         .on_permission_request(camera::on_permission_request)
         .invoke_handler(tauri::generate_handler![
             displays::get_displays,
@@ -23,15 +28,23 @@ pub fn run() {
             outputs::open_outputs,
             menu::set_menu_state,
             menu::set_undo_state,
+            menu::set_file_state,
+            files::open_files,
+            files::read_opened_file,
+            files::save_file,
+            files::choose_export_folder,
+            files::write_export_file,
+            files::read_clipboard_text,
             icon::set_app_icon,
         ])
         .setup(|app| {
             let handle = app.handle();
             icon::load(handle);
-            let (menu, screens, edit) = menu::build(handle)?;
+            let (menu, screens, edit, file) = menu::build(handle)?;
             app.set_menu(menu)?;
             app.manage(screens);
             app.manage(edit);
+            app.manage(file);
 
             let main = WebviewWindowBuilder::new(app, "main", WebviewUrl::default())
                 .title("Lumen")

@@ -1,17 +1,27 @@
 import { useMemo, useState, type DragEvent } from 'react';
-import { IMPORT_ACCEPT, importFiles, newPresentation } from '../commands';
+import { importFiles, newPresentation } from '../commands';
 import { useStore } from '../store';
-import type { Category, Playlist } from '../types';
-import { openContextMenu } from './ContextMenu';
-import { playlistHeaderMenu, playlistMenu, presentationMenu } from './menus';
-import { DRAG_PLAYLIST_ITEM, DRAG_PRESENTATION, FilterField, Icon, IconButton, pickFiles, SectionHeader } from './ui';
+import type { Category } from '../types';
+import { isTypingTarget } from '../util';
+import { openContextMenu, type ContextEntries } from './ContextMenu';
+import { deleteLibrary, deletePlaylist, deletePresentation, removePlaylistItem } from './deleting';
+import { importFileCommand, newLibrary, newPlaylist } from './fileCommands';
+import { libraryMenu, playlistHeaderMenu, playlistMenu, presentationMenu } from './menus';
+import { DRAG_PLAYLIST_ITEM, DRAG_PRESENTATION, FilterField, Icon, IconButton, pickFiles, SectionHeader, type IconName } from './ui';
 
-export const LIBRARIES: { category: Category; label: string }[] = [
-  { category: 'song', label: 'Songs' },
-  { category: 'scripture', label: 'Scripture' },
-  { category: 'announcement', label: 'Announcements' },
-  { category: 'other', label: 'Other' },
-];
+/** The libraries as options, for a library menu. */
+export function LibraryOptions() {
+  const libraries = useStore((s) => s.libraries);
+  return (
+    <>
+      {libraries.map((l) => (
+        <option key={l.id} value={l.id}>
+          {l.name}
+        </option>
+      ))}
+    </>
+  );
+}
 
 const hasDrag = (e: DragEvent, type: string) => e.dataTransfer.types.includes(type);
 
@@ -29,38 +39,60 @@ export function Sidebar() {
 function Collections() {
   const sidebar = useStore((s) => s.sidebar);
   const category = useStore((s) => s.libraryCategory);
+  const libraries = useStore((s) => s.libraries);
   const playlists = useStore((s) => s.playlists);
   const activeId = useStore((s) => s.activePlaylistId);
   const s = useStore.getState();
   const [libOpen, setLibOpen] = useState(true);
   const [plOpen, setPlOpen] = useState(true);
   const [dropTarget, setDropTarget] = useState<string | null>(null);
+  const [renaming, setRenaming] = useState<string | null>(null);
 
   return (
-    <div className="collections">
+    <div
+      className="collections"
+      tabIndex={-1}
+      onKeyDown={(e) => {
+        // Delete removes the open library or playlist (after asking).
+        if ((e.key !== 'Delete' && e.key !== 'Backspace') || isTypingTarget(e.target) || renaming) return;
+        e.preventDefault();
+        if (sidebar === 'library') deleteLibrary(category);
+        else deletePlaylist(activeId);
+      }}
+    >
       <SectionHeader
         title="Library"
-        onAdd={() => newPresentation(category)}
-        addTitle="New presentation"
+        onAdd={() => void newLibrary()}
+        addTitle="New library"
         collapsed={!libOpen}
         onToggle={() => setLibOpen(!libOpen)}
       >
         <IconButton
           icon="download"
           title="Import ProPresenter songs (.pro), playlists (.proplaylist), lyrics (.txt) or Bibles (.rvbible)"
-          onClick={() => pickFiles(IMPORT_ACCEPT).then((files) => importFiles(files))}
+          onClick={() => void importFileCommand()}
         />
       </SectionHeader>
       {libOpen &&
-        LIBRARIES.map((lib) => (
-          <div
-            key={lib.category}
-            className={`collection-row ${sidebar === 'library' && category === lib.category ? 'selected' : ''} ${dropTarget === lib.category ? 'drop' : ''}`}
-            onClick={() => s.setUI({ sidebar: 'library', libraryCategory: lib.category })}
+        libraries.map((lib) => (
+          <CollectionRow
+            key={lib.id}
+            icon={lib.id === 'scripture' ? 'bible' : 'library'}
+            kind="library"
+            name={lib.name}
+            selected={sidebar === 'library' && category === lib.id}
+            drop={dropTarget === lib.id}
+            renaming={renaming === lib.id}
+            setRenaming={(on) => setRenaming(on ? lib.id : null)}
+            onOpen={() => s.setUI({ sidebar: 'library', libraryCategory: lib.id })}
+            onRename={(name) => s.renameLibrary(lib.id, name)}
+            onDelete={libraries.length > 1 ? () => deleteLibrary(lib.id) : undefined}
+            menu={() => libraryMenu(lib, () => setRenaming(lib.id))}
+            title="Double-click to rename. Drop presentations or files here to add them."
             onDragOver={(e) => {
               if (hasDrag(e, DRAG_PRESENTATION) || hasDrag(e, 'Files')) {
                 e.preventDefault();
-                setDropTarget(lib.category);
+                setDropTarget(lib.id);
               }
             }}
             onDragLeave={() => setDropTarget(null)}
@@ -68,25 +100,14 @@ function Collections() {
               e.preventDefault();
               setDropTarget(null);
               const id = e.dataTransfer.getData(DRAG_PRESENTATION);
-              if (id) s.updatePresentation(id, { category: lib.category });
-              else void importFiles(Array.from(e.dataTransfer.files), lib.category);
+              if (id) s.updatePresentation(id, { category: lib.id });
+              else void importFiles(Array.from(e.dataTransfer.files), lib.id);
             }}
-          >
-            <span className="collection-icon library">
-              <Icon name={lib.category === 'scripture' ? 'bible' : 'library'} size={14} />
-            </span>
-            <span className="list-label">{lib.label}</span>
-          </div>
+          />
         ))}
       <SectionHeader
         title="Playlist"
-        onAdd={() => {
-          const name = prompt('New playlist name', 'New Service');
-          if (name?.trim()) {
-            s.createPlaylist(name.trim());
-            s.setUI({ sidebar: 'playlist' });
-          }
-        }}
+        onAdd={() => void newPlaylist()}
         addTitle="New playlist"
         collapsed={!plOpen}
         onToggle={() => setPlOpen(!plOpen)}
@@ -99,91 +120,115 @@ function Collections() {
       </SectionHeader>
       {plOpen &&
         playlists.map((pl) => (
-          <PlaylistRow
+          <CollectionRow
             key={pl.id}
-            playlist={pl}
+            icon="playlist"
+            kind="playlist"
+            name={pl.name}
             selected={sidebar === 'playlist' && activeId === pl.id}
             drop={dropTarget === pl.id}
-            setDrop={(on) => setDropTarget(on ? pl.id : null)}
-            canDelete={playlists.length > 1}
+            renaming={renaming === pl.id}
+            setRenaming={(on) => setRenaming(on ? pl.id : null)}
+            onOpen={() => {
+              s.setActivePlaylist(pl.id);
+              s.setUI({ sidebar: 'playlist' });
+            }}
+            onRename={(name) => s.renamePlaylist(pl.id, name)}
+            onDelete={playlists.length > 1 ? () => deletePlaylist(pl.id) : undefined}
+            menu={() => playlistMenu(pl, () => setRenaming(pl.id))}
+            title="Double-click to rename. Drop presentations here to add them."
+            onDragOver={(e) => {
+              if (hasDrag(e, DRAG_PRESENTATION)) {
+                e.preventDefault();
+                setDropTarget(pl.id);
+              }
+            }}
+            onDragLeave={() => setDropTarget(null)}
+            onDrop={(e) => {
+              e.preventDefault();
+              setDropTarget(null);
+              const id = e.dataTransfer.getData(DRAG_PRESENTATION);
+              if (id) s.addToPlaylist(id, undefined, pl.id);
+            }}
           />
         ))}
     </div>
   );
 }
 
-function PlaylistRow({
-  playlist,
+/** A library or playlist in the sidebar: click to open, double-click to rename, right-click for more. */
+function CollectionRow({
+  icon,
+  kind,
+  name,
   selected,
   drop,
-  setDrop,
-  canDelete,
+  renaming,
+  setRenaming,
+  onOpen,
+  onRename,
+  onDelete,
+  menu,
+  title,
+  onDragOver,
+  onDragLeave,
+  onDrop,
 }: {
-  playlist: Playlist;
+  icon: IconName;
+  kind: 'library' | 'playlist';
+  name: string;
   selected: boolean;
   drop: boolean;
-  setDrop: (on: boolean) => void;
-  canDelete: boolean;
+  renaming: boolean;
+  setRenaming: (on: boolean) => void;
+  onOpen: () => void;
+  onRename: (name: string) => void;
+  onDelete?: () => void;
+  menu: () => ContextEntries;
+  title: string;
+  onDragOver: (e: DragEvent) => void;
+  onDragLeave: () => void;
+  onDrop: (e: DragEvent) => void;
 }) {
-  const s = useStore.getState();
-  const [renaming, setRenaming] = useState(false);
   return (
     <div
       className={`collection-row ${selected ? 'selected' : ''} ${drop ? 'drop' : ''}`}
-      onClick={() => {
-        s.setActivePlaylist(playlist.id);
-        s.setUI({ sidebar: 'playlist' });
-      }}
+      onClick={onOpen}
       onDoubleClick={() => setRenaming(true)}
-      onContextMenu={(e) =>
-        openContextMenu(
-          e,
-          playlistMenu(playlist, () => setRenaming(true)),
-        )
-      }
-      onDragOver={(e) => {
-        if (hasDrag(e, DRAG_PRESENTATION)) {
-          e.preventDefault();
-          setDrop(true);
-        }
+      onContextMenu={(e) => {
+        onOpen();
+        openContextMenu(e, menu());
       }}
-      onDragLeave={() => setDrop(false)}
-      onDrop={(e) => {
-        e.preventDefault();
-        setDrop(false);
-        const id = e.dataTransfer.getData(DRAG_PRESENTATION);
-        if (id) s.addToPlaylist(id, undefined, playlist.id);
-      }}
-      title="Double-click to rename. Drop presentations here to add them."
+      onDragOver={onDragOver}
+      onDragLeave={onDragLeave}
+      onDrop={onDrop}
+      title={title}
     >
-      <span className="collection-icon playlist">
-        <Icon name="playlist" size={14} />
+      <span className={`collection-icon ${kind}`}>
+        <Icon name={icon} size={14} />
       </span>
       {renaming ? (
         <input
           autoFocus
-          defaultValue={playlist.name}
+          defaultValue={name}
           onClick={(e) => e.stopPropagation()}
+          onFocus={(e) => e.target.select()}
           onBlur={(e) => {
-            if (e.target.value.trim()) s.renamePlaylist(playlist.id, e.target.value.trim());
+            if (e.target.value.trim()) onRename(e.target.value.trim());
             setRenaming(false);
           }}
           onKeyDown={(e) => {
             if (e.key === 'Enter') (e.target as HTMLInputElement).blur();
             if (e.key === 'Escape') setRenaming(false);
           }}
+          aria-label={`${kind === 'library' ? 'Library' : 'Playlist'} name`}
         />
       ) : (
-        <span className="list-label">{playlist.name}</span>
+        <span className="list-label">{name}</span>
       )}
-      {canDelete && (
+      {onDelete && !renaming && (
         <span className="row-actions">
-          <IconButton
-            icon="trash"
-            title="Delete playlist"
-            danger
-            onClick={() => confirm(`Delete playlist "${playlist.name}"?`) && s.deletePlaylist(playlist.id)}
-          />
+          <IconButton icon="trash" title={`Delete ${kind}`} danger onClick={onDelete} />
         </span>
       )}
     </div>
@@ -240,7 +285,15 @@ function LibraryItems() {
         onAdd={() => newPresentation(category)}
         addTitle="New presentation"
       />
-      <ul className="item-list">
+      <ul
+        className="item-list"
+        tabIndex={-1}
+        onKeyDown={(e) => {
+          if ((e.key !== 'Delete' && e.key !== 'Backspace') || !selectedId || selectedItem || isTypingTarget(e.target)) return;
+          e.preventDefault();
+          deletePresentation(selectedId);
+        }}
+      >
         {list.map((p) => (
           <li
             key={p.id}
@@ -248,7 +301,10 @@ function LibraryItems() {
             draggable
             onDragStart={(e) => e.dataTransfer.setData(DRAG_PRESENTATION, p.id)}
             onClick={() => s.select(p.id)}
-            onContextMenu={(e) => openContextMenu(e, presentationMenu(p))}
+            onContextMenu={(e) => {
+              s.select(p.id);
+              openContextMenu(e, presentationMenu(p));
+            }}
           >
             <ItemIcon category={p.category} announcements={p.destination === 'announcements'} />
             <span className="list-label">{p.title}</span>
@@ -256,12 +312,7 @@ function LibraryItems() {
             <span className="row-actions">
               <IconButton icon="plus" title="Add to playlist" onClick={() => s.addToPlaylist(p.id)} />
               <IconButton icon="copy" title="Duplicate" onClick={() => s.duplicatePresentation(p.id)} />
-              <IconButton
-                icon="trash"
-                title="Delete"
-                danger
-                onClick={() => confirm(`Delete "${p.title}"? This cannot be undone.`) && s.deletePresentation(p.id)}
-              />
+              <IconButton icon="trash" title="Delete" danger onClick={() => deletePresentation(p.id)} />
             </span>
           </li>
         ))}
@@ -321,7 +372,16 @@ function PlaylistItems() {
         onAdd={() => s.addPlaylistHeader('Header')}
         addTitle="Add header"
       />
-      <ul className="item-list">
+      <ul
+        className="item-list"
+        tabIndex={-1}
+        onKeyDown={(e) => {
+          // Delete takes the selected entry out of the playlist; the presentation stays in the library.
+          if ((e.key !== 'Delete' && e.key !== 'Backspace') || !selectedItem || isTypingTarget(e.target)) return;
+          e.preventDefault();
+          removePlaylistItem(selectedItem);
+        }}
+      >
         {items.map((item, index) => {
           if (!visible(index)) return null;
           const drop = dropIndex === index ? 'drop-before' : dropIndex === index + 1 && index === items.length - 1 ? 'drop-after' : '';
@@ -358,7 +418,7 @@ function PlaylistItems() {
                   <span className="list-label">{item.label}</span>
                 )}
                 <span className="row-actions">
-                  <IconButton icon="close" title="Remove header" onClick={() => s.removePlaylistItem(item.id)} />
+                  <IconButton icon="close" title="Remove header" onClick={() => removePlaylistItem(item.id)} />
                 </span>
               </li>
             );
@@ -370,17 +430,19 @@ function PlaylistItems() {
               className={`item-row ${selectedItem === item.id ? 'selected' : ''} ${drop}`}
               {...common}
               onClick={() => s.select(item.presentationId, item.id)}
-              onContextMenu={(e) =>
-                p
-                  ? openContextMenu(e, presentationMenu(p, item.id))
-                  : openContextMenu(e, [{ label: 'Remove from Playlist', action: () => s.removePlaylistItem(item.id) }])
-              }
+              onContextMenu={(e) => {
+                s.select(item.presentationId, item.id);
+                openContextMenu(
+                  e,
+                  p ? presentationMenu(p, item.id) : [{ label: 'Remove from Playlist', action: () => removePlaylistItem(item.id) }],
+                );
+              }}
             >
               <ItemIcon category={p?.category} announcements={p?.destination === 'announcements'} />
               <span className="list-label">{p?.title ?? 'Missing presentation'}</span>
               {(liveItem === item.id || announcementItem === item.id) && <span className="live-dot" title="Live" />}
               <span className="row-actions">
-                <IconButton icon="close" title="Remove from playlist" onClick={() => s.removePlaylistItem(item.id)} />
+                <IconButton icon="close" title="Remove from playlist" onClick={() => removePlaylistItem(item.id)} />
               </span>
             </li>
           );

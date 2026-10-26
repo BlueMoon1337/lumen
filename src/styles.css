@@ -4226,6 +4226,60 @@ body.resizing-y * {
   flex: 1;
 }
 
+/* ---- Confirm, prompt and alert boxes ---- */
+
+.dialog-backdrop.ask-backdrop {
+  z-index: 400;
+  background: rgba(0, 0, 0, 0.45);
+}
+
+.dialog.ask {
+  width: min(400px, 100%);
+}
+
+.dialog.ask .dialog-body {
+  gap: 10px;
+  padding: 18px 18px 16px;
+}
+
+.ask-title {
+  margin: 0;
+  font-size: 14px;
+  font-weight: 600;
+  line-height: 1.35;
+  overflow-wrap: anywhere;
+}
+
+.ask-message {
+  margin: 0;
+  color: var(--muted);
+  line-height: 1.45;
+  overflow-wrap: anywhere;
+}
+
+.dialog.ask input {
+  width: 100%;
+}
+
+.dialog.ask .dialog-actions {
+  margin-top: 6px;
+}
+
+.btn.destructive {
+  background: #c9302c;
+  color: #fff;
+  font-weight: 600;
+}
+
+.btn.destructive:hover:not(:disabled) {
+  background: #dc3d38;
+}
+
+.btn:focus-visible {
+  outline: 2px solid var(--accent, #4c8dff);
+  outline-offset: 2px;
+}
+
 /* ---- Checkerboard for transparent slides ---- */
 
 .checker {
@@ -4972,4 +5026,54 @@ body.resizing-y * {
 
 .import-empty .small-print {
   margin-top: -4px;
+}
+
+/* ---- File ▸ Import ▸ Text from Clipboard, File ▸ Export ---- */
+
+.dialog.text-import-dialog {
+  width: min(720px, 100%);
+}
+
+.text-import-fields {
+  display: grid;
+  grid-template-columns: 2fr 1fr 1fr;
+  gap: 10px;
+}
+
+@media (max-width: 600px) {
+  .text-import-fields {
+    grid-template-columns: 1fr;
+  }
+}
+
+.text-import-text {
+  min-height: 300px;
+  resize: vertical;
+  font-size: 13px;
+  line-height: 1.5;
+  padding: 10px 12px;
+}
+
+.text-import-dialog .dialog-actions {
+  align-items: center;
+}
+
+.text-import-count {
+  margin: 0;
+}
+
+.theme-checks {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  max-height: 300px;
+  overflow-y: auto;
+  padding-left: 22px;
+}
+
+/* Lists take the focus for the Delete key; a click shouldn't draw a ring round them. */
+.collections:focus,
+.item-list:focus,
+.outline-list:focus {
+  outline: none;
 }

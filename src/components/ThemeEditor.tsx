@@ -2,6 +2,7 @@ import type { ReactNode } from 'react';
 import { useStore } from '../store';
 import type { Theme, ThemeTextBox } from '../types';
 import { SlidePreview } from './Canvas';
+import { deleteTheme } from './deleting';
 import { FontSelect } from './FontSelect';
 import { Dialog } from './ui';
 
@@ -28,6 +29,7 @@ export function Row({ label, children }: { label: string; children: ReactNode })
 
 export function ThemeEditorDialog() {
   const t = useStore((s) => s.themes.find((x) => x.id === s.editingThemeId));
+  const onlyTheme = useStore((s) => s.themes.length <= 1);
   const isDefault = useStore((s) => s.settings.defaultThemeId === s.editingThemeId);
   const media = useStore((s) => s.media);
   const s = useStore.getState();
@@ -61,13 +63,8 @@ export function ThemeEditorDialog() {
             <button className="btn" onClick={() => s.createTheme(t)}>
               Duplicate
             </button>
-            <button
-              className="btn danger"
-              onClick={() => {
-                if (confirm(`Delete theme "${t.name}"? Presentations using it switch to the default.`)) s.deleteTheme(t.id);
-              }}
-            >
-              Delete
+            <button className="btn danger" disabled={onlyTheme} onClick={() => deleteTheme(t.id)}>
+              Delete…
             </button>
           </div>
           <p className="muted small-print">Text shrinks automatically when a slide has too much to fit at the maximum size.</p>

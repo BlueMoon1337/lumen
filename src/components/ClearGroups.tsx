@@ -3,6 +3,8 @@ import { CLEAR_GROUP_ICONS, clearGroupsOf, DEFAULT_CLEAR_GROUPS, isLayerLive, la
 import { useStore } from '../store';
 import type { ClearGroup, ClearLayer } from '../types';
 import { uid } from '../util';
+import { confirmThen } from './Ask';
+import { undoHint } from './deleting';
 import { openContextMenu } from './ContextMenu';
 import { MenuSelect } from './MenuSelect';
 import { Dialog, Icon, IconButton, type IconName } from './ui';
@@ -125,7 +127,11 @@ export function ClearGroupsDialog({ onClose }: { onClose: () => void }) {
         <button
           className="btn"
           disabled={groups === DEFAULT_CLEAR_GROUPS}
-          onClick={() => confirm('Put back the standard clear groups?') && save(undefined)}
+          onClick={() =>
+            confirmThen({ title: 'Put back the standard clear groups?', message: undoHint(), confirmLabel: 'Restore' }, () =>
+              save(undefined),
+            )
+          }
         >
           Restore Defaults
         </button>

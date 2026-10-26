@@ -13,6 +13,7 @@ import { DEFAULT_TRANSITION, fromMs } from './transitions';
 import { ALL_LAYERS, clearLive } from './layers';
 import type {
   Category,
+  Library,
   MediaPlaylist,
   ClearLayer,
   ColorLabel,
@@ -55,6 +56,29 @@ export interface LibraryData {
   screens: ScreenSetup;
   /** The media bin's playlists. */
   mediaPlaylists: MediaPlaylist[];
+  /** The libraries presentations are kept in, in sidebar order. */
+  libraries: Library[];
+}
+
+/** The libraries a new Lumen starts with. */
+export const DEFAULT_LIBRARIES: Library[] = [
+  { id: 'song', name: 'Songs' },
+  { id: 'scripture', name: 'Scripture' },
+  { id: 'announcement', name: 'Announcements' },
+  { id: 'other', name: 'Other' },
+];
+
+/**
+ * The libraries, with one added back for any presentation whose library is missing (from an
+ * older version, or an imported backup), so no presentation is left out of the sidebar.
+ */
+export function librariesFor(libraries: Library[] | undefined, presentations: Record<string, Presentation>): Library[] {
+  const list = libraries?.length ? [...libraries] : [...DEFAULT_LIBRARIES];
+  for (const p of Object.values(presentations)) {
+    if (p.hidden || list.some((l) => l.id === p.category)) continue;
+    list.push(DEFAULT_LIBRARIES.find((l) => l.id === p.category) ?? { id: p.category, name: p.category || 'Library' });
+  }
+  return list;
 }
 
 export type Mode = 'show' | 'edit' | 'reflow' | 'bible';
@@ -82,8 +106,8 @@ interface UIState {
   styleClipboard: TextStyle | null;
   /** Copied slides, for Paste. */
   slideClipboard: Slide[] | null;
-  /** The open window: Settings, Screen Configuration, Groups & Labels, or Clear Groups. */
-  dialog: 'settings' | 'screens' | 'labels' | 'clearGroups' | null;
+  /** The open window: Settings, Screen Configuration, Groups & Labels, Clear Groups, or one of File's. */
+  dialog: 'settings' | 'screens' | 'labels' | 'clearGroups' | 'textImport' | 'slideImages' | 'exportThemes' | null;
 }
 
 interface Actions {
@@ -93,6 +117,8 @@ interface Actions {
   createPresentation(init: Partial<Presentation> & { title: string }, text?: string): string;
   updatePresentation(id: string, patch: Partial<Presentation>): void;
   setPresentationText(id: string, text: string): void;
+  /** Adds presentations as they are (an imported file's), keeping their ids. */
+  addPresentations(list: Presentation[]): void;
   duplicatePresentation(id: string): string | null;
   deletePresentation(id: string): void;
 
@@ -133,14 +159,23 @@ interface Actions {
   addPlaylist(name: string, items: PlaylistItem[]): string;
   renamePlaylist(id: string, name: string): void;
   deletePlaylist(id: string): void;
+  /** Adds a library to the sidebar, opens it and returns its id. */
+  createLibrary(name: string): Category;
+  renameLibrary(id: Category, name: string): void;
+  /** Deletes a library and the presentations in it (they come out of playlists too). One library always stays. */
+  deleteLibrary(id: Category): void;
   setActivePlaylist(id: string): void;
 
   createTheme(from?: Theme): string;
+  /** Adds themes as they are (an imported file's), keeping their ids. */
+  addThemes(themes: Theme[]): void;
   updateTheme(id: string, patch: Partial<Theme>): void;
   deleteTheme(id: string): void;
 
   /** Imports images, videos and audio (into a media playlist, if given) and returns what was added. */
   addMediaFiles(files: File[], playlistId?: string | null): Promise<MediaItem[]>;
+  /** Adds media whose files are already stored (from an imported bundle). */
+  addMedia(items: MediaItem[]): void;
   deleteMedia(id: string): void;
   updateMedia(id: string, patch: Partial<Pick<MediaItem, 'name' | 'loop' | 'playback'>>): void;
   createMediaPlaylist(name: string): string;
@@ -244,6 +279,7 @@ function initialLibrary(): LibraryData {
     fonts: [],
     screens: defaultScreenSetup(),
     mediaPlaylists: [],
+    libraries: DEFAULT_LIBRARIES,
   };
 }
 
@@ -436,7 +472,7 @@ export const useStore = create<AppState>()(
         createPresentation: (init, text = '') => {
           const id = uid();
           const p: Presentation = {
-            category: 'song',
+            category: get().libraries[0]?.id ?? 'song',
             groups: [],
             arrangement: [],
             ...init,
@@ -453,6 +489,8 @@ export const useStore = create<AppState>()(
             if (!p) return {};
             return { presentations: { ...s.presentations, [id]: { ...p, ...patch, updatedAt: Date.now() } } };
           }),
+        addPresentations: (list) =>
+          set((s) => ({ presentations: { ...s.presentations, ...Object.fromEntries(list.map((p) => [p.id, p])) } })),
         setPresentationText: (id, text) => {
           const p = get().presentations[id];
           if (p) get().updatePresentation(id, mergeParsed(p, parseLyrics(text)));
@@ -472,7 +510,11 @@ export const useStore = create<AppState>()(
                 items: pl.items.filter((it) => it.type !== 'presentation' || it.presentationId !== id),
               })),
               selectedPresentationId: s.selectedPresentationId === id ? null : s.selectedPresentationId,
-              live: s.live.slide?.presentationId === id ? { ...s.live, slide: null } : s.live,
+              selectedPlaylistItemId: s.selectedPresentationId === id ? null : s.selectedPlaylistItemId,
+              live: clearLive(s.live, [
+                ...(s.live.slide?.presentationId === id ? (['slide'] as const) : []),
+                ...(s.live.announcement?.presentationId === id ? (['announcements'] as const) : []),
+              ]),
             };
           }),
 
@@ -626,12 +668,36 @@ export const useStore = create<AppState>()(
           }),
         setActivePlaylist: (id) => set({ activePlaylistId: id, selectedPlaylistItemId: null }),
 
+        createLibrary: (name) => {
+          const library: Library = { id: uid(), name };
+          set((s) => ({ libraries: [...s.libraries, library], sidebar: 'library', libraryCategory: library.id }));
+          return library.id;
+        },
+        renameLibrary: (id, name) => set((s) => ({ libraries: s.libraries.map((l) => (l.id === id ? { ...l, name } : l)) })),
+        deleteLibrary: (id) => {
+          const s = get();
+          if (s.libraries.length <= 1 || !s.libraries.some((l) => l.id === id)) return;
+          for (const p of Object.values(s.presentations)) if (p.category === id && !p.hidden) get().deletePresentation(p.id);
+          set((st) => {
+            const libraries = st.libraries.filter((l) => l.id !== id);
+            const at = st.libraries.findIndex((l) => l.id === id);
+            const next = libraries[Math.min(at, libraries.length - 1)].id;
+            return {
+              libraries,
+              libraryCategory: st.libraryCategory === id ? next : st.libraryCategory,
+              settings:
+                st.settings.bible?.library === id ? { ...st.settings, bible: { ...st.settings.bible, library: next } } : st.settings,
+            };
+          });
+        },
+
         createTheme: (from) => {
           const base = from ?? get().themes[0] ?? defaultThemes[0];
           const theme: Theme = { ...structuredClone(base), id: uid(), name: from ? `${from.name} (copy)` : 'New Theme' };
           set((s) => ({ themes: [...s.themes, theme], editingThemeId: theme.id }));
           return theme.id;
         },
+        addThemes: (themes) => set((s) => ({ themes: [...s.themes, ...themes.filter((t) => !s.themes.some((x) => x.id === t.id))] })),
         updateTheme: (id, patch) => set((s) => ({ themes: s.themes.map((t) => (t.id === id ? { ...t, ...patch } : t)) })),
         deleteTheme: (id) =>
           set((s) => {
@@ -674,6 +740,7 @@ export const useStore = create<AppState>()(
             );
           return added;
         },
+        addMedia: (items) => set((s) => ({ media: [...s.media, ...items.filter((m) => !s.media.some((x) => x.id === m.id))] })),
         // The file stays until the next launch (deleteUnusedBlobs), so Undo can bring it back.
         deleteMedia: (id) =>
           set((s) => ({
@@ -682,12 +749,17 @@ export const useStore = create<AppState>()(
             presentations: Object.fromEntries(
               Object.entries(s.presentations).map(([pid, p]) => [
                 pid,
-                p.groups.some((g) => g.slides.some((sl) => sl.media === id))
+                p.groups.some((g) => g.slides.some((sl) => sl.media === id || sl.background?.mediaId === id))
                   ? {
                       ...p,
                       groups: p.groups.map((g) => ({
                         ...g,
-                        slides: g.slides.map((sl) => (sl.media === id ? { ...sl, media: undefined } : sl)),
+                        slides: g.slides.map((sl) => ({
+                          ...sl,
+                          media: sl.media === id ? undefined : sl.media,
+                          // A slide whose background was this goes back to its theme's.
+                          background: sl.background?.mediaId === id ? undefined : sl.background,
+                        })),
                       })),
                     }
                   : p,
@@ -854,7 +926,12 @@ export const useStore = create<AppState>()(
         saveBible: ({ title, category, playlistId }) => {
           const draft = get().presentations[BIBLE_DRAFT_ID];
           if (!draft) return null;
-          const id = get().createPresentation({ title, category, themeId: draft.themeId, ...cloneGroups(draft) });
+          // The library chosen may have been deleted since.
+          const { libraries } = get();
+          const library = libraries.some((l) => l.id === category)
+            ? category
+            : (libraries.find((l) => l.id === 'scripture') ?? libraries[0]).id;
+          const id = get().createPresentation({ title, category: library, themeId: draft.themeId, ...cloneGroups(draft) });
           if (playlistId) get().addToPlaylist(id, undefined, playlistId);
           return id;
         },
@@ -974,6 +1051,7 @@ export const useStore = create<AppState>()(
             ...upgradeTransitions(data),
             bibles: data.bibles ?? [],
             mediaPlaylists: data.mediaPlaylists ?? [],
+            libraries: librariesFor(data.libraries, data.presentations),
             fonts: data.fonts ?? [],
             screens: normalizeScreens(data.screens),
             selectedPresentationId: null,
@@ -985,7 +1063,7 @@ export const useStore = create<AppState>()(
     },
     {
       name: 'lumen-library',
-      version: 4,
+      version: 5,
       migrate: (persisted, version) => {
         const saved = persisted as Partial<LibraryData>;
         const addTheme = (id: string) => {
@@ -996,6 +1074,8 @@ export const useStore = create<AppState>()(
         if (version < 2) addTheme('theme-copperplate');
         if (version < 3) addTheme('theme-bible');
         if (version < 4) upgradeTransitions(saved);
+        // Version 5 made libraries a list that can grow (New Library).
+        if (version < 5) saved.libraries = librariesFor(saved.libraries, saved.presentations ?? {});
         return saved as LibraryData;
       },
       // Saved settings from older versions may lack newer keys.
@@ -1020,6 +1100,7 @@ export const useStore = create<AppState>()(
         fonts: s.fonts,
         screens: s.screens,
         mediaPlaylists: s.mediaPlaylists,
+        libraries: s.libraries,
       }),
     },
   ),

@@ -27,6 +27,22 @@ export interface DesktopBridge {
   setUndoState(state: { undo: string | null; redo: string | null }): void;
   /** Dock (macOS), taskbar and window icons. */
   setAppIcon(id: AppIconId): void;
+  /** Turns File ▸ Export's presentation items on or off. */
+  setFileState(state: { presentation: boolean }): void;
+  /** Shows the Save panel and writes the file; the path it went to, or null when cancelled. */
+  saveFile(file: { name: string; data: Uint8Array; kind: string; extensions: string[] }): Promise<string | null>;
+  /** Asks for a folder to export several files into; its path, or null when cancelled. */
+  chooseExportFolder(): Promise<string | null>;
+  /** Writes a file into the folder chosen last. */
+  writeExportFile(name: string, data: Uint8Array): Promise<void>;
+  readClipboardText(): Promise<string | null>;
+  /** Shows the Open panel for files (or a folder, giving the files in it with those extensions). */
+  openFiles(options: {
+    extensions: string[];
+    kind: string;
+    multiple: boolean;
+    folder: boolean;
+  }): Promise<{ folder: string | null; files: File[] }>;
 }
 
 declare global {

@@ -8,6 +8,7 @@ import type { MediaItem, MediaPlaylist } from '../types';
 import { formatDuration } from '../util';
 import { CameraFill } from './Canvas';
 import { NamePopup, openContextMenu, openPopupBelow } from './ContextMenu';
+import { deleteMedia, deleteMediaPlaylist } from './deleting';
 import { mediaMenu } from './menus';
 import { TransitionButton } from './TransitionPicker';
 import { DRAG_MEDIA, FilterField, Icon, IconButton, pickFiles, SectionHeader } from './ui';
@@ -123,9 +124,7 @@ function MediaPlaylistRow({ playlist }: { playlist: MediaPlaylist }) {
           {
             label: 'Delete Playlist…',
             danger: true,
-            action: () =>
-              confirm(`Delete the media playlist "${playlist.name}"? Its media stays in the media bin.`) &&
-              s.deleteMediaPlaylist(playlist.id),
+            action: () => deleteMediaPlaylist(playlist.id),
           },
         ]);
       }}
@@ -255,7 +254,7 @@ function MediaTile({ item, live, logo, playlistId }: { item: MediaItem; live: bo
             active={logo}
             onClick={() => s.updateSettings({ logoMediaId: logo ? undefined : item.id })}
           />
-          <IconButton icon="trash" title="Delete" danger onClick={() => confirm(`Delete "${item.name}"?`) && s.deleteMedia(item.id)} />
+          <IconButton icon="trash" title="Delete" danger onClick={() => deleteMedia(item.id)} />
         </span>
       </div>
     </div>

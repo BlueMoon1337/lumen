@@ -4,6 +4,7 @@ import { notify } from '../notices';
 import { useStore } from '../store';
 import type { MediaItem } from '../types';
 import { NamePopup, openContextMenu, openPopupAtMenu } from './ContextMenu';
+import { deleteMedia } from './deleting';
 import { Icon, IconButton, pickFiles, SectionHeader } from './ui';
 
 const importAudio = async (files?: File[]) => {
@@ -31,7 +32,7 @@ function audioMenu(m: MediaItem, playing: boolean) {
           />,
         ),
     },
-    { label: 'Delete…', danger: true, action: () => confirm(`Delete "${m.name}"?`) && s.deleteMedia(m.id) },
+    { label: 'Delete…', danger: true, action: () => deleteMedia(m.id) },
   ];
 }
 

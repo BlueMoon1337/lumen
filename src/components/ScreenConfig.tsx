@@ -19,6 +19,7 @@ import {
 } from '../screens';
 import { useStore } from '../store';
 import type { CornerPin, OutputColor, OutputTarget, ScreenConfig, ScreenKind, ScreenMode, ScreenOutput, TestPattern } from '../types';
+import { confirmThen } from './Ask';
 import { MenuSelect, type MenuEntry } from './MenuSelect';
 import { Dialog, IconButton, Popover } from './ui';
 
@@ -398,12 +399,16 @@ function ScreenHeader({ screen, canRemove, onRemoved }: { screen: ScreenConfig; 
           icon="trash"
           title="Remove this screen"
           danger
-          onClick={() => {
-            if (!confirm(`Remove ${screen.name}?`)) return;
-            s.removeScreen(screen.id);
-            onRemoved();
-            resync();
-          }}
+          onClick={() =>
+            confirmThen(
+              { title: `Remove ${screen.name}?`, message: 'Its outputs stop showing anything.', confirmLabel: 'Remove', danger: true },
+              () => {
+                s.removeScreen(screen.id);
+                onRemoved();
+                resync();
+              },
+            )
+          }
         />
       )}
     </header>

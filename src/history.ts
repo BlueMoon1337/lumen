@@ -26,7 +26,7 @@ const SETTING_KEYS = [
 ] as const;
 type SettingKey = (typeof SETTING_KEYS)[number];
 
-type Doc = Pick<AppState, 'presentations' | 'themes' | 'playlists' | 'messages' | 'media' | 'mediaPlaylists'> & {
+type Doc = Pick<AppState, 'presentations' | 'themes' | 'playlists' | 'messages' | 'media' | 'mediaPlaylists' | 'libraries'> & {
   settings: Pick<Settings, SettingKey>;
 };
 
@@ -67,6 +67,7 @@ function docOf(s: AppState): Doc {
     messages: s.messages,
     media: s.media,
     mediaPlaylists: s.mediaPlaylists,
+    libraries: s.libraries,
     settings: Object.fromEntries(SETTING_KEYS.map((k) => [k, s.settings[k]])) as Doc['settings'],
   };
 }
@@ -76,7 +77,7 @@ const visible = (all: Record<string, Presentation>) => Object.entries(all).filte
 /** Whether the library changed. Bible mode's working passage (a hidden presentation) doesn't count. */
 function docChanged(a: AppState, b: AppState): boolean {
   if (a.themes !== b.themes || a.playlists !== b.playlists || a.messages !== b.messages || a.media !== b.media) return true;
-  if (a.mediaPlaylists !== b.mediaPlaylists) return true;
+  if (a.mediaPlaylists !== b.mediaPlaylists || a.libraries !== b.libraries) return true;
   if (SETTING_KEYS.some((k) => a.settings[k] !== b.settings[k])) return true;
   if (a.presentations === b.presentations) return false;
   const before = visible(a.presentations);
@@ -108,6 +109,8 @@ function restore(doc: Doc) {
       messages: doc.messages,
       media: doc.media,
       mediaPlaylists: doc.mediaPlaylists,
+      libraries: doc.libraries,
+      libraryCategory: doc.libraries.some((l) => l.id === s.libraryCategory) ? s.libraryCategory : doc.libraries[0].id,
       settings: { ...s.settings, ...doc.settings },
       selectedPresentationId: s.selectedPresentationId && presentations[s.selectedPresentationId] ? s.selectedPresentationId : null,
       selectedPlaylistItemId: inPlaylist(s.selectedPlaylistItemId) ? s.selectedPlaylistItemId : null,
@@ -238,6 +241,7 @@ const LABELS: Record<string, string | ((args: unknown[]) => string)> = {
       'Edit Presentation',
     ),
   setPresentationText: 'Reflow',
+  addPresentations: 'Import',
   duplicatePresentation: 'Duplicate Presentation',
   deletePresentation: 'Delete Presentation',
   updateSlide: ([, , patch]) =>
@@ -287,7 +291,12 @@ const LABELS: Record<string, string | ((args: unknown[]) => string)> = {
   addPlaylist: 'Import Playlist',
   renamePlaylist: 'Rename Playlist',
   deletePlaylist: 'Delete Playlist',
+  createLibrary: 'New Library',
+  renameLibrary: 'Rename Library',
+  deleteLibrary: 'Delete Library',
   createTheme: 'New Theme',
+  addThemes: 'Import Themes',
+  addMedia: 'Import Media',
   updateTheme: 'Edit Theme',
   deleteTheme: 'Delete Theme',
   addMediaFiles: 'Import Media',
@@ -339,6 +348,7 @@ const CONTINUOUS = new Set([
   'setTransition',
   'updatePlaylistItem',
   'renamePlaylist',
+  'renameLibrary',
   'updateTheme',
   'updateMedia',
   'updateMessage',

@@ -20,6 +20,8 @@ import {
 import type { Presentation, Settings, SlideTransition, TransitionKind } from '../types';
 import { Transition } from './Canvas';
 import { openPopupBelow } from './ContextMenu';
+import { confirmThen } from './Ask';
+import { undoHint } from './deleting';
 
 const GLYPHS: Record<TransitionKind, string> = {
   cut: 'M3 6h7v12H3zM14 6h7v12h-7z',
@@ -371,7 +373,16 @@ function LevelActions({ level, ctx, value, groupName }: { level: Level; ctx: Pan
           type="button"
           className="btn small"
           title="Every presentation and slide uses the global transition"
-          onClick={() => confirm('Use the global transition for every presentation and slide?') && s.clearPresentationTransitions()}
+          onClick={() =>
+            confirmThen(
+              {
+                title: 'Use the global transition for every presentation and slide?',
+                message: `Their own transitions are cleared. ${undoHint()}`,
+                confirmLabel: 'Use Global',
+              },
+              () => s.clearPresentationTransitions(),
+            )
+          }
         >
           Use Global Everywhere
         </button>

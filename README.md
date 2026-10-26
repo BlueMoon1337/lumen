@@ -64,13 +64,14 @@ npm run format       # Prettier
 | Screens menu and Screen Configuration (⌥⌘1)                                                                                          | Same layout: Audience and Stage lists with on/off switches and +, Identify Screens, Test Patterns, then per screen its name, size, Screen Color, Outputs, the output tiles, and Hardware / Color / Corner Pin / Alpha Key tabs. See Screens below. |
 | Bible: reference with Book › Chapter › Verse menu, Search, Options; translation with Verse and Reference boxes, License, +; Save As… | Same layout and options. See Bible below.                                                                                                                                                                                                          |
 | Dividers between the panes (library, slides, media bin, live panel, and above the live panel’s tabs)                                 | Same: drag to resize, double-click to reset. Edit mode’s slide list and inspector resize too. Sizes are kept.                                                                                                                                      |
-| Library and Playlist at the top left, items below with a Filter                                                                      | Same. Libraries are Songs, Scripture, Announcements and Other. Drag a presentation onto a playlist name to add it.                                                                                                                                 |
+| Library and Playlist at the top left, items below with a Filter                                                                      | Same. Libraries are Songs, Scripture, Announcements and Other, plus any made with **New Library**. Drag a presentation onto a library or playlist name to move or add it.                                                                          |
 | Slide grid with numbered, colored group labels                                                                                       | Same. Click a slide to go live (orange border), double-click to edit it.                                                                                                                                                                           |
 | Media bin along the bottom, with Playlists                                                                                           | Same: All Media / Images / Videos, media Playlists and Video Inputs on the left. Click an item to play it on the Media layer, or a camera to show it underneath. Drag a video onto a slide to play it with that slide.                             |
 | Preview with clear buttons on its right edge, ✕ for Clear All, Clear Groups underneath                                               | Same column in the same order: Audio, Messages, Logo (where ProPresenter has Props), Announcements, Slide, Media, Video Input. Each lights up while its layer is live. Clear Groups clear several layers at once.                                  |
 | Screen picker, transport, and Audio / Stage / Timers / Messages / Props tabs                                                         | Same. The Audio tab is the audio bin.                                                                                                                                                                                                              |
 | Edit: slide list with group headers, Objects, canvas with rulers, Presentation / Slide inspector                                     | Same. Drag or resize the text box, double-click to type on the slide. The Text tab formats one slide.                                                                                                                                              |
 | Reflow                                                                                                                               | Type the whole song as text with `[Verse 1]` headers.                                                                                                                                                                                              |
+| File menu: New Presentation, New Playlist, New Library, Import ▸, Export ▸                                                           | Same, in the desktop app's menu bar and at the top of **More**. Import has File…, Library…, Media…, Text from Clipboard… and Import Bible…; Export has Presentation…, Presentation Bundle…, Text…, Slide Images…, Playlist… and Themes…. No Print. |
 | Right-click menus                                                                                                                    | Same: slides, group headers, the Edit canvas, library and playlist items, playlists, headers and media each have one. See Slides, groups and labels below.                                                                                         |
 | Copy Style / Paste Style (⌥⌘C / ⌥⌘V)                                                                                                 | Same: right-click a slide, or the Text tab's Copy Style and Paste Style buttons. Paste onto one slide, a group, or every slide.                                                                                                                    |
 | Group and Label (right-click a slide), Edit Groups…                                                                                  | Same. Picking a group starts it at that slide. Labels are colored tags on the thumbnails. **Edit Groups & Labels…** sets the lists.                                                                                                                |
@@ -99,13 +100,15 @@ npm run format       # Prettier
 - **Stage display** showing the current and next slide, notes, clock, timer, and a flashing message to the stage.
 - **ProPresenter import** of `.pro` presentations, `.proplaylist` playlists and `.rvbible` Bibles (see below).
 - **Bible mode**, laid out like ProPresenter's (see Bible below), from imported Bibles (offline) or public-domain translations via [bible-api.com](https://bible-api.com).
-- **Persistence**: everything saves automatically, and the library exports to and imports from JSON.
+- **File menu** like ProPresenter's: new presentations, playlists and libraries; import songs, folders, media, text from the clipboard and Bibles; export presentations, bundles, text, slide images, playlists and themes (see The File menu below).
+- **Deleting** that asks first for anything holding other things, goes straight away for a slide, and can always be undone (see Deleting below).
+- **Persistence**: everything saves automatically, and Settings backs the whole library up to a file and restores it.
 
 ## Slides, groups and labels
 
 Right-click a slide (in Show mode's grid or list, or Edit mode's slide list) for:
 
-- **Show Slide**, **Edit Slide**, **Cut / Copy / Paste / Duplicate**, **Insert Blank Slide**, **Delete Slide…**. Copied slides paste into any presentation, Bible verses included.
+- **Show Slide**, **Edit Slide**, **Cut / Copy / Paste / Duplicate**, **Insert Blank Slide**, **Delete Slide**. Copied slides paste into any presentation, Bible verses included.
 - **Copy Text Style** and **Paste Text Style**: the font, size, weight, color, caps and alignment as the slide shows them (not the text box's position). **Paste Text Style To** puts it on the slide's group or every slide; on every slide it becomes the presentation's formatting. **Clear Text Style** goes back to the theme.
 - **Group**: Verse 1–4, Pre-Chorus, Chorus, Bridge, Tag, Vamp, Intro, Interlude, Outro, Ending, or **New Group…**. As in ProPresenter, a group starts at the slide you pick it on, and the slides after it in its old group come along. Picking a group on a group's first slide renames and recolors that group.
 - **Label**: a colored tag on the thumbnail, a cue for whoever runs slides (Welcome, Prayer, Offering, Key Change, Last Time…), or **Custom Label…**.
@@ -154,6 +157,44 @@ A slide comes on screen with its own transition, else its presentation's, else t
 - In a text field, ⌘Z undoes the typing, as usual; click outside it to undo whole steps.
 - Showing slides, clearing the screen, Bible mode's passage, screen setup, pane sizes and other preferences aren't edits and stay as they are.
 - Up to 200 steps, until Lumen is closed. A deleted media file is kept until the next launch, so undoing brings it back.
+
+## Deleting
+
+Everything can be deleted from its right-click menu, its trash button, or the **Delete** (⌫) key:
+
+| What                                   | How                                                                                                                                                  |
+| -------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------- |
+| A presentation                         | Select it in the library and press Delete, or its trash button. Lumen asks first, saying which playlists it comes out of and whether it's on screen. |
+| An item in a playlist                  | Select it and press Delete: it comes out of the playlist (the presentation stays in the library) and the next item is selected.                      |
+| A slide                                | In Edit mode, select it in the slide list and press Delete; or right-click any slide. It goes straight away, and the next slide is selected.         |
+| A group                                | Right-click its header in Edit mode. A group of several slides asks first.                                                                           |
+| A library or playlist                  | Right-click it, use its trash button, or select it and press Delete. Deleting a library deletes the presentations in it, after asking.               |
+| Media, themes, media playlists         | Right-click, or the trash button. Lumen says which slides and themes use the media.                                                                  |
+| Imported Bibles, added fonts, a screen | Settings and Screen Configuration. These are files on the computer rather than library edits, so they can't be undone.                               |
+
+Anything else can be undone with ⌘Z, and the note at the bottom of the window says so. Lumen's questions are its own windows (Return answers yes, Escape no), so they work the same in the desktop app, whose web view has no browser dialogs.
+
+## The File menu
+
+In the desktop app it's in the menu bar; in a browser it's at the top of **More**.
+
+- **New Presentation** (⌘N) opens a new, empty presentation in Reflow, in the open library.
+- **New Playlist** and **New Library** ask for a name. Libraries can be renamed (double-click) and deleted like playlists, and a presentation can be moved between them by dragging it onto one or from its **Library** menu.
+- **Import ▸**
+  - **File…** (⇧⌘I): ProPresenter `.pro` presentations and `.proplaylist` playlists, `.txt` lyrics, `.rvbible` Bibles, and Lumen's own exports. Songs go into the open library.
+  - **Library…**: choose a folder (a ProPresenter library folder, or any folder of `.pro` and `.txt` files). It becomes a new library named after the folder.
+  - **Media…**: images (iPhone HEIC photos become JPEG) and videos to the media bin, and audio to the Audio tab.
+  - **Text from Clipboard…**: the copied text in a window, with a title, a library, and where new slides start: at blank lines, or every 1, 2 or 4 lines. `[Chorus]`-style headers make groups. **Paste** reads the clipboard again.
+  - **Import Bible…**: a ProPresenter `.rvbible`, for Bible mode.
+- **Export ▸** (the first four export the selected presentation; right-click a presentation for them too)
+  - **Presentation…**: a `.lumen` file with its slides and the theme it uses.
+  - **Presentation Bundle…**: a `.lumenbundle` with the images and videos its slides and theme use as well.
+  - **Text…**: the words as `.txt`, with `[Group]` headers, which imports back.
+  - **Slide Images…**: every slide as it looks on screen, as JPEG or PNG at 1280×720, 1920×1080 or 3840×2160. The desktop app asks for a folder; a browser downloads a `.zip`.
+  - **Playlist…**: the open playlist as a `.lumenplaylist`, with its presentations, themes and media.
+  - **Themes…**: the themes you tick, as a `.lumenthemes` file, with their background media.
+
+Importing a Lumen file adds its presentations as new ones (to the open library), and its playlist, themes and media. A theme or media file the library already has is shared rather than copied. Exports save through the system's Save panel in the desktop app, and as downloads in a browser. To move everything to another computer, use **Settings ▸ Back Up Library…** and **Restore Backup…**.
 
 ## Videos and the media bin
 
@@ -230,7 +271,7 @@ Open **Configure Screens…** from the Screens menu (desktop app), the More menu
 
 ## Importing from ProPresenter
 
-Use the import buttons in the Library and Playlist headers, **More → Import**, or drag files onto the sidebar. You can select many files at once.
+Use **File ▸ Import ▸ File…** (⇧⌘I), the import buttons in the Library and Playlist headers, or drag files onto the sidebar. You can select many files at once. **Import ▸ Library…** brings in a whole ProPresenter library folder as a new library.
 
 | File                                     | What comes across                                                                                                                                                                                                                                                                                                                                                                                    |
 | ---------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
@@ -239,7 +280,7 @@ Use the import buttons in the Library and Playlist headers, **More → Import**,
 | `.rvbible` (ProPresenter Bible)          | The whole translation, stored on this computer so lookups work offline. Pick it in **Bible** mode and type references in the Bible's language or in English: `Juan 3:16-18`, `Sal 23`, `1 Co 13`, `John 3:16`. Manage imported Bibles in Settings.                                                                                                                                                   |
 | `.txt`                                   | Lyrics in the Reflow format below.                                                                                                                                                                                                                                                                                                                                                                   |
 
-Songs already in your library (same title and slides) are reused rather than duplicated, so re-importing is safe. ProPresenter 6 files (`.pro6`) aren't supported yet. Bible text and media stay on the computer; library exports don't include them. Check that your licence covers projecting the translations you import.
+Songs already in your library (same title and slides) are reused rather than duplicated, so re-importing is safe. ProPresenter 6 files (`.pro6`) aren't supported yet. Bible text and media stay on the computer; library backups don't include them. Check that your licence covers projecting the translations you import.
 
 ## Bible
 
@@ -306,6 +347,9 @@ Was blind, but now I see.
 | `⌘1` / `⌘2` (Ctrl on Windows)  | Audience / Stage screens on or off (browsers may keep these for switching tabs) |
 | `⌥⌘1` (Ctrl+Alt+1)             | Configure Screens                                                               |
 | `⌘Z` / `⇧⌘Z` (Ctrl+Z / Ctrl+Y) | Undo / redo                                                                     |
+| `⌘N` (Ctrl+N)                  | New presentation (in a browser, only where the browser lets the key through)    |
+| `⇧⌘I` (Ctrl+Shift+I)           | Import a file                                                                   |
+| `Delete` / `⌫`                 | Delete the selected presentation, playlist item, slide (Edit mode), or library  |
 | `⌥⌘C` / `⌥⌘V` (Ctrl+Alt+C/V)   | Edit mode: copy / paste the selected slide's text style                         |
 | `⌘X` `⌘C` `⌘V` `⌘D` (Ctrl)     | Edit mode: cut, copy, paste, duplicate the selected slide                       |
 
@@ -329,7 +373,9 @@ src/
   bible.ts         imported and online Bibles: storage, reference parsing (local + English book names), lookups
   bibleSlides.ts   Bible mode's slides: verses into the template's boxes, references, verse numbers, parallel translations
   versification.ts chapter and verse counts of the 66 books, for online translations
-  commands.ts      new presentation, file import
+  commands.ts      new presentation, file import (ProPresenter files, lyrics, Bibles and Lumen's own)
+  fileFormats.ts   Lumen's export files (.lumen, .lumenbundle, .lumenplaylist, .lumenthemes): writing, reading, importing
+  slideImages.ts   drawing slides onto a canvas for Export ▸ Slide Images
   import/          readers for ProPresenter .pro (protobuf + RTF), .proplaylist and .rvbible (zip of USX books),
                    and a zip reader that tolerates ProPresenter's Zip64 layout
   frame.ts         derives the OutputFrame from the store
@@ -341,7 +387,11 @@ src/
   outputs.ts       display detection and hot-plug, opening and closing output windows (desktop app windows or browser popups)
   components/
     ControlApp     window layout per mode and keyboard shortcuts
-    Toolbar        ProPresenter-style toolbar with Search / Text / Theme / More popovers
+    fileCommands   the File menu: New, Import and Export, saving through the desktop app or downloads
+    FileDialogs    Text from Clipboard, Export Slide Images and Export Themes windows
+    Ask            Lumen's own confirm, prompt and alert boxes (the desktop web view has none)
+    deleting       deleting each kind of thing: what it asks, and the Delete key's notes
+    Toolbar        ProPresenter-style toolbar with Search / Text / Theme popovers and the More menu
     Sidebar        Library and Playlist collections with their items
     ShowView       slide grid and list
     MediaBin       media sidebar (media, playlists, video inputs) and bin, importing with a playability check
@@ -368,7 +418,8 @@ src-tauri/          the desktop app (Tauri, Rust)
   src/displays.rs  display list with real names (macOS: from AppKit), hot-plug watcher
   src/outputs.rs   output windows: one fullscreen per display, or a window per output without one
   src/camera.rs    lets the web views open cameras (Video Input)
-  src/menu.rs      menu bar with the Screens menu, and Edit's Undo and Redo named after the next step
+  src/menu.rs      menu bar: File (New, Import, Export), Edit's Undo and Redo named after the next step, Screens
+  src/files.rs     Open and Save panels, the slide-image folder, and the clipboard, for the File menu
   src/icon.rs      app icon choice: Dock on macOS, window icons elsewhere, remembered on disk
   icons/           the packaged app's icon (Projector) and the four choices
 design/icons/      .svg sources of the four icons
@@ -390,5 +441,6 @@ HEIC photos are decoded with [libheif](https://github.com/strukturag/libheif), t
 - Remote control from a phone over WebSocket
 - NDI and Syphon outputs (listed in Screen Configuration's Output menu), or capture-card output for livestreams
 - Import ProPresenter 6, media bundled in playlists, OpenLP, OpenSong, CCLI SongSelect and Planning Center
+- Export to ProPresenter's own `.pro` format
 - CCLI usage reporting
 - Signed and notarized installers, and automatic updates

@@ -18,16 +18,18 @@ import { useMedia } from '../media';
 import { useStore } from '../store';
 import { applyStyles, inkFor, resolveTheme, slideTheme, toFrameBackground } from '../theme';
 import type { Category, Group, MediaItem, Presentation, Slide, TextStyle, Theme, ThemeBackground } from '../types';
+import { isTypingTarget } from '../util';
 import { BackgroundFill, CANVAS_H, CANVAS_W, MediaStill, slideBoxStyle, SlidePreview, SlideText, slideTextStyle } from './Canvas';
 import { NamePopup, openContextMenu, openPopupBelow } from './ContextMenu';
+import { deleteSlide } from './deleting';
 import { FontSelect } from './FontSelect';
 import { MenuSelect, type MenuEntry } from './MenuSelect';
-import { canvasMenu, groupMenu, shortcut, slideMenu } from './menus';
+import { canvasMenu, groupMenu, slideMenu } from './menus';
 import { LabelTag, MediaBadge, TransitionBadge, useMediaDrop } from './ShowView';
-import { LIBRARIES } from './Sidebar';
+import { LibraryOptions } from './Sidebar';
 import { AlignButtons } from './Toolbar';
 import { TransitionButton } from './TransitionPicker';
-import { Icon, IconButton, Popover } from './ui';
+import { Icon, IconButton, Popover, shortcut } from './ui';
 
 export function findSlide(p: Presentation, id: string | null): { group: Group; slide: Slide } | null {
   for (const group of p.groups) {
@@ -114,7 +116,16 @@ export function EditOutline({ presentation: p, showObjects }: { presentation: Pr
           }}
         />
       </div>
-      <div className="outline-list">
+      <div
+        className="outline-list"
+        tabIndex={-1}
+        onKeyDown={(e) => {
+          // Delete removes the selected slide, as in ProPresenter; Undo brings it back.
+          if ((e.key !== 'Delete' && e.key !== 'Backspace') || !selectedId || isTypingTarget(e.target)) return;
+          e.preventDefault();
+          deleteSlide(p.id, selectedId);
+        }}
+      >
         {p.groups.map((g) => {
           const start = counter;
           counter += g.slides.length;
@@ -655,11 +666,7 @@ function PresentationTab({ presentation: p }: { presentation: Presentation }) {
         </Field>
         <Field label="Library">
           <select value={p.category} onChange={(e) => update({ category: e.target.value as Category })}>
-            {LIBRARIES.map((l) => (
-              <option key={l.category} value={l.category}>
-                {l.label}
-              </option>
-            ))}
+            <LibraryOptions />
           </select>
         </Field>
         <Field label="Size">
@@ -981,7 +988,7 @@ function SlideTab({ presentation: p, slide, group }: { presentation: Presentatio
         <button className="btn" onClick={() => s.openEditor(s.duplicateSlide(p.id, slide.id))}>
           Duplicate Slide
         </button>
-        <button className="btn danger" onClick={() => confirm('Delete this slide?') && s.deleteSlide(p.id, slide.id)}>
+        <button className="btn danger" onClick={() => deleteSlide(p.id, slide.id)}>
           Delete Slide
         </button>
       </div>

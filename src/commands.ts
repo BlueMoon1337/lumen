@@ -1,4 +1,5 @@
 import { putBibleText, type BibleMeta } from './bible';
+import { readLumenFile, planImport } from './fileFormats';
 import { COPPERPLATE, faceName, readFontInfo, splitFontCollection } from './fonts';
 import { parseProPlaylist } from './import/proplaylist';
 import { parseProPresenter7, type ImportedPresentation } from './import/propresenter';
@@ -11,8 +12,35 @@ import { useStore } from './store';
 import type { Category, FontMeta, Group, PlaylistItem } from './types';
 import { uid } from './util';
 
-/** File types the Import command and drag-and-drop accept. */
-export const IMPORT_ACCEPT = '.pro,.proplaylist,.txt,.rvbible,text/plain';
+/** File types File ▸ Import ▸ File… and drag-and-drop accept. */
+export const IMPORT_ACCEPT = '.pro,.proplaylist,.txt,.rvbible,.lumen,.lumenbundle,.lumenplaylist,.lumenthemes,text/plain';
+
+export interface LumenImportResult {
+  presentationIds: string[];
+  playlistId: string | null;
+  playlistName: string | null;
+  themes: number;
+  media: number;
+}
+
+/** Imports a Lumen file (File ▸ Export's): its presentations into `category`, and its playlist, themes and media. */
+export async function importLumenFile(file: File, category: Category): Promise<LumenImportResult> {
+  const { file: data, blobs } = readLumenFile(new Uint8Array(await file.arrayBuffer()));
+  const s = useStore.getState();
+  const plan = planImport(s, data, blobs, category);
+  for (const m of plan.media) await putMediaBlob(m.id, new Blob([blobs.get(m.id)!.slice()], { type: m.mime }));
+  if (plan.media.length) s.addMedia(plan.media);
+  if (plan.themes.length) s.addThemes(plan.themes);
+  if (plan.presentations.length) s.addPresentations(plan.presentations);
+  const playlistId = plan.playlist ? s.addPlaylist(plan.playlist.name, plan.playlist.items) : null;
+  return {
+    presentationIds: plan.presentations.map((p) => p.id),
+    playlistId,
+    playlistName: playlistId ? (useStore.getState().playlists.find((pl) => pl.id === playlistId)?.name ?? null) : null,
+    themes: plan.themes.length,
+    media: plan.media.length,
+  };
+}
 
 /** Creates an empty presentation in a library and opens it in Reflow for typing lyrics. */
 export function newPresentation(category: Category = 'song'): string {
@@ -191,7 +219,7 @@ export function importFiles(files: File[], category: Category = useStore.getStat
 async function importAll(files: File[], category: Category) {
   if (!files.length) return;
   const working =
-    files.length > 3 || files.some((f) => ['rvbible', 'proplaylist'].includes(extension(f)))
+    files.length > 3 || files.some((f) => ['rvbible', 'proplaylist', 'lumenbundle', 'lumenplaylist'].includes(extension(f)))
       ? notify(`Importing ${files.length} file${files.length === 1 ? '' : 's'}…`, 'info', 0)
       : null;
   const s = useStore.getState();
@@ -200,6 +228,8 @@ async function importAll(files: File[], category: Category) {
   const playlists: string[] = [];
   const missing: string[] = [];
   let presentations = 0;
+  let themes = 0;
+  let media = 0;
   let reused = 0;
   let lastId: string | null = null;
   let openPlaylist: string | null = null;
@@ -231,6 +261,21 @@ async function importAll(files: File[], category: Category) {
         case 'rvbible':
           bibles.push((await importBibleFile(file)).abbreviation);
           break;
+        case 'lumen':
+        case 'lumenbundle':
+        case 'lumenplaylist':
+        case 'lumenthemes': {
+          const r = await importLumenFile(file, category);
+          presentations += r.presentationIds.length;
+          lastId = r.presentationIds.at(-1) ?? lastId;
+          if (r.playlistId) {
+            playlists.push(r.playlistName ?? 'Playlist');
+            openPlaylist = r.playlistId;
+          }
+          themes += r.themes;
+          media += r.media;
+          break;
+        }
         case 'pro6':
           throw new Error('ProPresenter 6 files are not supported yet');
         default:
@@ -258,6 +303,8 @@ async function importAll(files: File[], category: Category) {
     playlists.length && `playlist${playlists.length === 1 ? '' : 's'} ${playlists.map((n) => `“${n}”`).join(', ')}`,
     presentations && plural(presentations, playlists.length ? 'new song' : 'presentation'),
     bibles.length && `Bible ${bibles.join(', ')} (use it from the Bible button)`,
+    themes && plural(themes, 'theme'),
+    media && `${plural(media, 'media file')} (in the media bin)`,
   ].filter(Boolean);
   if (!done.length && reused) notify(`${plural(reused, 'song')} already in your library, so nothing was duplicated.`, 'success');
   if (done.length) {
