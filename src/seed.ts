@@ -51,6 +51,27 @@ export const defaultThemes: Theme[] = [
     background: { type: 'gradient', color: '#1c1917', color2: '#44403c' },
   },
   {
+    // The template Bible mode uses, as in ProPresenter: the verse in the middle, the reference in its own box.
+    ...baseTheme,
+    id: 'theme-bible',
+    name: 'Bible',
+    textName: 'Verse',
+    fontFamily: COPPERPLATE,
+    fontSize: 88,
+    fontWeight: 400,
+    shadow: false,
+    lineHeight: 1.3,
+    inset: { top: 8, right: 7, bottom: 20, left: 7 },
+    background: { type: 'none', color: '#000000', color2: '#000000' },
+    captionBox: {
+      name: 'Reference',
+      inset: { top: 84, right: 7, bottom: 5, left: 45 },
+      textAlign: 'right',
+      verticalAlign: 'bottom',
+      fontSize: 52,
+    },
+  },
+  {
     ...baseTheme,
     id: 'theme-copperplate',
     name: 'Copperplate',

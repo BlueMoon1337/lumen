@@ -1,6 +1,7 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import { deleteBibleText, type BibleMeta } from './bible';
+import { BIBLE_DRAFT_ID, BIBLE_LIVE_ID } from './bibleSlides';
 import { colorForGroup, getSequence, parseLyrics } from './lyrics';
 import { deleteMediaBlob, putMediaBlob } from './media';
 import { defaultScreenSetup, newOutput, newScreen, nextScreenName, normalizeScreens } from './screens';
@@ -44,7 +45,7 @@ export interface LibraryData {
   screens: ScreenSetup;
 }
 
-export type Mode = 'show' | 'edit' | 'reflow';
+export type Mode = 'show' | 'edit' | 'reflow' | 'bible';
 export type LiveTab = 'stage' | 'timers' | 'messages' | 'props';
 
 interface UIState {
@@ -122,6 +123,16 @@ interface Actions {
   updateSettings(patch: Partial<Settings>): void;
 
   goLive(presentationId: string, index: number, playlistItemId?: string | null): void;
+  /** Bible mode: replace the working passage's slides. */
+  setBibleDraft(draft: Pick<Presentation, 'title' | 'themeId' | 'groups' | 'arrangement'>): void;
+  /** Bible mode: put a slide of the working passage on screen (a copy, so editing the passage doesn't change the screen). */
+  showBibleSlide(index: number): void;
+  /** Bible mode's arrow keys: the next or previous verse slide. */
+  bibleStep(delta: 1 | -1): void;
+  /** Saves the working passage as a presentation (and adds it to a playlist). Returns its id. */
+  saveBible(init: { title: string; category: Category; playlistId?: string }): string | null;
+  /** Appends the working passage's slides to a presentation. */
+  copyBibleTo(presentationId: string): void;
   next(): void;
   prev(): void;
   jumpToGroup(letter: string): void;
@@ -218,6 +229,18 @@ export function adjacentPlaylistItem(
 const quietly = (p: Promise<unknown>) => void p.catch(() => {});
 
 /** Carries ids, colors and per-slide edits over to re-parsed groups that keep their names. */
+/** A presentation's groups with new ids, for copying slides into another presentation. */
+function cloneGroups(p: Presentation): Pick<Presentation, 'groups' | 'arrangement'> {
+  const ids = new Map<string, string>();
+  const groups = p.groups.map((g) => {
+    const id = uid();
+    ids.set(g.id, id);
+    return { ...g, id, slides: g.slides.map((sl) => ({ ...structuredClone(sl), id: uid() })) };
+  });
+  const order = p.arrangement.length ? p.arrangement : p.groups.map((g) => g.id);
+  return { groups, arrangement: order.map((id) => ids.get(id)).filter((id): id is string => !!id) };
+}
+
 function mergeParsed(p: Presentation, parsed: Pick<Presentation, 'groups' | 'arrangement'>) {
   const old = new Map(p.groups.map((g) => [g.name.toLowerCase(), g]));
   const ids = new Map<string, string>();
@@ -534,6 +557,47 @@ export const useStore = create<AppState>()(
         goLive: (presentationId, index, playlistItemId = null) =>
           set((s) => ({ live: { ...s.live, logo: false, slide: { presentationId, index, playlistItemId: playlistItemId ?? undefined } } })),
 
+        setBibleDraft: (draft) =>
+          set((s) => ({
+            presentations: {
+              ...s.presentations,
+              [BIBLE_DRAFT_ID]: { ...draft, id: BIBLE_DRAFT_ID, category: 'scripture', hidden: true, updatedAt: Date.now() },
+            },
+          })),
+        showBibleSlide: (index) => {
+          const draft = get().presentations[BIBLE_DRAFT_ID];
+          if (!draft || index < 0 || index >= getSequence(draft).length) return;
+          // Same updatedAt as the draft: that's how Bible mode knows the live copy is this passage.
+          set((s) => ({ presentations: { ...s.presentations, [BIBLE_LIVE_ID]: { ...draft, id: BIBLE_LIVE_ID } } }));
+          get().goLive(BIBLE_LIVE_ID, index);
+        },
+        bibleStep: (delta) => {
+          const s = get();
+          const ref = s.live.slide;
+          const live = s.presentations[BIBLE_LIVE_ID];
+          if (ref?.presentationId === BIBLE_LIVE_ID && live) {
+            const index = ref.index + delta;
+            if (index >= 0 && index < getSequence(live).length) s.goLive(BIBLE_LIVE_ID, index);
+          } else if (delta > 0) s.showBibleSlide(0);
+        },
+        saveBible: ({ title, category, playlistId }) => {
+          const draft = get().presentations[BIBLE_DRAFT_ID];
+          if (!draft) return null;
+          const id = get().createPresentation({ title, category, themeId: draft.themeId, ...cloneGroups(draft) });
+          if (playlistId) get().addToPlaylist(id, undefined, playlistId);
+          return id;
+        },
+        copyBibleTo: (presentationId) => {
+          const s = get();
+          const draft = s.presentations[BIBLE_DRAFT_ID];
+          const target = s.presentations[presentationId];
+          if (!draft || !target) return;
+          const copy = cloneGroups(draft);
+          s.updatePresentation(presentationId, {
+            groups: [...target.groups, ...copy.groups],
+            arrangement: [...(target.arrangement.length ? target.arrangement : target.groups.map((g) => g.id)), ...copy.arrangement],
+          });
+        },
         next: () => {
           const s = get();
           const ref = s.live.slide;
@@ -631,14 +695,16 @@ export const useStore = create<AppState>()(
     },
     {
       name: 'lumen-library',
-      version: 2,
+      version: 3,
       migrate: (persisted, version) => {
         const saved = persisted as Partial<LibraryData>;
-        // Version 2 added the Copperplate theme.
-        if (version < 2 && saved.themes && !saved.themes.some((t) => t.id === 'theme-copperplate')) {
-          const copperplate = defaultThemes.find((t) => t.id === 'theme-copperplate');
-          if (copperplate) saved.themes = [...saved.themes, copperplate];
-        }
+        const addTheme = (id: string) => {
+          const theme = defaultThemes.find((t) => t.id === id);
+          if (theme && saved.themes && !saved.themes.some((t) => t.id === id)) saved.themes = [...saved.themes, theme];
+        };
+        // Version 2 added the Copperplate theme, version 3 the Bible template.
+        if (version < 2) addTheme('theme-copperplate');
+        if (version < 3) addTheme('theme-bible');
         return saved as LibraryData;
       },
       // Saved settings from older versions may lack newer keys.

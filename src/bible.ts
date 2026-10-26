@@ -1,4 +1,5 @@
 import { idbRequest } from './idb';
+import { VERSE_COUNTS } from './versification';
 
 /** Books in canonical order with English names and common abbreviations. */
 const ENGLISH =
@@ -28,6 +29,8 @@ export interface BibleMeta {
   name: string;
   abbreviation: string;
   language?: string;
+  /** License or copyright text from the imported file. */
+  license?: string;
   books: BibleBookMeta[];
 }
 
@@ -185,11 +188,18 @@ export function formatRange(r: PassageRange): string {
 export async function lookupLocal(meta: BibleMeta, input: string): Promise<Passage> {
   const range = parseReference(input, meta.books);
   if ('error' in range) throw new Error(range.error);
+  return lookupRange(meta, range);
+}
+
+/** Looks a passage up in an imported Bible by book code, chapter and verse, so another translation's range works too. */
+export async function lookupRange(meta: BibleMeta, range: PassageRange): Promise<Passage> {
+  const book = meta.books.find((b) => b.code === range.book.code);
+  if (!book) throw new Error(`${meta.abbreviation} doesn't include ${bookLabel(range.book)}.`);
   const text = await loadBibleText(meta.id);
-  const chapters = text?.books[range.book.code];
+  const chapters = text?.books[book.code];
   if (!chapters) throw new Error(`The text of ${meta.abbreviation} is missing on this computer. Import the .rvbible file again.`);
   const verses: Verse[] = [];
-  const name = bookLabel(range.book);
+  const name = bookLabel(book);
   for (let c = range.chapter; c <= range.endChapter; c++) {
     const from = c === range.chapter ? range.verse : 1;
     const to = c === range.endChapter ? range.endVerse : (chapters[c - 1]?.length ?? 0);
@@ -200,5 +210,44 @@ export async function lookupLocal(meta: BibleMeta, input: string): Promise<Passa
     }
   }
   if (!verses.length) throw new Error('No verses found for that reference.');
-  return { reference: formatRange(range), verses, translation_id: meta.abbreviation };
+  return { reference: formatRange({ ...range, book }), verses, translation_id: meta.abbreviation };
+}
+
+// ---- Online translations and standard versification -----------------------------------
+
+/** Public-domain translations from the free bible-api.com service. */
+export const ONLINE_BIBLES = [
+  { id: 'web', name: 'World English Bible', abbreviation: 'WEB' },
+  { id: 'kjv', name: 'King James Version', abbreviation: 'KJV' },
+  { id: 'asv', name: 'American Standard Version (1901)', abbreviation: 'ASV' },
+  { id: 'bbe', name: 'Bible in Basic English', abbreviation: 'BBE' },
+  { id: 'ylt', name: "Young's Literal Translation", abbreviation: 'YLT' },
+  { id: 'darby', name: 'Darby Translation', abbreviation: 'DARBY' },
+];
+
+/** The 66 books with English names and standard verse counts, for translations that don't bring their own. */
+export const STANDARD_BOOKS: BibleBookMeta[] = VERSE_COUNTS.split('|').map((counts, i) => {
+  const code = BOOK_CODES[i];
+  const [name, abbr = ''] = englishNames.get(code) ?? [code];
+  return { code, name, short: name, abbr, verses: counts.split(',').map(Number) };
+});
+
+/** Looks a passage up online (bible-api.com), by its English reference. */
+export async function lookupOnline(id: string, range: PassageRange): Promise<Passage> {
+  const english = STANDARD_BOOKS.find((b) => b.code === range.book.code) ?? range.book;
+  const reference = formatRange({ ...range, book: english });
+  let res: Response;
+  try {
+    res = await fetch(`https://bible-api.com/${encodeURIComponent(reference)}?translation=${id}`);
+  } catch {
+    throw new Error('Could not reach the online Bible service. Check the internet connection, or import a Bible to work offline.');
+  }
+  if (!res.ok) throw new Error(res.status === 404 ? `${reference} wasn't found online.` : `The online lookup failed (${res.status}).`);
+  const data = (await res.json()) as { reference: string; verses: Verse[] };
+  if (!data.verses?.length) throw new Error('No verses came back for that reference.');
+  return {
+    reference,
+    verses: data.verses.map((v) => ({ ...v, book_name: english.name })),
+    translation_id: ONLINE_BIBLES.find((b) => b.id === id)?.abbreviation ?? id.toUpperCase(),
+  };
 }

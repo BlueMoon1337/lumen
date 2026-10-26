@@ -5,7 +5,8 @@ export type MenuEntry =
   | { type: 'header'; label: string }
   | { type: 'separator' }
   | { type: 'item'; value: string; label: ReactNode; detail?: ReactNode; thumbnail?: ReactNode; disabled?: boolean; title?: string }
-  | { type: 'submenu'; label: string; entries: MenuEntry[]; disabled?: boolean }
+  /** `entries` may be a function, so big menus (every verse of the Bible) are only built when opened. */
+  | { type: 'submenu'; label: string; entries: MenuEntry[] | (() => MenuEntry[]); disabled?: boolean }
   | { type: 'note'; text: ReactNode };
 
 const MARGIN = 8;
@@ -138,7 +139,7 @@ function MenuList({
       {subEntry?.type === 'submenu' && sub && (
         <MenuList
           key={sub.index}
-          entries={subEntry.entries}
+          entries={typeof subEntry.entries === 'function' ? subEntry.entries() : subEntry.entries}
           value={value}
           onPick={onPick}
           anchor={() => sub.rect}
@@ -197,7 +198,9 @@ export function MenuSelect({
 
   const find = (list: MenuEntry[]): ReactNode =>
     list.reduce<ReactNode>(
-      (found, e) => found ?? (e.type === 'item' && e.value === value ? e.label : e.type === 'submenu' ? find(e.entries) : undefined),
+      (found, e) =>
+        found ??
+        (e.type === 'item' && e.value === value ? e.label : e.type === 'submenu' && Array.isArray(e.entries) ? find(e.entries) : undefined),
       undefined,
     );
 

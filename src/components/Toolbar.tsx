@@ -73,7 +73,7 @@ function ScreenTool({ kind, label, onConfigure }: { kind: ScreenKind; label: str
   );
 }
 
-export function Toolbar({ onBible, onSettings, onScreens }: { onBible: () => void; onSettings: () => void; onScreens: () => void }) {
+export function Toolbar({ onSettings, onScreens }: { onSettings: () => void; onScreens: () => void }) {
   const mode = useStore((s) => s.mode);
   const hasSelection = useStore((s) => !!s.selectedPresentationId && !!s.presentations[s.selectedPresentationId]);
   const showMediaBin = useStore((s) => s.showMediaBin);
@@ -109,10 +109,10 @@ export function Toolbar({ onBible, onSettings, onScreens }: { onBible: () => voi
         <Tool icon="play" label="Show" active={mode === 'show'} onClick={() => setMode('show')} />
         <Tool icon="edit" label="Edit" active={mode === 'edit'} disabled={!hasSelection} onClick={() => setMode('edit')} />
         <Tool icon="reflow" label="Reflow" active={mode === 'reflow'} disabled={!hasSelection} onClick={() => setMode('reflow')} />
-        <Tool icon="bible" label="Bible" onClick={onBible} />
+        <Tool icon="bible" label="Bible" active={mode === 'bible'} onClick={() => setMode(mode === 'bible' ? 'show' : 'bible')} />
         <Tool icon="more" label="More" active={pop === 'more'} onClick={() => toggle('more')}>
           <Popover open={pop === 'more'} onClose={close} className="menu-pop">
-            <MoreMenu onDone={close} onBible={onBible} onSettings={onSettings} onScreens={onScreens} />
+            <MoreMenu onDone={close} onBible={() => setMode('bible')} onSettings={onSettings} onScreens={onScreens} />
           </Popover>
         </Tool>
       </div>
@@ -145,6 +145,7 @@ function SearchPopover({ onDone }: { onDone: () => void }) {
     if (!q) return [];
     const out: { id: string; title: string; line?: string }[] = [];
     for (const p of Object.values(presentations)) {
+      if (p.hidden) continue;
       if (p.title.toLowerCase().includes(q)) out.push({ id: p.id, title: p.title });
       else {
         const line = p.groups.flatMap((g) => g.slides.flatMap((s) => s.text.split('\n'))).find((l) => l.toLowerCase().includes(q));
@@ -342,7 +343,7 @@ function MoreMenu({
     <div className="menu">
       {item('New Presentation', () => newPresentation(useStore.getState().libraryCategory))}
       {item('Import Songs, Playlists or Bibles…', () => pickFiles(IMPORT_ACCEPT).then((files) => importFiles(files)))}
-      {item('Add Scripture…', onBible)}
+      {item('Bible…', onBible)}
       <hr />
       {item('Configure Screens…', onScreens)}
       {item('Settings & Shortcuts…', onSettings)}

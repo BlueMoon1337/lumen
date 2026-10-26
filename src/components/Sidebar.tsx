@@ -203,7 +203,7 @@ function LibraryItems() {
   const list = useMemo(() => {
     const q = filter.trim().toLowerCase();
     return Object.values(presentations)
-      .filter((p) => p.category === category)
+      .filter((p) => p.category === category && !p.hidden)
       .filter(
         (p) => !q || p.title.toLowerCase().includes(q) || p.groups.some((g) => g.slides.some((sl) => sl.text.toLowerCase().includes(q))),
       )

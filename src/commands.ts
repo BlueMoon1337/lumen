@@ -72,6 +72,7 @@ function findIdentical(data: ImportedPresentation): string | undefined {
   const title = data.title.toLowerCase();
   return Object.values(useStore.getState().presentations).find(
     (p) =>
+      !p.hidden &&
       p.title.toLowerCase() === title &&
       getSequence(p)
         .map((e) => e.slide.text)
@@ -168,6 +169,7 @@ export async function importBibleFile(file: File): Promise<BibleMeta> {
     name: bible.name,
     abbreviation: bible.abbreviation,
     language: bible.language,
+    license: bible.license,
     books: bible.books.map((b) => ({ code: b.code, name: b.name, short: b.short, abbr: b.abbr, verses: b.chapters.map((c) => c.length) })),
   };
   await putBibleText(meta.id, { books: Object.fromEntries(bible.books.map((b) => [b.code, b.chapters])) });

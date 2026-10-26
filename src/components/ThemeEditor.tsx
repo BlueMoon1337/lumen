@@ -1,11 +1,21 @@
 import type { ReactNode } from 'react';
 import { useStore } from '../store';
-import type { Theme } from '../types';
+import type { Theme, ThemeTextBox } from '../types';
 import { SlidePreview } from './Canvas';
 import { FontSelect } from './FontSelect';
 import { Dialog } from './ui';
 
 const SAMPLE = 'Amazing grace, how sweet the sound\nThat saved a wretch like me';
+const VERSE = 'For God so loved the world, that he gave his only begotten Son';
+
+/** A new caption box: small, at the bottom right, like the Reference box of ProPresenter's Bible template. */
+const newCaptionBox = (t: Theme): ThemeTextBox => ({
+  name: 'Reference',
+  inset: { top: 84, right: t.inset.right, bottom: 5, left: 45 },
+  textAlign: 'right',
+  verticalAlign: 'bottom',
+  fontSize: Math.round(t.fontSize * 0.55),
+});
 
 export function Row({ label, children }: { label: string; children: ReactNode }) {
   return (
@@ -25,6 +35,8 @@ export function ThemeEditorDialog() {
   const set = (patch: Partial<Theme>) => s.updateTheme(t.id, patch);
   const setInset = (side: keyof Theme['inset'], v: number) => set({ inset: { ...t.inset, [side]: v } });
   const setBg = (patch: Partial<Theme['background']>) => set({ background: { ...t.background, ...patch } });
+  const box = t.captionBox;
+  const setBox = (patch: Partial<ThemeTextBox>) => box && set({ captionBox: { ...box, ...patch } });
   const close = () => s.setUI({ editingThemeId: null });
 
   return (
@@ -32,7 +44,11 @@ export function ThemeEditorDialog() {
       <div className="theme-editor">
         <div className="theme-editor-side">
           <div className="theme-editor-preview">
-            <SlidePreview text={SAMPLE} caption="Amazing Grace · John Newton" theme={t} />
+            {box ? (
+              <SlidePreview text={VERSE} caption="John 3:16" theme={t} />
+            ) : (
+              <SlidePreview text={SAMPLE} caption="Amazing Grace · John Newton" theme={t} />
+            )}
           </div>
           <label className="field">
             Name
@@ -112,16 +128,86 @@ export function ThemeEditorDialog() {
                 <input type="color" value={t.outlineColor} onChange={(e) => set({ outlineColor: e.target.value })} />
               </span>
             </Row>
-            <Row label="Caption size">
-              <input
-                type="number"
-                step={0.05}
-                min={0.2}
-                max={1}
-                value={t.captionScale}
-                onChange={(e) => set({ captionScale: Number(e.target.value) || 0.5 })}
-              />
+            {!box && (
+              <Row label="Caption size">
+                <input
+                  type="number"
+                  step={0.05}
+                  min={0.2}
+                  max={1}
+                  value={t.captionScale}
+                  onChange={(e) => set({ captionScale: Number(e.target.value) || 0.5 })}
+                />
+              </Row>
+            )}
+          </fieldset>
+          <fieldset>
+            <legend>Text boxes</legend>
+            <Row label="Main box">
+              <input value={t.textName ?? ''} placeholder="Text" onChange={(e) => set({ textName: e.target.value || undefined })} />
             </Row>
+            <Row label="Caption box">
+              <span className="checks">
+                <label>
+                  <input
+                    type="checkbox"
+                    checked={!!box}
+                    onChange={(e) => set({ captionBox: e.target.checked ? newCaptionBox(t) : undefined })}
+                  />{' '}
+                  Own box (e.g. a reference)
+                </label>
+              </span>
+            </Row>
+            {box && (
+              <>
+                <Row label="Name">
+                  <input value={box.name} onChange={(e) => setBox({ name: e.target.value })} />
+                </Row>
+                <Row label="Font">
+                  <FontSelect value={box.fontFamily ?? t.fontFamily} onChange={(fontFamily) => setBox({ fontFamily })} />
+                </Row>
+                <Row label="Max size">
+                  <input
+                    type="number"
+                    min={12}
+                    max={300}
+                    value={box.fontSize}
+                    onChange={(e) => setBox({ fontSize: Number(e.target.value) || 12 })}
+                  />
+                </Row>
+                <Row label="Color">
+                  <input type="color" value={box.color ?? t.color} onChange={(e) => setBox({ color: e.target.value })} />
+                </Row>
+                <Row label="Align">
+                  <select value={box.textAlign} onChange={(e) => setBox({ textAlign: e.target.value as Theme['textAlign'] })}>
+                    <option value="left">Left</option>
+                    <option value="center">Center</option>
+                    <option value="right">Right</option>
+                  </select>
+                </Row>
+                <Row label="Vertical">
+                  <select value={box.verticalAlign} onChange={(e) => setBox({ verticalAlign: e.target.value as Theme['verticalAlign'] })}>
+                    <option value="top">Top</option>
+                    <option value="middle">Middle</option>
+                    <option value="bottom">Bottom</option>
+                  </select>
+                </Row>
+                {(['top', 'right', 'bottom', 'left'] as const).map((side) => (
+                  <Row key={side} label={`Margin ${side} %`}>
+                    <input
+                      type="number"
+                      min={0}
+                      max={95}
+                      value={box.inset[side]}
+                      onChange={(e) => setBox({ inset: { ...box.inset, [side]: Number(e.target.value) || 0 } })}
+                    />
+                  </Row>
+                ))}
+              </>
+            )}
+            <p className="muted small-print">
+              Bible mode puts each verse and its reference into these boxes; pick which goes where in Bible mode.
+            </p>
           </fieldset>
           <fieldset>
             <legend>Layout</legend>

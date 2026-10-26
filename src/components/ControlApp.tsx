@@ -6,7 +6,8 @@ import { dismiss, useNotices } from '../notices';
 import { setScreensEnabled, startScreenManager } from '../outputs';
 import { useStore } from '../store';
 import { isTypingTarget } from '../util';
-import { ScriptureDialog, SettingsDialog } from './Dialogs';
+import { BibleView } from './BibleView';
+import { SettingsDialog } from './Dialogs';
 import { EditView } from './EditView';
 import { WelcomeDialog } from './IconChooser';
 import { LivePanel } from './LivePanel';
@@ -42,7 +43,17 @@ function useShortcuts(enabled: boolean) {
         ArrowUp: s.prev,
         PageUp: s.prev,
       };
-      const action = clears[e.key] ?? (s.mode === 'show' ? navigation[e.key] : undefined);
+      // Bible mode's arrows step through the verse slides on screen.
+      const bibleSteps: Record<string, () => void> = {
+        ArrowRight: () => s.bibleStep(1),
+        ArrowDown: () => s.bibleStep(1),
+        PageDown: () => s.bibleStep(1),
+        ' ': () => s.bibleStep(1),
+        ArrowLeft: () => s.bibleStep(-1),
+        ArrowUp: () => s.bibleStep(-1),
+        PageUp: () => s.bibleStep(-1),
+      };
+      const action = clears[e.key] ?? (s.mode === 'show' ? navigation[e.key] : s.mode === 'bible' ? bibleSteps[e.key] : undefined);
       if (action) {
         e.preventDefault();
         action();
@@ -109,8 +120,9 @@ function Notices() {
 }
 
 export default function ControlApp() {
-  const [dialog, setDialog] = useState<'scripture' | 'settings' | 'screens' | null>(null);
+  const [dialog, setDialog] = useState<'settings' | 'screens' | null>(null);
   const mode = useStore((s) => s.mode);
+  const layout = mode === 'bible' ? 'show' : mode;
   const showMediaBin = useStore((s) => s.showMediaBin);
   const editingTheme = useStore((s) => s.editingThemeId);
 
@@ -131,14 +143,13 @@ export default function ControlApp() {
   useShortcuts(dialog === null && !editingTheme && !!appIcon);
 
   return (
-    <div className={`app mode-${mode} ${mode === 'show' && !showMediaBin ? 'no-media' : ''}`}>
-      <Toolbar onBible={() => setDialog('scripture')} onSettings={() => setDialog('settings')} onScreens={openScreens} />
-      {mode === 'show' && (
+    // Bible mode has Show mode's layout, with the Bible in place of the slides.
+    <div className={`app mode-${layout} ${layout === 'show' && !showMediaBin ? 'no-media' : ''}`}>
+      <Toolbar onSettings={() => setDialog('settings')} onScreens={openScreens} />
+      {layout === 'show' && (
         <>
           <Sidebar />
-          <main className="center">
-            <ShowView />
-          </main>
+          <main className="center">{mode === 'bible' ? <BibleView /> : <ShowView />}</main>
           {showMediaBin && (
             <>
               <MediaSidebar />
@@ -150,7 +161,6 @@ export default function ControlApp() {
       )}
       {mode === 'edit' && <EditView />}
       {mode === 'reflow' && <ReflowView />}
-      {dialog === 'scripture' && <ScriptureDialog onClose={() => setDialog(null)} />}
       {dialog === 'settings' && <SettingsDialog onClose={() => setDialog(null)} onScreens={openScreens} />}
       {dialog === 'screens' && <ScreenConfigDialog onClose={() => setDialog(null)} />}
       {editingTheme && <ThemeEditorDialog />}

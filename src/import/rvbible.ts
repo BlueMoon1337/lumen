@@ -14,6 +14,8 @@ export interface ImportedBible {
   name: string;
   abbreviation: string;
   language?: string;
+  /** The license or copyright statement the file carries, if any. */
+  license?: string;
   books: ImportedBibleBook[];
 }
 
@@ -84,6 +86,14 @@ export function parseRvBible(bytes: Uint8Array, fallbackName = 'Bible'): Importe
       tagText(dblMeta, 'abbreviationLocal') ||
       fallbackName.slice(0, 8).toUpperCase(),
     language: tagText(dblMeta, 'iso'),
+    license: [tagText(rvMeta, 'license'), tagText(dblMeta, 'statement'), tagText(dblMeta, 'rightsHolder')]
+      .map((t) =>
+        t
+          ?.replace(/<[^>]+>/g, ' ')
+          .replace(/\s+/g, ' ')
+          .trim(),
+      )
+      .find(Boolean),
     books,
   };
 }

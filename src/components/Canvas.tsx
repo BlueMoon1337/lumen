@@ -3,7 +3,7 @@ import { timerRemaining, useNow } from '../clock';
 import { useFontsVersion } from '../fonts';
 import { useMedia } from '../media';
 import { toFrameBackground } from '../theme';
-import type { FrameBackground, OutputFrame, Theme, ThemeBackground } from '../types';
+import type { FrameBackground, OutputFrame, Theme, ThemeBackground, ThemeTextBox } from '../types';
 import { formatClock, formatDuration } from '../util';
 
 export const CANVAS_W = 1920;
@@ -81,8 +81,40 @@ export function slideTextStyle(theme: Theme, size: number): CSSProperties {
   };
 }
 
-/** Slide text in a theme, shrunk from the theme's font size until it fits its box. */
+/** The theme a caption box draws with: the box's own position and type, the rest from the main text. */
+export function captionBoxTheme(theme: Theme, box: ThemeTextBox): Theme {
+  return {
+    ...theme,
+    inset: box.inset,
+    textAlign: box.textAlign,
+    verticalAlign: box.verticalAlign,
+    fontSize: box.fontSize,
+    fontFamily: box.fontFamily ?? theme.fontFamily,
+    fontWeight: box.fontWeight ?? theme.fontWeight,
+    color: box.color ?? theme.color,
+    uppercase: box.uppercase ?? theme.uppercase,
+    italic: box.italic ?? theme.italic,
+    boxColor: '',
+    captionBox: undefined,
+  };
+}
+
+/**
+ * A slide's text in its theme. The caption sits under the text, or in the theme's
+ * own caption box (a Bible template's Reference box), each shrinking to fit.
+ */
 export function SlideText({ text, caption, theme }: { text: string; caption?: string; theme: Theme }) {
+  if (!theme.captionBox) return <FittedText text={text} caption={caption} theme={theme} />;
+  return (
+    <>
+      <FittedText text={text} theme={theme} />
+      {caption && <FittedText text={caption} theme={captionBoxTheme(theme, theme.captionBox)} />}
+    </>
+  );
+}
+
+/** Text in a theme's box, shrunk from the theme's font size until it fits. */
+function FittedText({ text, caption, theme }: { text: string; caption?: string; theme: Theme }) {
   const boxRef = useRef<HTMLDivElement>(null);
   const contentRef = useRef<HTMLDivElement>(null);
   const [box, setBox] = useState<{ w: number; h: number } | null>(null);

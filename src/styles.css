@@ -2165,46 +2165,6 @@ kbd {
   gap: 8px;
 }
 
-.scripture-form {
-  display: flex;
-  gap: 8px;
-}
-
-.scripture-form input {
-  flex: 1;
-  font-size: 15px;
-}
-
-.scripture-options {
-  display: flex;
-  gap: 16px;
-  align-items: center;
-  color: var(--muted);
-}
-
-.scripture-options label {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-}
-
-.scripture-preview {
-  max-height: 260px;
-  overflow-y: auto;
-  padding: 8px 12px;
-  background: var(--panel-2);
-  border-radius: var(--radius);
-  font-family: Georgia, serif;
-  font-size: 14px;
-  line-height: 1.5;
-}
-
-.scripture-preview sup {
-  color: var(--accent);
-  font-family: system-ui, sans-serif;
-  font-size: 10px;
-}
-
 .settings-section h4 {
   margin: 0 0 8px;
   font-size: 11px;
@@ -2591,6 +2551,227 @@ kbd {
 .settings-section .icon-choice img {
   width: 72px;
   height: 72px;
+}
+
+/* ---- Bible mode ---- */
+
+.bible-bar {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 12px;
+  background: var(--panel-2);
+}
+
+.bible-ref {
+  display: flex;
+  width: min(420px, 45%);
+}
+
+.bible-ref input {
+  flex: 1;
+  min-width: 0;
+  height: 32px;
+  border-radius: 6px 0 0 6px;
+  font-size: 16px;
+}
+
+.bible-ref-menu .menu-select-button {
+  width: 30px;
+  height: 32px;
+  padding: 0 9px;
+  border-left: 0;
+  border-radius: 0 6px 6px 0;
+}
+
+.bible-search {
+  width: min(260px, 30%);
+}
+
+.bible-search .pop-search {
+  margin: 0;
+}
+
+.popover.bible-search-pop {
+  width: 420px;
+  max-height: 60vh;
+  overflow-y: auto;
+}
+
+.bible-rows {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 2px 12px 8px;
+  background: var(--panel-2);
+  border-bottom: 1px solid var(--divider);
+}
+
+.bible-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.bible-translation {
+  width: 280px;
+}
+
+.bible-slot {
+  width: 150px;
+}
+
+.bible-slot-label {
+  color: var(--text-2);
+}
+
+.link-btn {
+  border: 0;
+  background: none;
+  color: var(--text-2);
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.link-btn:hover {
+  color: var(--text);
+  text-decoration: underline;
+}
+
+.popover.bible-license-pop {
+  width: 340px;
+  padding: 4px 12px;
+  font-size: 12px;
+}
+
+.slot-thumb {
+  width: 100%;
+  height: 100%;
+  display: block;
+}
+
+.bible-status {
+  padding: 8px 14px;
+  color: var(--text-2);
+  background: var(--panel-2);
+}
+
+.bible-status.error {
+  color: #ff9b9b;
+}
+
+.slide-thumb-label.bible-label,
+.slide-row-label.bible-label {
+  background: #3a3a3a;
+  color: #fff;
+}
+
+.verse-step {
+  border: 0;
+  background: none;
+  color: var(--text-2);
+  font-weight: 600;
+  padding: 2px 8px;
+  cursor: pointer;
+}
+
+.verse-step:hover:not(:disabled) {
+  color: var(--text);
+}
+
+.verse-step:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+
+.bible-save .menu-select-button {
+  border-color: transparent;
+  background: transparent;
+}
+
+.popover.bible-options-pop {
+  padding: 0;
+  overflow: hidden;
+}
+
+.bible-options {
+  display: grid;
+  grid-template-columns: 150px 1fr;
+  width: min(620px, 92vw);
+  min-height: 260px;
+}
+
+.bible-options-nav {
+  display: flex;
+  flex-direction: column;
+  padding: 6px;
+  background: rgba(0, 0, 0, 0.18);
+  border-right: 1px solid #454545;
+}
+
+.bible-options-nav button {
+  padding: 8px 10px;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--text);
+  font-size: 13px;
+  text-align: left;
+  cursor: pointer;
+}
+
+.bible-options-nav button.on {
+  background: var(--pink);
+  color: #fff;
+}
+
+.bible-options-body {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 12px 16px;
+}
+
+.bible-options-cols {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 4px 16px;
+}
+
+.bible-options-cols .check-row {
+  padding: 3px 0;
+}
+
+.bible-options-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.bible-options-row > span:first-child {
+  width: 100px;
+  color: var(--text-2);
+  text-align: right;
+}
+
+.bible-template {
+  width: 220px;
+}
+
+.bible-row-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.bible-row-item .list-label {
+  flex: 1;
+}
+
+.save-form {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
 }
 
 /* ---- Screen Configuration ---- */
@@ -3533,25 +3714,6 @@ kbd {
 }
 
 /* ---- Bible dialog ---- */
-
-.scripture-browse {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  font-size: 12px;
-}
-
-.scripture-browse select:first-child {
-  width: 170px;
-}
-
-.scripture-ref {
-  font-family: system-ui, sans-serif;
-  font-size: 12px;
-  font-weight: 600;
-  color: var(--text-2);
-  margin-bottom: 4px;
-}
 
 .font-status {
   padding: 8px 10px;

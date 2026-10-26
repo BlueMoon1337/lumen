@@ -57,18 +57,19 @@ npm run format       # Prettier
 
 ## Where things are (for ProPresenter users)
 
-| ProPresenter                                                                                     | Lumen                                                                                                                                                                                                                                              |
-| ------------------------------------------------------------------------------------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Toolbar: Search · Text, Theme · Show, Edit, Reflow, Bible, More                                  | Same buttons, same order. Text and Theme drop down panels that apply to the selected presentation.                                                                                                                                                 |
-| Toolbar: Media, Audience, Stage                                                                  | Media toggles the media bin. Audience and Stage turn those screens on or off; the ring is green when they're showing and orange when some outputs aren't. Right-click either one to configure screens.                                             |
-| Screens menu and Screen Configuration (⌥⌘1)                                                      | Same layout: Audience and Stage lists with on/off switches and +, Identify Screens, Test Patterns, then per screen its name, size, Screen Color, Outputs, the output tiles, and Hardware / Color / Corner Pin / Alpha Key tabs. See Screens below. |
-| Library and Playlist at the top left, items below with a Filter                                  | Same. Libraries are Songs, Scripture, Announcements and Other. Drag a presentation onto a playlist name to add it.                                                                                                                                 |
-| Slide grid with numbered, colored group labels                                                   | Same. Click a slide to go live (orange border), double-click to edit it.                                                                                                                                                                           |
-| Media bin along the bottom                                                                       | Same, with All Media / Images / Videos on the left. Click an item to play it behind the slides.                                                                                                                                                    |
-| Preview with clear buttons on its right edge, ✕ for Clear All                                    | Same: Messages, Logo, Slide and Media clear buttons light up while their layer is live.                                                                                                                                                            |
-| Screen picker, transport, and Stage / Timers / Messages / Props tabs                             | Same.                                                                                                                                                                                                                                              |
-| Edit: slide list with group headers, Objects, canvas with rulers, Presentation / Slide inspector | Same. Drag or resize the text box, double-click to type on the slide. The Text tab formats one slide.                                                                                                                                              |
-| Reflow                                                                                           | Type the whole song as text with `[Verse 1]` headers.                                                                                                                                                                                              |
+| ProPresenter                                                                                                                         | Lumen                                                                                                                                                                                                                                              |
+| ------------------------------------------------------------------------------------------------------------------------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Toolbar: Search · Text, Theme · Show, Edit, Reflow, Bible, More                                                                      | Same buttons, same order. Text and Theme drop down panels that apply to the selected presentation.                                                                                                                                                 |
+| Toolbar: Media, Audience, Stage                                                                                                      | Media toggles the media bin. Audience and Stage turn those screens on or off; the ring is green when they're showing and orange when some outputs aren't. Right-click either one to configure screens.                                             |
+| Screens menu and Screen Configuration (⌥⌘1)                                                                                          | Same layout: Audience and Stage lists with on/off switches and +, Identify Screens, Test Patterns, then per screen its name, size, Screen Color, Outputs, the output tiles, and Hardware / Color / Corner Pin / Alpha Key tabs. See Screens below. |
+| Bible: reference with Book › Chapter › Verse menu, Search, Options; translation with Verse and Reference boxes, License, +; Save As… | Same layout and options. See Bible below.                                                                                                                                                                                                          |
+| Library and Playlist at the top left, items below with a Filter                                                                      | Same. Libraries are Songs, Scripture, Announcements and Other. Drag a presentation onto a playlist name to add it.                                                                                                                                 |
+| Slide grid with numbered, colored group labels                                                                                       | Same. Click a slide to go live (orange border), double-click to edit it.                                                                                                                                                                           |
+| Media bin along the bottom                                                                                                           | Same, with All Media / Images / Videos on the left. Click an item to play it behind the slides.                                                                                                                                                    |
+| Preview with clear buttons on its right edge, ✕ for Clear All                                                                        | Same: Messages, Logo, Slide and Media clear buttons light up while their layer is live.                                                                                                                                                            |
+| Screen picker, transport, and Stage / Timers / Messages / Props tabs                                                                 | Same.                                                                                                                                                                                                                                              |
+| Edit: slide list with group headers, Objects, canvas with rulers, Presentation / Slide inspector                                     | Same. Drag or resize the text box, double-click to type on the slide. The Text tab formats one slide.                                                                                                                                              |
+| Reflow                                                                                                                               | Type the whole song as text with `[Verse 1]` headers.                                                                                                                                                                                              |
 
 ## Features
 
@@ -87,7 +88,7 @@ npm run format       # Prettier
 - **Messages** on the audience screen, with `{countdown}` and `{clock}` tokens.
 - **Stage display** showing the current and next slide, notes, clock, timer, and a flashing message to the stage.
 - **ProPresenter import** of `.pro` presentations, `.proplaylist` playlists and `.rvbible` Bibles (see below).
-- **Bible** lookups from imported Bibles (offline, with book and chapter pickers) or public-domain translations via [bible-api.com](https://bible-api.com), or paste any text.
+- **Bible mode**, laid out like ProPresenter's (see Bible below), from imported Bibles (offline) or public-domain translations via [bible-api.com](https://bible-api.com).
 - **Persistence**: everything saves automatically, and the library exports to and imports from JSON.
 
 ## Screens
@@ -130,10 +131,24 @@ Use the import buttons in the Library and Playlist headers, **More → Import**,
 | ---------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
 | `.pro` (ProPresenter 7 presentation)     | Title, groups with their names and colors, slide text (from every text box), slide notes, the selected arrangement, CCLI details (author, publisher, year, song number, "show on screen"), the transition length, and the font, size, color and alignment most slides use (see Fonts). Text box positions, backgrounds and media don't import; your Lumen theme supplies them. |
 | `.proplaylist` (ProPresenter 7 playlist) | Each playlist inside (folders included) with its headers and songs in order. Songs come from the copies bundled in the file and import like `.pro` files, using the arrangement the playlist item chose. Media cues and placeholders are skipped.                                                                                                                              |
-| `.rvbible` (ProPresenter Bible)          | The whole translation, stored on this computer so lookups work offline. Pick it in the **Bible** dialog and type references in the Bible's language or in English: `Juan 3:16-18`, `Sal 23`, `1 Co 13`, `John 3:16`. Manage imported Bibles in Settings.                                                                                                                       |
+| `.rvbible` (ProPresenter Bible)          | The whole translation, stored on this computer so lookups work offline. Pick it in **Bible** mode and type references in the Bible's language or in English: `Juan 3:16-18`, `Sal 23`, `1 Co 13`, `John 3:16`. Manage imported Bibles in Settings.                                                                                                                             |
 | `.txt`                                   | Lyrics in the Reflow format below.                                                                                                                                                                                                                                                                                                                                             |
 
 Songs already in your library (same title and slides) are reused rather than duplicated, so re-importing is safe. ProPresenter 6 files (`.pro6`) aren't supported yet. Bible text and media stay on the computer; library exports don't include them. Check that your licence covers projecting the translations you import.
+
+## Bible
+
+Click **Bible** in the toolbar. The slides area turns into ProPresenter's Bible view; the library, playlist and live panel stay where they are.
+
+- **Passage:** type a reference (`Génesis 25:30-34`, `Jn 3:16`, `Psalm 23`), or pick **Book › Chapter › Verse** from the menu beside it. **Whole chapter** is at the top of each chapter's verses. **Search** finds verses containing every word you type (imported Bibles).
+- **Translation, Verse, Reference:** the first menu picks the translation. **Verse** and **Reference** pick which box of the template each goes into (each option shows a thumbnail of where that box sits), or **None**. **+** adds a second or third translation, lined up verse by verse, for bilingual services. **License** shows the translation's terms.
+- **Slides:** one per verse, in the template, labelled like `Génesis 25:30`. Click one to show it; <kbd>→</kbd> and <kbd>←</kbd> step through the verses on screen. Typing the next reference doesn't change what's on screen until you click a slide. **‹ Verse** and **Verse ›** move to the verse before or after the passage.
+- **Options › Slide Options:** **Show Verse Numbers** (as small superscripts), **Break on New Verse** (off: fill each slide with as many verses as fit), **Display Translation** (add the abbreviation to references), and where references go: **Verse References** (each slide its own verses), **Passage Each** (the whole passage on every slide), **Passage Last** or **No Reference**. **Theme** picks the template, **Edit…** opens it, and **Import Library** is where saved passages go. **Options › Bibles** imports and removes Bibles.
+- **Save As…:** save the passage as a presentation (name it and pick a library), **Copy to Selected Presentation** (append it to the presentation selected in the library, such as a sermon), or **Save to Playlist ›**.
+
+**The verse template.** The **Bible** theme matches ProPresenter's: the verse in a **Verse** box in the middle (Copperplate) and the reference in its own **Reference** box at the bottom right, on a transparent background. Any theme can have that second box: in the theme editor, under **Text boxes**, name the main box and turn on **Caption box** to give captions their own position, font, size, color and alignment. Saved Bible slides keep the reference as the slide's caption (`~ Génesis 25:30` in Reflow), so they display in that box wherever they're shown.
+
+Translations online (WEB, KJV, ASV, BBE, YLT, Darby) need the internet and work with the same menus, using standard chapter and verse counts.
 
 ## Fonts
 
@@ -197,7 +212,9 @@ src/
   lyrics.ts        text ⇄ groups/slides/arrangement parser
   theme.ts         theme → presentation → slide formatting, backgrounds, copyright line
   fonts.ts         font menus, Copperplate fallback chain, reading font files, loading added fonts
-  bible.ts         imported Bibles: storage, reference parsing (local + English book names), lookup
+  bible.ts         imported and online Bibles: storage, reference parsing (local + English book names), lookups
+  bibleSlides.ts   Bible mode's slides: verses into the template's boxes, references, verse numbers, parallel translations
+  versification.ts chapter and verse counts of the 66 books, for online translations
   commands.ts      new presentation, file import
   import/          readers for ProPresenter .pro (protobuf + RTF), .proplaylist and .rvbible (zip of USX books),
                    and a zip reader that tolerates ProPresenter's Zip64 layout
@@ -224,6 +241,7 @@ src/
                    grouped screen, edge blend, delay, color, corner pin, identify and test patterns.
                    #/output and #/stage show the first audience or stage screen, e.g. as a browser source in OBS
     StageView      stage display layout
+    BibleView      Bible mode: passage, translations, Verse/Reference boxes, options, slides, Save As
     ThemeEditor, Dialogs
 src-tauri/          the desktop app (Tauri, Rust)
   src/displays.rs  display list with real names (macOS: from AppKit), hot-plug watcher

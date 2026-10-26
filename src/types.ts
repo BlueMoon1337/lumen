@@ -54,6 +54,8 @@ export interface Presentation {
   /** Group ids in the order they are performed. Groups may repeat. */
   arrangement: string[];
   updatedAt: number;
+  /** Bible mode's working passage: kept out of the library. */
+  hidden?: boolean;
 }
 
 export type BackgroundType = 'none' | 'color' | 'gradient' | 'media';
@@ -88,6 +90,27 @@ export interface Theme {
   boxColor: string;
   captionScale: number;
   background: ThemeBackground;
+  /** What the main text box is called in menus, e.g. "Verse" in a Bible template. "Text" when unset. */
+  textName?: string;
+  /** A second text box for the slide's caption (a scripture reference, say). Unset: the caption sits under the text. */
+  captionBox?: ThemeTextBox;
+}
+
+/** A theme's extra text box, positioned on its own, like the Reference box of a Bible template. */
+export interface ThemeTextBox {
+  name: string;
+  /** Box insets as a percentage of the canvas. */
+  inset: { top: number; right: number; bottom: number; left: number };
+  textAlign: Theme['textAlign'];
+  verticalAlign: Theme['verticalAlign'];
+  /** Maximum font size in px; long text shrinks to fit. */
+  fontSize: number;
+  /** Unset values follow the theme's main text. */
+  fontFamily?: string;
+  fontWeight?: number;
+  color?: string;
+  uppercase?: boolean;
+  italic?: boolean;
 }
 
 /** A font file the user added; the file itself is stored in IndexedDB under `id`. */
@@ -135,6 +158,36 @@ export interface Settings {
   ccliLicense?: string;
   /** Translation last used in the Bible dialog: an imported Bible's id or an online one. */
   lastBible?: string;
+  /** Bible mode's choices (see bibleSettings in src/bibleSlides.ts for the defaults). */
+  bible?: Partial<BibleSettings>;
+}
+
+/** Where Bible mode puts a translation's verse text or reference: the template's main box, its caption box, or nowhere. */
+export type BibleSlot = 'none' | 'text' | 'caption';
+
+/** Which slides show a reference: each slide its own verses, every slide the whole passage, only the last slide, or none. */
+export type BibleReferences = 'verse' | 'passage-each' | 'passage-last' | 'none';
+
+export interface BibleTranslation {
+  /** An imported Bible's id, or an online one ("web", "kjv"…). */
+  bibleId: string;
+  verse: BibleSlot;
+  reference: BibleSlot;
+}
+
+export interface BibleSettings {
+  /** The passage last shown. */
+  reference: string;
+  /** The first is the main translation; more add parallel text. */
+  translations: BibleTranslation[];
+  showVerseNumbers: boolean;
+  breakOnNewVerse: boolean;
+  displayTranslation: boolean;
+  references: BibleReferences;
+  /** The template (theme) the verse slides use. */
+  themeId: string;
+  /** The library Save As puts presentations in. */
+  library: Category;
 }
 
 // ---- Screens ------------------------------------------------------------------

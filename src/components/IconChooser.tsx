@@ -38,7 +38,9 @@ export function IconPicker({
 export function WelcomeDialog() {
   const [choice, setChoice] = useState<AppIconId>(DEFAULT_APP_ICON);
   // Preview the choice in the tab (and the Dock) while deciding.
-  useEffect(() => applyAppIcon(choice), [choice]);
+  useEffect(() => {
+    applyAppIcon(choice);
+  }, [choice]);
   const done = () => useStore.getState().updateSettings({ appIcon: choice });
   const where = window.lumenDesktop ? (window.lumenDesktop.platform === 'darwin' ? 'in the Dock' : 'in the taskbar') : 'in the browser tab';
 
