@@ -108,6 +108,11 @@ export function setTransition(p: Presentation, scope: SlideScope, t: SlideTransi
   return { groups: mapSlides(p, scope, (sl) => ({ ...sl, transition: t })) };
 }
 
+/** Takes every slide's own transition away, so they all use the presentation's. */
+export function clearSlideTransitions(p: Presentation): Pick<Presentation, 'groups'> {
+  return { groups: mapSlides(p, 'presentation', (sl) => (sl.transition ? { ...sl, transition: undefined } : sl)) };
+}
+
 /** Sets or clears a slide's label. */
 export function setLabel(p: Presentation, slideId: string, label: ColorLabel | undefined): Pick<Presentation, 'groups'> {
   return { groups: mapSlides(p, { slideId }, (sl) => ({ ...sl, label })) };

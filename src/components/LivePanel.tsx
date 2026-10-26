@@ -6,6 +6,7 @@ import { formatDuration, parseDuration } from '../util';
 import { OutputView } from './Canvas';
 import { setPaneSize, Splitter } from './Splitter';
 import { StageView } from './StageView';
+import { TransitionButton } from './TransitionPicker';
 import { Icon, IconButton, SectionHeader, type IconName } from './ui';
 
 function ClearButton({
@@ -80,6 +81,7 @@ export function LivePanel() {
             <option value="stage">Stage</option>
           </select>
           <span className="screen-label">{frame.stage.currentLabel ?? ''}</span>
+          <TransitionButton target="global" className="live-transition" prefix="Global" />
         </div>
         <div className="transport">
           <div className="layer-lights">

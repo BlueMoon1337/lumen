@@ -3,6 +3,7 @@ import { timerRemaining, useNow } from '../clock';
 import { useFontsVersion } from '../fonts';
 import { useMedia } from '../media';
 import { toFrameBackground } from '../theme';
+import { DEFAULT_TRANSITION, directionOf, easingCss } from '../transitions';
 import type { FrameBackground, OutputFrame, SlideTransition, Theme, ThemeBackground, ThemeTextBox } from '../types';
 import { formatClock, formatDuration } from '../util';
 
@@ -213,16 +214,17 @@ interface Layer {
   key: string | null;
   node: ReactNode;
   leaving: boolean;
-  /** The animation classes and length, fixed when the layer arrives or starts leaving so later changes don't restart it. */
+  /** The animation classes, length and easing, fixed when the layer arrives or starts leaving so later changes don't restart it. */
   effect: string;
   duration: number;
+  easing: string;
 }
 
 let layerSeq = 0;
 
 /** A layer's classes for a transition: "tr-in tr-push dir-left", and so on. */
 function effectClass(t: Pick<SlideTransition, 'kind' | 'direction'>, phase: 'in' | 'out') {
-  return `tr-${phase} tr-${t.kind} dir-${t.direction ?? 'left'}`;
+  return `tr-${phase} tr-${t.kind} dir-${directionOf(t) ?? 'none'}`;
 }
 
 /**
@@ -239,26 +241,37 @@ export function Transition({
 }: {
   itemKey: string | null;
   duration: number;
-  effect?: Pick<SlideTransition, 'kind' | 'direction'>;
+  effect?: Pick<SlideTransition, 'kind' | 'direction' | 'easing'>;
   mode?: 'cross' | 'over';
   children: ReactNode;
 }) {
   const ms = effect.kind === 'cut' ? 0 : duration;
+  const easing = easingCss(effect);
   const [layers, setLayers] = useState<Layer[]>(() => [
-    { id: layerSeq++, key: itemKey, node: children, leaving: false, effect: effectClass(effect, 'in'), duration: ms },
+    { id: layerSeq++, key: itemKey, node: children, leaving: false, effect: effectClass(effect, 'in'), duration: ms, easing },
   ]);
   const [shownKey, setShownKey] = useState(itemKey);
   const lastChildren = useRef(children);
 
   if (itemKey !== shownKey) {
     const outgoing = lastChildren.current;
-    const out = mode === 'over' && effect.kind === 'dissolve' ? 'tr-hold' : effectClass(effect, 'out');
+    // Clearing (nothing comes in) fades out, as kinds that keep the old picture still while the new
+    // one arrives would otherwise leave it up and then drop it. Arriving from nothing, a Reveal (which
+    // only moves the old picture) fades in.
+    const fade = { kind: 'dissolve' } as const;
+    const out =
+      itemKey === null && effect.kind !== 'cut'
+        ? effectClass(fade, 'out')
+        : mode === 'over' && effect.kind === 'dissolve'
+          ? 'tr-hold'
+          : effectClass(effect, 'out');
+    const into = shownKey === null && effect.kind === 'reveal' ? effectClass(fade, 'in') : effectClass(effect, 'in');
     setShownKey(itemKey);
     setLayers((prev) => [
       ...prev
         .filter((l) => l.key !== itemKey)
-        .map((l) => (l.leaving ? l : { ...l, node: outgoing, leaving: true, effect: out, duration: ms })),
-      { id: layerSeq++, key: itemKey, node: null, leaving: false, effect: effectClass(effect, 'in'), duration: ms },
+        .map((l) => (l.leaving ? l : { ...l, node: outgoing, leaving: true, effect: out, duration: ms, easing })),
+      { id: layerSeq++, key: itemKey, node: null, leaving: false, effect: into, duration: ms, easing },
     ]);
   }
 
@@ -274,14 +287,15 @@ export function Transition({
     return () => clearTimeout(t);
   }, [leaving.length, layers, longest]);
 
+  // The group keeps its layers' stacking (Reveal puts the old slide on top) to itself.
   return (
-    <>
+    <div className="tr-group">
       {layers.map((l) => (
-        <div key={l.id} className={`layer ${l.effect}`} style={{ animationDuration: `${l.duration}ms` }}>
+        <div key={l.id} className={`layer ${l.effect}`} style={{ animationDuration: `${l.duration}ms`, animationTimingFunction: l.easing }}>
           {l.leaving ? l.node : children}
         </div>
       ))}
-    </>
+    </div>
   );
 }
 
@@ -314,9 +328,19 @@ export function OutputView({
   screenColor?: string;
   alphaKey?: 'off' | 'fill' | 'key';
 }) {
-  // The slide layer changes the way the incoming slide says; messages and the logo fade.
-  const slideFx = frame?.transition ?? { kind: 'dissolve', ms: 400 };
+  // The slide layer changes the way the incoming slide says, and so does a background that
+  // changes with it; backgrounds from the media bin use the media transition. Messages and
+  // the logo fade.
+  const slideFx = frame?.transition ?? DEFAULT_TRANSITION;
+  const mediaFx = frame?.mediaTransition ?? DEFAULT_TRANSITION;
   const d = frame?.fadeMs ?? 400;
+  const background = frame?.background ?? null;
+  const isLive = (bg: FrameBackground | null) => bg?.kind === 'media' && !!bg.live;
+  const lastBackground = useRef(background);
+  const backgroundFx = isLive(background) || isLive(lastBackground.current) ? mediaFx : slideFx;
+  useEffect(() => {
+    lastBackground.current = background;
+  });
   const foreground = (
     <>
       <Transition itemKey={frame?.slide?.key ?? null} duration={slideFx.ms} effect={slideFx}>
@@ -343,13 +367,8 @@ export function OutputView({
     <ScaledCanvas className="output-view">
       <div className="fill" style={{ background: alphaKey === 'off' ? (screenColor ?? '#000') : '#000' }} />
       {alphaKey === 'off' && (
-        <Transition
-          itemKey={frame?.background?.key ?? null}
-          duration={slideFx.ms}
-          effect={slideFx.kind === 'cut' ? slideFx : DISSOLVE}
-          mode="over"
-        >
-          {frame?.background && <BackgroundFill bg={frame.background} muted={muted} />}
+        <Transition itemKey={background?.key ?? null} duration={backgroundFx.ms} effect={backgroundFx} mode="over">
+          {background && <BackgroundFill bg={background} muted={muted} />}
         </Transition>
       )}
       {alphaKey === 'key' ? <div className="fill key-matte">{foreground}</div> : foreground}

@@ -4,7 +4,16 @@ import { DEFAULT_GROUPS, groupPresets } from './labels';
 import { getSequence, parseLyrics } from './lyrics';
 import { assignGroup, clearTextStyle, deleteGroup, duplicateGroup, insertSlides, pasteTextStyle, setTransition } from './slideOps';
 import { upgradeTransitions, useStore, type LibraryData } from './store';
-import { effectiveTransition, fromMs, sameTransition, transitionFromPro, transitionLabel } from './transitions';
+import {
+  easingOf,
+  effectiveTransition,
+  fromMs,
+  sameTransition,
+  TRANSITION_KINDS,
+  transitionFromPro,
+  transitionLabel,
+  withChanges,
+} from './transitions';
 import type { Presentation } from './types';
 
 const pres = (text: string, extra: Partial<Presentation> = {}): Presentation => ({
@@ -128,6 +137,46 @@ describe('transitions', () => {
     expect(transitionFromPro(undefined, 0)).toEqual({ kind: 'cut', ms: 0 });
   });
 
+  it('keeps directions and easing sensible for each kind', () => {
+    const push = { kind: 'push', ms: 500, direction: 'down' } as const;
+    // Kinds that don't move drop the direction; a split only opens sideways or up and down.
+    expect(withChanges(push, { kind: 'iris' })).toEqual({ kind: 'iris', ms: 500 });
+    expect(withChanges(push, { kind: 'split' })).toEqual({ kind: 'split', ms: 500, direction: 'up' });
+    expect(withChanges({ kind: 'cut', ms: 0 }, { kind: 'cube' })).toEqual({ kind: 'cube', ms: 400, direction: 'left' });
+    expect(transitionLabel({ kind: 'split', ms: 500, direction: 'left' })).toBe('Split Sideways · 0.5s');
+    expect(transitionLabel({ kind: 'flip', ms: 700, direction: 'up' })).toBe('Flip Up · 0.7s');
+    // Each kind has an easing that suits it, until one is chosen.
+    expect(easingOf({ kind: 'wipe' })).toBe('linear');
+    expect(easingOf({ kind: 'slide', easing: 'ease-in' })).toBe('ease-in');
+    expect(withChanges({ kind: 'push', ms: 500, easing: 'linear' }, { kind: 'zoom' })).toEqual({ kind: 'zoom', ms: 500 });
+    expect(withChanges({ kind: 'push', ms: 500, easing: 'linear' }, { ms: 900 }).easing).toBe('linear');
+    expect(sameTransition({ kind: 'zoom', ms: 500 }, { kind: 'zoom', ms: 500, easing: 'ease-out' })).toBe(true);
+    expect(sameTransition({ kind: 'zoom', ms: 500 }, { kind: 'zoom', ms: 500, easing: 'linear' })).toBe(false);
+    expect(TRANSITION_KINDS.map((k) => k.label)).toEqual([
+      'Cut',
+      'Dissolve',
+      'Fade',
+      'Push',
+      'Slide',
+      'Reveal',
+      'Wipe',
+      'Split',
+      'Iris',
+      'Zoom',
+      'Blur',
+      'Flip',
+      'Cube',
+    ]);
+  });
+
+  it('maps more of ProPresenter’s effects', () => {
+    expect(transitionFromPro('Cube', 1, 6)).toEqual({ kind: 'cube', ms: 1000, direction: 'right' });
+    expect(transitionFromPro('Flip', 1, 2)).toEqual({ kind: 'flip', ms: 1000, direction: 'up' });
+    expect(transitionFromPro('Iris', 0.5)).toEqual({ kind: 'iris', ms: 500 });
+    expect(transitionFromPro('Barn Door', 0.5, 2)).toEqual({ kind: 'split', ms: 500, direction: 'up' });
+    expect(transitionFromPro('Slide', 0.5, 4)).toEqual({ kind: 'slide', ms: 500, direction: 'left' });
+  });
+
   it('upgrades libraries saved with a length only', () => {
     const old = {
       settings: { transitionMs: 0, advanceAcrossItems: true },
@@ -183,6 +232,29 @@ describe('store', () => {
     expect(buildFrame(useStore.getState()).transition).toEqual(useStore.getState().settings.transition);
     s.goLive(get().id, 1);
     expect(buildFrame(useStore.getState()).transition).toEqual({ kind: 'wipe', ms: 900, direction: 'right' });
+  });
+
+  it('clears slide and presentation transitions so the wider one applies', () => {
+    const get = make('[A]\na\n\nb');
+    const s = useStore.getState();
+    const t = { kind: 'cube', ms: 800, direction: 'left' } as const;
+    s.setTransition(get().id, { slideId: get().groups[0].slides[0].id }, t);
+    s.setTransition(get().id, 'presentation', t);
+    useStore.getState().clearSlideTransitions(get().id);
+    expect(get().groups[0].slides[0].transition).toBeUndefined();
+    expect(get().transition).toEqual(t);
+    useStore.getState().clearPresentationTransitions();
+    expect(get().transition).toBeUndefined();
+  });
+
+  it('sends the media transition, and marks media-bin backgrounds', () => {
+    const s = useStore.getState();
+    s.updateSettings({ mediaTransition: { kind: 'iris', ms: 700 } });
+    s.setLiveMedia('clip');
+    const frame = buildFrame(useStore.getState());
+    expect(frame.mediaTransition).toEqual({ kind: 'iris', ms: 700 });
+    expect(frame.background).toMatchObject({ kind: 'media', live: true });
+    s.clearMedia();
   });
 
   it('labels slides', () => {

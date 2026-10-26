@@ -132,7 +132,7 @@ describe('undo and redo', () => {
     expect(s().media.map((m) => m.name)).toEqual(['Clouds']);
     expect(s().settings.logoMediaId).toBe('m1');
     s().updateSettings({ transition: { kind: 'cut', ms: 0 } });
-    expect(useHistory.getState().undo).toBe('Default Transition');
+    expect(useHistory.getState().undo).toBe('Global Transition');
     undo();
     expect(s().settings.transition.kind).toBe('dissolve');
   });

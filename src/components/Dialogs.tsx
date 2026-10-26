@@ -53,8 +53,12 @@ export function SettingsDialog({ onClose, onScreens }: { onClose: () => void; on
       <section className="settings-section">
         <h4>Presenting</h4>
         <div className="field-row">
-          <span>Transition</span>
+          <span>Slide transition</span>
           <TransitionButton target="global" />
+        </div>
+        <div className="field-row">
+          <span>Media transition</span>
+          <TransitionButton target="media" />
         </div>
         <label className="field-row">
           <span>Default theme</span>

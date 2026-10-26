@@ -1438,6 +1438,7 @@ body.resizing-y * {
 
 .screen-label {
   flex: 1;
+  min-width: 0;
   text-align: right;
   font-size: 11.5px;
   color: var(--text-3);
@@ -2474,7 +2475,13 @@ body.resizing-y * {
   object-fit: contain;
 }
 
-/* Slide transitions. Each layer gets "tr-in" or "tr-out", the kind, and a direction (the way it moves). */
+/* Slide transitions. Each layer gets "tr-in" or "tr-out", the kind, and a direction (the way it moves).
+   The length and easing are set on the layer itself. */
+.tr-group {
+  position: absolute;
+  inset: 0;
+  isolation: isolate;
+}
 .layer.tr-in,
 .layer.tr-out {
   animation-fill-mode: both;
@@ -2544,8 +2551,139 @@ body.resizing-y * {
   animation-name: tr-push-out;
 }
 
-.layer.tr-wipe {
-  animation-timing-function: linear;
+/* Slide: the next slide slides in over this one. Reveal: this one slides away, uncovering it. */
+.layer.tr-in.tr-slide {
+  animation-name: tr-push-in;
+}
+
+.layer.tr-out.tr-reveal {
+  z-index: 1;
+  animation-name: tr-push-out;
+}
+
+.layer.tr-in.tr-split.dir-left {
+  animation-name: tr-split-sideways;
+}
+
+.layer.tr-in.tr-split.dir-up {
+  animation-name: tr-split-vertical;
+}
+
+.layer.tr-in.tr-iris {
+  animation-name: tr-iris;
+}
+
+.layer.tr-flip,
+.layer.tr-cube {
+  backface-visibility: hidden;
+}
+
+.layer.tr-in.tr-flip {
+  animation-name: tr-flip-in;
+}
+
+.layer.tr-out.tr-flip {
+  animation-name: tr-flip-out;
+}
+
+/* A cube's faces turn on their shared edge. */
+.layer.tr-in.tr-cube {
+  transform-origin: var(--tr-origin-in);
+  animation-name: tr-cube-in;
+}
+
+.layer.tr-out.tr-cube {
+  transform-origin: var(--tr-origin-out);
+  animation-name: tr-cube-out;
+}
+
+.layer.dir-left {
+  --tr-origin-in: left center;
+  --tr-origin-out: right center;
+}
+
+.layer.dir-right {
+  --tr-origin-in: right center;
+  --tr-origin-out: left center;
+}
+
+.layer.dir-up {
+  --tr-origin-in: center top;
+  --tr-origin-out: center bottom;
+}
+
+.layer.dir-down {
+  --tr-origin-in: center bottom;
+  --tr-origin-out: center top;
+}
+
+@keyframes tr-split-sideways {
+  from {
+    clip-path: inset(0 50% 0 50%);
+  }
+  to {
+    clip-path: inset(0 0 0 0);
+  }
+}
+
+@keyframes tr-split-vertical {
+  from {
+    clip-path: inset(50% 0 50% 0);
+  }
+  to {
+    clip-path: inset(0 0 0 0);
+  }
+}
+
+/* 71% of the canvas's half-diagonal reaches the corners. */
+@keyframes tr-iris {
+  from {
+    clip-path: circle(0% at 50% 50%);
+  }
+  to {
+    clip-path: circle(71% at 50% 50%);
+  }
+}
+
+/* The old slide turns edge-on in the first half; the new one turns from edge-on in the second. */
+@keyframes tr-flip-out {
+  from {
+    transform: perspective(2400px) rotateY(0deg) rotateX(0deg);
+  }
+  50%,
+  to {
+    transform: perspective(2400px) rotateY(calc(var(--tr-x) * 90deg)) rotateX(calc(var(--tr-y) * -90deg));
+  }
+}
+
+@keyframes tr-flip-in {
+  from,
+  50% {
+    transform: perspective(2400px) rotateY(calc(var(--tr-x) * -90deg)) rotateX(calc(var(--tr-y) * 90deg));
+  }
+  to {
+    transform: perspective(2400px) rotateY(0deg) rotateX(0deg);
+  }
+}
+
+@keyframes tr-cube-out {
+  from {
+    transform: perspective(2400px) translate(0, 0) rotateY(0deg) rotateX(0deg);
+  }
+  to {
+    transform: perspective(2400px) translate(calc(var(--tr-x) * 100%), calc(var(--tr-y) * 100%)) rotateY(calc(var(--tr-x) * 90deg))
+      rotateX(calc(var(--tr-y) * -90deg));
+  }
+}
+
+@keyframes tr-cube-in {
+  from {
+    transform: perspective(2400px) translate(calc(var(--tr-x) * -100%), calc(var(--tr-y) * -100%)) rotateY(calc(var(--tr-x) * -90deg))
+      rotateX(calc(var(--tr-y) * 90deg));
+  }
+  to {
+    transform: perspective(2400px) translate(0, 0) rotateY(0deg) rotateX(0deg);
+  }
 }
 
 .layer.tr-in.tr-wipe.dir-left {
@@ -4228,7 +4366,55 @@ body.resizing-y * {
 /* ---- Transitions ------------------------------------------------------------- */
 
 .tp-panel {
-  width: 330px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  width: 400px;
+}
+
+.tp-levels {
+  align-self: stretch;
+}
+
+.tp-levels button {
+  flex: 1 1 auto;
+  padding: 0 8px;
+  font-size: 12.5px;
+  white-space: nowrap;
+}
+
+.tp-scope {
+  margin: -2px 0 0;
+  color: var(--text-2);
+  font-size: 12.5px;
+  line-height: 1.4;
+}
+
+.tp-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  padding-top: 8px;
+  border-top: 1px solid #444;
+  font-size: 12.5px;
+}
+
+.tp-easing button {
+  padding: 0 8px;
+  font-size: 12px;
+}
+
+.transition-btn-prefix {
+  color: var(--text-2);
+  font-size: 0.92em;
+}
+
+.live-transition {
+  flex: none;
+  height: 24px;
+  padding: 0 8px;
+  font-size: 12px;
 }
 
 .tp {
@@ -4277,7 +4463,7 @@ body.resizing-y * {
 
 .tp-kinds {
   display: grid;
-  grid-template-columns: repeat(4, 1fr);
+  grid-template-columns: repeat(5, 1fr);
   gap: 6px;
 }
 

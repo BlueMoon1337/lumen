@@ -14,7 +14,15 @@ import type { Presentation, Settings } from './types';
 import { isTypingTarget } from './util';
 
 /** The settings undo covers; the rest are preferences (pane sizes, grid size, app icon…). */
-const SETTING_KEYS = ['transition', 'groupPresets', 'labelPresets', 'defaultThemeId', 'logoMediaId', 'ccliLicense'] as const;
+const SETTING_KEYS = [
+  'transition',
+  'mediaTransition',
+  'groupPresets',
+  'labelPresets',
+  'defaultThemeId',
+  'logoMediaId',
+  'ccliLicense',
+] as const;
 type SettingKey = (typeof SETTING_KEYS)[number];
 
 type Doc = Pick<AppState, 'presentations' | 'themes' | 'playlists' | 'messages' | 'media'> & { settings: Pick<Settings, SettingKey> };
@@ -246,6 +254,8 @@ const LABELS: Record<string, string | ((args: unknown[]) => string)> = {
   pasteTextStyle: 'Paste Text Style',
   clearTextStyle: 'Clear Text Style',
   setTransition: 'Transition',
+  clearSlideTransitions: 'Clear Slide Transitions',
+  clearPresentationTransitions: 'Clear Presentation Transitions',
   addToPlaylist: 'Add to Playlist',
   addPlaylistHeader: 'Add Header',
   updatePlaylistItem: 'Rename Header',
@@ -266,14 +276,16 @@ const LABELS: Record<string, string | ((args: unknown[]) => string)> = {
   deleteMessage: 'Delete Message',
   updateSettings: ([patch]) =>
     has(patch, 'transition')
-      ? 'Default Transition'
-      : has(patch, 'groupPresets')
-        ? 'Edit Groups'
-        : has(patch, 'labelPresets')
-          ? 'Edit Labels'
-          : has(patch, 'logoMediaId')
-            ? 'Logo'
-            : 'Settings',
+      ? 'Global Transition'
+      : has(patch, 'mediaTransition')
+        ? 'Media Transition'
+        : has(patch, 'groupPresets')
+          ? 'Edit Groups'
+          : has(patch, 'labelPresets')
+            ? 'Edit Labels'
+            : has(patch, 'logoMediaId')
+              ? 'Logo'
+              : 'Settings',
   saveBible: 'Save Passage',
   copyBibleTo: 'Copy Passage',
   importLibrary: 'Import Library',

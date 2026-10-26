@@ -3,7 +3,17 @@ import { groupPresets, LABEL_SWATCHES, labelPresets } from '../labels';
 import { colorForGroup } from '../lyrics';
 import type { SlideScope } from '../slideOps';
 import { useStore } from '../store';
-import { DEFAULT_TRANSITION, DIRECTIONS, isDirectional, QUICK_DURATIONS, TRANSITION_KINDS, transitionLabel } from '../transitions';
+import {
+  DEFAULT_TRANSITION,
+  directionLabel,
+  directionOf,
+  EASINGS,
+  easingOf,
+  QUICK_DURATIONS,
+  TRANSITION_KINDS,
+  transitionLabel,
+  withChanges,
+} from '../transitions';
 import type { Group, MediaItem, Playlist, PlaylistItem, Presentation, Slide, SlideTransition } from '../types';
 import { NamePopup, openPopupAtMenu, type ContextEntries } from './ContextMenu';
 import { LIBRARIES } from './Sidebar';
@@ -19,32 +29,27 @@ const st = () => useStore.getState();
 
 // ---- Shared submenus ----------------------------------------------------------------
 
-/** Choose a transition: follow the default, a kind (push and wipe by direction), a length, or the full picker. */
+/** Choose a transition: follow the default, a kind (by direction for those that move), a length, an easing, or the panel. */
 export function transitionEntries(target: TransitionTarget): ContextEntries {
   const state = transitionState(st(), target);
   const own = state.value;
   const base = own ?? state.inherited ?? DEFAULT_TRANSITION;
-  const set = (patch: Partial<SlideTransition>) => {
-    const next: SlideTransition = { ...base, ...patch };
-    if (next.kind !== 'cut' && next.ms < 100) next.ms = DEFAULT_TRANSITION.ms;
-    if (!isDirectional(next.kind)) delete next.direction;
-    setTransitionFor(target, next);
-  };
+  const set = (patch: Partial<SlideTransition>) => setTransitionFor(target, withChanges(base, patch));
   return [
     state.inherited && {
-      label: `${state.inheritedLabel?.includes('presentation') ? 'Presentation Default' : 'Default'} (${transitionLabel(state.inherited)})`,
+      label: `${state.inheritedLabel?.includes('presentation') ? 'Presentation Default' : 'Global Default'} (${transitionLabel(state.inherited)})`,
       checked: !own,
       action: () => setTransitionFor(target, undefined),
     },
     state.inherited && '-',
     ...TRANSITION_KINDS.map((k) =>
-      k.directional
+      k.directions
         ? {
             label: k.label,
-            submenu: DIRECTIONS.map((d) => ({
-              label: `${d.arrow}  ${d.label}`,
-              checked: own?.kind === k.kind && (own.direction ?? 'left') === d.value,
-              action: () => set({ kind: k.kind, direction: d.value }),
+            submenu: k.directions.map((d) => ({
+              label: directionLabel(k.kind, d),
+              checked: own?.kind === k.kind && directionOf(own) === d,
+              action: () => set({ kind: k.kind, direction: d }),
             })),
           }
         : { label: k.label, checked: own?.kind === k.kind, title: k.hint, action: () => set({ kind: k.kind }) },
@@ -57,6 +62,15 @@ export function transitionEntries(target: TransitionTarget): ContextEntries {
         label: `${ms / 1000}s`,
         checked: !!own && own.kind !== 'cut' && own.ms === ms,
         action: () => set({ ms }),
+      })),
+    },
+    {
+      label: 'Easing',
+      disabled: base.kind === 'cut',
+      submenu: EASINGS.map((e) => ({
+        label: e.label,
+        checked: !!own && own.kind !== 'cut' && easingOf(own) === e.value,
+        action: () => set({ easing: e.value }),
       })),
     },
     { label: 'Transition Options…', action: () => openPopupAtMenu(<TargetTransitionPicker target={target} />) },
@@ -363,6 +377,7 @@ export function mediaMenu(m: MediaItem): ContextEntries {
   return [
     { label: live ? 'Clear from Screen' : 'Show Behind Slides', action: () => s.setLiveMedia(live ? null : m.id) },
     { label: 'Use as Logo', checked: logo, action: () => s.updateSettings({ logoMediaId: logo ? undefined : m.id }) },
+    { label: 'Media Transition…', action: () => openPopupAtMenu(<TargetTransitionPicker target="media" />) },
     '-',
     {
       label: 'Rename…',

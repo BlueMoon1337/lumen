@@ -105,6 +105,10 @@ interface Actions {
   clearTextStyle(presentationId: string, scope: SlideScope): void;
   /** Sets or (undefined) clears the transition of a slide, a group's slides, or the presentation. */
   setTransition(presentationId: string, scope: SlideScope, transition: SlideTransition | undefined): void;
+  /** Slides stop having their own transitions and use the presentation's. */
+  clearSlideTransitions(presentationId: string): void;
+  /** Every presentation (and its slides) uses the global transition. */
+  clearPresentationTransitions(): void;
   copySlides(presentationId: string, slideIds: string[]): void;
   /** Copies slides, then deletes them. */
   cutSlides(presentationId: string, slideIds: string[]): void;
@@ -468,6 +472,16 @@ export const useStore = create<AppState>()(
         },
         clearTextStyle: (pid, scope) => edit(pid, (p) => ops.clearTextStyle(p, scope)),
         setTransition: (pid, scope, transition) => edit(pid, (p) => ops.setTransition(p, scope, transition)),
+        clearSlideTransitions: (pid) => edit(pid, (p) => ops.clearSlideTransitions(p)),
+        clearPresentationTransitions: () =>
+          set((s) => ({
+            presentations: Object.fromEntries(
+              Object.entries(s.presentations).map(([id, p]) => {
+                const own = p.transition || p.groups.some((g) => g.slides.some((sl) => sl.transition));
+                return [id, own && !p.hidden ? { ...p, transition: undefined, ...ops.clearSlideTransitions(p), updatedAt: Date.now() } : p];
+              }),
+            ),
+          })),
         copySlides: (pid, slideIds) => {
           const p = get().presentations[pid];
           const slides = p?.groups.flatMap((g) => g.slides).filter((sl) => slideIds.includes(sl.id));

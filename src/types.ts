@@ -34,17 +34,23 @@ export interface ColorLabel {
 }
 
 /** How one slide replaces the one before it. */
-export type TransitionKind = 'cut' | 'dissolve' | 'fade' | 'push' | 'wipe' | 'zoom' | 'blur';
+export type TransitionKind =
+  'cut' | 'dissolve' | 'fade' | 'push' | 'slide' | 'reveal' | 'wipe' | 'split' | 'iris' | 'zoom' | 'blur' | 'flip' | 'cube';
 
-/** Which way a push or wipe moves. */
+/** Which way a transition moves. A split opens sideways (left, right) or up and down (up, down). */
 export type TransitionDirection = 'left' | 'right' | 'up' | 'down';
+
+/** How a transition speeds up and slows down. */
+export type TransitionEasing = 'linear' | 'ease-in' | 'ease-out' | 'ease-in-out';
 
 export interface SlideTransition {
   kind: TransitionKind;
   /** Length in ms; a cut ignores it. */
   ms: number;
-  /** For push and wipe; left when unset. */
+  /** For the kinds that move (see TRANSITION_KINDS in src/transitions.ts); left when unset. */
   direction?: TransitionDirection;
+  /** Unset: what suits the kind (a wipe is even, a push eases in and out). */
+  easing?: TransitionEasing;
 }
 
 export interface Group {
@@ -174,6 +180,8 @@ export interface Settings {
   appIcon?: AppIconId;
   /** The slide transition used unless a presentation or slide sets its own. */
   transition: SlideTransition;
+  /** How backgrounds from the media bin come and go; a dissolve when unset. */
+  mediaTransition?: SlideTransition;
   /** The groups offered when assigning slides; unset uses DEFAULT_GROUPS (src/labels.ts). */
   groupPresets?: ColorLabel[];
   /** The slide labels offered; unset uses DEFAULT_LABELS (src/labels.ts). */
@@ -384,6 +392,8 @@ export interface OutputFrame {
   logoMediaId: string | null;
   /** How the slide layer (and its background) changes: the incoming slide's transition. */
   transition: SlideTransition;
+  /** How a background from the media bin comes and goes. */
+  mediaTransition: SlideTransition;
   /** Fade length for messages and the logo. */
   fadeMs: number;
   /** Added fonts, so output windows can load the ones slides use. */
@@ -408,4 +418,5 @@ export interface OutputFrame {
 export type FrameBackground =
   | { key: string; kind: 'color'; color: string }
   | { key: string; kind: 'gradient'; color: string; color2: string }
-  | { key: string; kind: 'media'; mediaId: string; paused?: boolean };
+  /** `live`: from the media bin, rather than a theme or slide background. */
+  | { key: string; kind: 'media'; mediaId: string; paused?: boolean; live?: boolean };

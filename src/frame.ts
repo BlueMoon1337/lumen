@@ -2,7 +2,7 @@ import { DEFAULT_APP_ICON } from './appIcons';
 import { getSequence } from './lyrics';
 import { adjacentPlaylistItem, type AppState } from './store';
 import { copyrightLine, resolveTheme, slideTheme, toFrameBackground } from './theme';
-import { effectiveTransition, transitionDuration } from './transitions';
+import { effectiveTransition, mediaTransitionOf, transitionDuration } from './transitions';
 import type { FrameBackground, OutputFrame, Presentation } from './types';
 
 const label = (p: Presentation, groupName: string) => `${p.title} · ${groupName}`;
@@ -41,7 +41,7 @@ export function buildFrame(s: AppState): OutputFrame {
         }
       : null;
   const background: FrameBackground | null = s.live.mediaId
-    ? { key: `m:${s.live.mediaId}:${s.live.mediaRestart}`, kind: 'media', mediaId: s.live.mediaId, paused: s.live.mediaPaused }
+    ? { key: `m:${s.live.mediaId}:${s.live.mediaRestart}`, kind: 'media', mediaId: s.live.mediaId, paused: s.live.mediaPaused, live: true }
     : slide && entry
       ? toFrameBackground(entry.slide.background ?? theme.background)
       : null;
@@ -52,6 +52,7 @@ export function buildFrame(s: AppState): OutputFrame {
     message: message ? { key: message.id, text: message.text } : null,
     logoMediaId: s.live.logo ? (s.settings.logoMediaId ?? null) : null,
     transition: effectiveTransition(s.settings, p, entry?.slide),
+    mediaTransition: mediaTransitionOf(s.settings),
     fadeMs: transitionDuration(s.settings.transition),
     fonts: s.fonts,
     appIcon: s.settings.appIcon ?? DEFAULT_APP_ICON,

@@ -74,7 +74,7 @@ npm run format       # Prettier
 | Right-click menus                                                                                                                    | Same: slides, group headers, the Edit canvas, library and playlist items, playlists, headers and media each have one. See Slides, groups and labels below.                                                                                         |
 | Copy Style / Paste Style (⌥⌘C / ⌥⌘V)                                                                                                 | Same: right-click a slide, or the Text tab's Copy Style and Paste Style buttons. Paste onto one slide, a group, or every slide.                                                                                                                    |
 | Group and Label (right-click a slide), Edit Groups…                                                                                  | Same. Picking a group starts it at that slide. Labels are colored tags on the thumbnails. **Edit Groups & Labels…** sets the lists.                                                                                                                |
-| Transitions                                                                                                                          | Cut, Dissolve, Fade, Push, Wipe, Zoom and Blur, with direction and length, for a slide (right-click), a presentation (the button under the slides) or everything (Settings).                                                                       |
+| Transitions                                                                                                                          | Thirteen kinds with direction, length and easing, for a slide (right-click, or its badge), a group, a presentation (the button under the slides), every slide (**Global**, the button under the preview) or media from the media bin.              |
 
 ## Features
 
@@ -86,11 +86,11 @@ npm run format       # Prettier
 - **Themes** with font, size, colors, shadow, outline, alignment, margins, a lower-third box, and color, gradient or media backgrounds. Text shrinks automatically to fit. Per-presentation formatting from the Text button sits on top of the theme.
 - **Fonts**: Copperplate from the computer (with a free bundled stand-in), any installed font by name, and font files you add (see below).
 - **Copyright line** (title, author, publisher, CCLI song and license numbers) on the first and last slides when "Show On Screen" is on.
-- **Transitions**: Cut, Dissolve, Fade, Push, Wipe, Zoom and Blur, with a direction for Push and Wipe and any length, for one slide, a presentation, or as the default. A picker plays each one as you choose.
+- **Transitions**: Cut, Dissolve, Fade, Push, Slide, Reveal, Wipe, Split, Iris, Zoom, Blur, Flip and Cube, with a direction, length and easing, for one slide, a group, a presentation, every slide (global), and media backgrounds. One panel sets any of them, with a preview that plays the transition.
 - **Undo and redo** for every change to the library, slides, playlists, themes and messages (see Undo below).
 - **Right-click menus** everywhere, **Copy / Paste Text Style**, **group presets** and **slide labels** (see Slides, groups and labels below).
 - **Media bin** for images and looping videos as backgrounds, stored locally in IndexedDB, with pause and restart.
-- **Layers** as in ProPresenter: background, slide, message and logo, each cleared on its own, with crossfade transitions.
+- **Layers** as in ProPresenter: background, slide, message and logo, each cleared on its own.
 - **Countdown timer**, either a duration or a time of day, shown on the stage display and usable in messages.
 - **Messages** on the audience screen, with `{countdown}` and `{clock}` tokens.
 - **Stage display** showing the current and next slide, notes, clock, timer, and a flashing message to the stage.
@@ -106,7 +106,7 @@ Right-click a slide (in Show mode's grid or list, or Edit mode's slide list) for
 - **Copy Text Style** and **Paste Text Style**: the font, size, weight, color, caps and alignment as the slide shows them (not the text box's position). **Paste Text Style To** puts it on the slide's group or every slide; on every slide it becomes the presentation's formatting. **Clear Text Style** goes back to the theme.
 - **Group**: Verse 1–4, Pre-Chorus, Chorus, Bridge, Tag, Vamp, Intro, Interlude, Outro, Ending, or **New Group…**. As in ProPresenter, a group starts at the slide you pick it on, and the slides after it in its old group come along. Picking a group on a group's first slide renames and recolors that group.
 - **Label**: a colored tag on the thumbnail, a cue for whoever runs slides (Welcome, Prayer, Offering, Key Change, Last Time…), or **Custom Label…**.
-- **Transition**: the default, or a kind (Push and Wipe by direction), a **Duration**, or **Transition Options…** for the picker with its preview. A slide with its own transition shows a small badge; click the badge to change it.
+- **Transition**: the default, or a kind (by direction, for those that move), a **Duration**, an **Easing**, or **Transition Options…** for the transition panel. A slide with its own transition shows a small badge; click the badge to change it.
 
 Right-click a **group header** in Edit mode to rename it, recolor it, pick a preset, add a slide, duplicate it, paste a text style on all of its slides, give them a transition, or delete it. **Edit Groups & Labels…** (from the Group and Label menus, the Slide inspector or Settings) changes the lists of groups and labels; slides already using one keep theirs.
 
@@ -114,7 +114,33 @@ The Slide inspector in Edit mode has the same choices: the slide's group, its la
 
 ### Transitions
 
-A slide comes on screen with its own transition if it has one, else its presentation's (the button under the slides in Show mode, or the Presentation inspector), else the default in Settings. Push and Wipe move left, right, up or down. Backgrounds dissolve over the same time, and cut when the slide cuts. Messages and the logo fade with the default's length. ProPresenter's transitions import with their kind, direction and length.
+| Kind     | What it does                                    | Directions            |
+| -------- | ----------------------------------------------- | --------------------- |
+| Cut      | Straight to the next slide                      |                       |
+| Dissolve | The next slide fades in as this one fades out   |                       |
+| Fade     | This slide fades out, then the next fades in    |                       |
+| Push     | The next slide pushes this one off              | ← → ↑ ↓               |
+| Slide    | The next slide slides in over this one          | ← → ↑ ↓               |
+| Reveal   | This slide slides away, uncovering the next     | ← → ↑ ↓               |
+| Wipe     | An edge sweeps across, revealing the next slide | ← → ↑ ↓               |
+| Split    | The next slide opens out from the middle        | sideways, up and down |
+| Iris     | The next slide opens in a growing circle        |                       |
+| Zoom     | The next slide grows in as this one grows away  |                       |
+| Blur     | Blurs out, and the next slide comes into focus  |                       |
+| Flip     | Turns over like a card                          | ← → ↑ ↓               |
+| Cube     | Turns like the sides of a cube                  | ← → ↑ ↓               |
+
+Each has a length (0.1 to 3 seconds) and an easing: **Even**, **Ease In**, **Ease Out** or **Ease In & Out**. Each kind starts with the easing that suits it, such as Even for a wipe and Ease Out for a slide.
+
+The **transition panel** sets them all, with a preview that plays the one you're choosing. Its tabs are the levels a transition can be set at:
+
+- **Slide**: just this slide. Open it by right-clicking a slide, then **Transition ▸ Transition Options…**, by clicking a slide's transition badge, or from the Slide inspector. **Use for All of “Chorus”** and **Use for Every Slide** apply the slide's transition more widely.
+- **Group**: every slide in the group. Right-click a group header in Edit mode.
+- **Presentation**: every slide in the presentation without its own. Use the button under the slides in Show mode, the Presentation inspector, or right-click the presentation in the library. **Clear Them** removes the slides' own transitions.
+- **Global**: every slide of every presentation, unless the presentation or slide has its own. Use the **Global** button under the preview, or Settings. **Use Global Everywhere** clears every presentation's and slide's own transition.
+- **Media**: backgrounds from the media bin, as they start, change and clear. Right-click a media item, or use Settings.
+
+A slide comes on screen with its own transition, else its presentation's, else the global one. A background that changes with the slide (a slide's own background, or a different theme's) moves with it, so a Push pushes both. Clearing a layer fades it out. Messages and the logo fade over the global transition's length. ProPresenter's transitions import as the nearest kind, with their direction and length.
 
 ## Undo
 
@@ -281,7 +307,8 @@ src/
     MenuSelect     ProPresenter-style pop-up menus (checkmarks, headers, submenus, thumbnails)
     ContextMenu    right-click menus and small floating panels (name and color, transition picker)
     menus          what each right-click menu offers
-    TransitionPicker  transition picker with a live preview, and the buttons that open it
+    TransitionPicker  transition panel (Slide / Group / Presentation / Global / Media tabs) with a live preview,
+                   and the buttons that open it
     ScreenHostApp  output window (#/screen): every output on one display, each in its region, with its share of a
                    grouped screen, edge blend, delay, color, corner pin, identify and test patterns.
                    #/output and #/stage show the first audience or stage screen, e.g. as a browser source in OBS
