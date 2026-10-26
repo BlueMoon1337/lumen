@@ -156,12 +156,17 @@ export function Popover({
       const anchor = ref.current?.parentElement;
       if (anchor && !anchor.contains(e.target as Node)) onClose();
     };
-    const onKey = (e: KeyboardEvent) => e.key === 'Escape' && onClose();
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key !== 'Escape') return;
+      // Close the popover, not a dialog it sits in.
+      e.stopImmediatePropagation();
+      onClose();
+    };
     document.addEventListener('mousedown', onDown);
-    window.addEventListener('keydown', onKey);
+    window.addEventListener('keydown', onKey, true);
     return () => {
       document.removeEventListener('mousedown', onDown);
-      window.removeEventListener('keydown', onKey);
+      window.removeEventListener('keydown', onKey, true);
     };
   }, [open, onClose]);
   if (!open) return null;

@@ -1,15 +1,182 @@
-import type { CornerPin, DisplayRef, OutputColor, ScreenConfig, ScreenKind, ScreenOutput, ScreenSetup } from './types';
+import type {
+  CornerPin,
+  DisplayRef,
+  EdgeBlend,
+  OutputColor,
+  OutputTarget,
+  ScreenConfig,
+  ScreenKind,
+  ScreenOutput,
+  ScreenSetup,
+} from './types';
 import { uid } from './util';
 
 export const DEFAULT_COLOR: OutputColor = { brightness: 1, contrast: 1, saturation: 1, hue: 0 };
 export const DEFAULT_PIN: CornerPin = { tl: { x: 0, y: 0 }, tr: { x: 1, y: 0 }, br: { x: 1, y: 1 }, bl: { x: 0, y: 1 } };
+export const DEFAULT_BLEND: EdgeBlend = { overlap: 240, gamma: 2.2 };
 
 export function newOutput(display?: DisplayRef): ScreenOutput {
-  return { id: uid(), display, delayFrames: 0, color: { ...DEFAULT_COLOR }, cornerPin: structuredClone(DEFAULT_PIN), alphaKey: 'off' };
+  return {
+    id: uid(),
+    display,
+    target: { type: 'full' },
+    delayFrames: 0,
+    color: { ...DEFAULT_COLOR },
+    cornerPin: structuredClone(DEFAULT_PIN),
+    alphaKey: 'off',
+  };
 }
 
 export function newScreen(kind: ScreenKind, name: string): ScreenConfig {
-  return { id: uid(), kind, name, width: 1920, height: 1080, outputs: [newOutput()] };
+  return {
+    id: uid(),
+    kind,
+    name,
+    width: 1920,
+    height: 1080,
+    mode: 'mirror',
+    columns: 2,
+    blend: { ...DEFAULT_BLEND },
+    outputs: [newOutput()],
+  };
+}
+
+/** Fills in settings added since a setup was saved (or exported). */
+export function normalizeScreens(setup: Partial<ScreenSetup> | undefined): ScreenSetup {
+  if (!setup?.screens) return defaultScreenSetup();
+  return {
+    audienceEnabled: !!setup.audienceEnabled,
+    stageEnabled: !!setup.stageEnabled,
+    screens: setup.screens.map((s) => {
+      const outputs = (s.outputs ?? []).map((o) => ({ ...newOutput(), ...o, target: o.target ?? { type: 'full' } }));
+      return {
+        ...newScreen(s.kind, s.name),
+        ...s,
+        mode: s.mode ?? 'mirror',
+        columns: s.columns ?? 2,
+        blend: { ...DEFAULT_BLEND, ...s.blend },
+        outputs: outputs.length ? outputs : [newOutput()],
+      };
+    }),
+  };
+}
+
+// ---- Layout ---------------------------------------------------------------------
+
+export interface Rect {
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+}
+
+/** The outputs a screen uses: Single uses only the first, and keeps the rest for switching back. */
+export const usedOutputs = (screen: ScreenConfig): ScreenOutput[] =>
+  screen.mode === 'single' ? screen.outputs.slice(0, 1) : screen.outputs;
+
+export const isGrouped = (screen: ScreenConfig) => screen.mode === 'grouped' || screen.mode === 'blend';
+
+/**
+ * The screen's whole picture and the part each used output shows, in pixels.
+ * Mirrored outputs each show all of it; grouped outputs tile it left to right,
+ * then top to bottom; blended ones overlap their neighbours by `overlap`.
+ */
+export function screenLayout(screen: ScreenConfig): {
+  width: number;
+  height: number;
+  cols: number;
+  rows: number;
+  overlap: number;
+  rects: Rect[];
+} {
+  const n = usedOutputs(screen).length;
+  const { width: w, height: h } = screen;
+  if (!isGrouped(screen)) {
+    return {
+      width: w,
+      height: h,
+      cols: 1,
+      rows: 1,
+      overlap: 0,
+      rects: Array.from({ length: n }, () => ({ x: 0, y: 0, width: w, height: h })),
+    };
+  }
+  const cols = Math.max(1, Math.min(n, Math.round(screen.columns) || 1));
+  const rows = Math.ceil(n / cols);
+  const overlap = screen.mode === 'blend' ? Math.max(0, Math.min(Math.round(screen.blend.overlap), Math.floor(Math.min(w, h) / 2))) : 0;
+  const rects = Array.from({ length: n }, (_, i) => ({
+    x: (i % cols) * (w - overlap),
+    y: Math.floor(i / cols) * (h - overlap),
+    width: w,
+    height: h,
+  }));
+  return { width: cols * w - (cols - 1) * overlap, height: rows * h - (rows - 1) * overlap, cols, rows, overlap, rects };
+}
+
+/**
+ * How bright a projector should be across an overlap, from its outer edge
+ * (t = 0) to where its neighbour's picture ends (t = 1). Two overlapping
+ * projectors' light, value^gamma, adds up to one everywhere.
+ */
+export function blendAlpha(t: number, gamma: number): number {
+  const c = Math.max(0, Math.min(1, t));
+  const s = c * c * (3 - 2 * c);
+  return Math.pow(s, 1 / Math.max(0.1, gamma));
+}
+
+/** CSS mask layers that fade an output's edges where it overlaps its neighbours (combine with mask-composite: intersect). */
+export function blendMask(screen: ScreenConfig, index: number): string[] {
+  if (screen.mode !== 'blend') return [];
+  const { cols, overlap, rects } = screenLayout(screen);
+  if (!overlap) return [];
+  const col = index % cols;
+  const n = rects.length;
+  const ramp = (direction: string, size: number) => {
+    const stops = Array.from(
+      { length: 11 },
+      (_, i) => `rgba(0, 0, 0, ${blendAlpha(i / 10, screen.blend.gamma).toFixed(3)}) ${((i / 10) * size).toFixed(2)}%`,
+    );
+    return `linear-gradient(${direction}, ${stops.join(', ')}, #000 ${size.toFixed(2)}%)`;
+  };
+  const fx = (overlap / screen.width) * 100;
+  const fy = (overlap / screen.height) * 100;
+  return [
+    col > 0 && ramp('to right', fx),
+    col < cols - 1 && index + 1 < n && ramp('to left', fx),
+    index >= cols && ramp('to bottom', fy),
+    index + cols < n && ramp('to top', fy),
+  ].filter((m): m is string => !!m);
+}
+
+// ---- Output targets ---------------------------------------------------------------
+
+export const TARGET_GRIDS: [number, number][] = [
+  [2, 1],
+  [2, 2],
+  [3, 1],
+];
+
+export function describeTarget(t: OutputTarget): string {
+  return t.type === 'grid' ? `${t.cols} x ${t.rows}` : t.type === 'custom' ? 'Custom' : 'Full';
+}
+
+/** The part of its display's signal an output fills, as fractions (0–1). */
+export function targetRect(target: OutputTarget, signal: { width: number; height: number }): Rect {
+  if (target.type === 'grid') {
+    const cols = Math.max(1, target.cols);
+    const rows = Math.max(1, target.rows);
+    const cell = Math.max(0, Math.min(cols * rows - 1, target.cell));
+    return { x: (cell % cols) / cols, y: Math.floor(cell / cols) / rows, width: 1 / cols, height: 1 / rows };
+  }
+  if (target.type === 'custom') {
+    return {
+      x: target.x / signal.width,
+      y: target.y / signal.height,
+      width: target.width / signal.width,
+      height: target.height / signal.height,
+    };
+  }
+  return { x: 0, y: 0, width: 1, height: 1 };
 }
 
 export function defaultScreenSetup(): ScreenSetup {
@@ -46,6 +213,8 @@ export interface DetectedDisplay {
   /** Position in the desktop, for placing windows. */
   left?: number;
   top?: number;
+  /** Device pixels per desktop unit (2 on a Retina display); width and height are in device pixels. */
+  scale?: number;
 }
 
 export const toDisplayRef = (d: DetectedDisplay): DisplayRef => ({ id: d.id, label: d.label, width: d.width, height: d.height });
@@ -65,37 +234,41 @@ export interface PlannedOutput {
   kind: ScreenKind;
   screen: ScreenConfig;
   output: ScreenOutput;
+  /** Position among the screen's used outputs. */
   index: number;
   display?: DetectedDisplay;
   /**
-   * display: shown fullscreen on a connected display.
+   * display: shown on a connected display.
    * window: Automatic with no spare display, so it opens as a window on the operator's screen.
    * disconnected: its assigned display isn't connected; it comes back when the display does.
+   * placeholder: holds a place for a display that isn't here; shown nowhere.
    */
-  status: 'display' | 'window' | 'disconnected';
+  status: 'display' | 'window' | 'disconnected' | 'placeholder';
 }
 
 /**
  * Decides where every output goes. Assigned outputs use their display when it's
  * connected. Automatic outputs take the first spare display that isn't the
  * operator's (external screens first), audience screens before stage screens.
+ * Automatic outputs that fill only part of a signal (2 x 1 and so on) share one
+ * display, as they would through a multi-display adapter.
  */
 export function planOutputs(setup: ScreenSetup, displays: DetectedDisplay[]): PlannedOutput[] {
   const used = new Set<DetectedDisplay>();
   const order = [...setup.screens.filter((s) => s.kind === 'audience'), ...setup.screens.filter((s) => s.kind === 'stage')];
   const entries = order.flatMap((screen) =>
-    screen.outputs.map((output, index): PlannedOutput => ({
+    usedOutputs(screen).map((output, index): PlannedOutput => ({
       key: `${screen.id}:${output.id}`,
       kind: screen.kind,
       screen,
       output,
       index,
-      status: 'window',
+      status: output.placeholder ? 'placeholder' : 'window',
     })),
   );
 
   for (const e of entries) {
-    if (!e.output.display) continue;
+    if (!e.output.display || e.status === 'placeholder') continue;
     const d = findDisplay(e.output.display, displays);
     if (d) {
       e.display = d;
@@ -106,29 +279,72 @@ export function planOutputs(setup: ScreenSetup, displays: DetectedDisplay[]): Pl
 
   const operator = (d: DetectedDisplay) => (displays.some((x) => x.current) ? d.current : d.primary);
   const spare = () => displays.filter((d) => !used.has(d) && !operator(d)).sort((a, b) => Number(!!a.internal) - Number(!!b.internal))[0];
+  let shared: DetectedDisplay | undefined;
   for (const e of entries) {
-    if (e.output.display) continue;
-    const d = spare();
+    if (e.output.display || e.status === 'placeholder') continue;
+    const split = e.output.target.type !== 'full';
+    const d = (split && shared) || spare();
     if (d) {
       e.display = d;
       e.status = 'display';
       used.add(d);
+      if (split) shared = d;
     }
   }
 
   return entries.sort((a, b) => setup.screens.indexOf(a.screen) - setup.screens.indexOf(b.screen) || a.index - b.index);
 }
 
-/** The outputs that should have a window open right now. */
+/** The outputs that should be showing right now. */
 export function activeOutputs(setup: ScreenSetup, displays: DetectedDisplay[]): PlannedOutput[] {
   return planOutputs(setup, displays).filter(
-    (p) => p.status !== 'disconnected' && (p.kind === 'audience' ? setup.audienceEnabled : setup.stageEnabled),
+    (p) => (p.status === 'display' || p.status === 'window') && (p.kind === 'audience' ? setup.audienceEnabled : setup.stageEnabled),
   );
 }
 
-/** The output window's address within the app. */
-export const outputRoute = (p: Pick<PlannedOutput, 'kind' | 'screen' | 'output'>) =>
-  `${p.kind === 'stage' ? 'stage' : 'output'}?screen=${encodeURIComponent(p.screen.id)}&output=${encodeURIComponent(p.output.id)}`;
+// ---- Output windows ---------------------------------------------------------------
+
+/**
+ * One output window: fullscreen on a display, showing every output that goes
+ * to that display in its part of the signal, or a plain window for one output
+ * that has no display.
+ */
+export interface OutputHost {
+  key: string;
+  display?: DetectedDisplay;
+  outputs: PlannedOutput[];
+  /** Pixel size of the signal, which output targets are measured in. */
+  width: number;
+  height: number;
+}
+
+export const hostKey = (p: PlannedOutput) =>
+  p.status === 'display' && p.display ? `display:${p.display.id ?? p.display.label}` : `window:${p.key}`;
+
+/** The signal size an output's target is measured in: its display's, or what it would be on one. */
+export function signalSize(p: Pick<PlannedOutput, 'screen' | 'output' | 'display'>): { width: number; height: number } {
+  const d = p.display ?? p.output.display ?? p.output.placeholder;
+  if (d) return { width: d.width, height: d.height };
+  const t = p.output.target;
+  return t.type === 'grid'
+    ? { width: p.screen.width * t.cols, height: p.screen.height * t.rows }
+    : { width: p.screen.width, height: p.screen.height };
+}
+
+export function planHosts(outputs: PlannedOutput[]): OutputHost[] {
+  const hosts = new Map<string, OutputHost>();
+  for (const p of outputs) {
+    const key = hostKey(p);
+    const host = hosts.get(key) ?? { key, display: p.status === 'display' ? p.display : undefined, outputs: [], ...signalSize(p) };
+    host.outputs.push(p);
+    hosts.set(key, host);
+  }
+  return [...hosts.values()];
+}
+
+/** The output window's address within the app: its signal size and the outputs it shows. */
+export const hostRoute = (h: Pick<OutputHost, 'width' | 'height' | 'outputs'>) =>
+  `screen?size=${h.width}x${h.height}&${h.outputs.map((p) => `o=${encodeURIComponent(p.screen.id)}:${encodeURIComponent(p.output.id)}`).join('&')}`;
 
 export function describeDisplay(d: Pick<DetectedDisplay, 'width' | 'height' | 'internal' | 'refresh'>): string {
   const hz = d.refresh ? ` @ ${Math.round(d.refresh)} Hz` : '';

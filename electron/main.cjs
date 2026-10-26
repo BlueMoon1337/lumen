@@ -19,7 +19,7 @@ protocol.registerSchemesAsPrivileged([
 
 app.commandLine.appendSwitch('autoplay-policy', 'no-user-gesture-required');
 
-/** Output windows by key ("screenId:outputId"). */
+/** Output windows by key: "display:<id>" for a display's window, "window:<output>" for one without a display. */
 const outputs = new Map();
 let control = null;
 let menuState = { audienceEnabled: false, stageEnabled: false, identify: false };
@@ -51,6 +51,7 @@ function displayList() {
     refresh: d.displayFrequency || undefined,
     left: d.bounds.x,
     top: d.bounds.y,
+    scale: d.scaleFactor,
   }));
 }
 
@@ -84,6 +85,7 @@ function createOutput(request, display) {
     webPreferences,
   });
   win.lumenDisplayId = display ? display.id : null;
+  win.lumenRoute = request.route;
   win.setMenuBarVisibility(false);
   win.loadURL(appUrl(request.route));
   // Outputs on another display fill it; one on the operator's screen stays a window, so it can't cover the controls.
@@ -111,6 +113,11 @@ function setOutputs(requests) {
     if (existing && !existing.isDestroyed()) {
       if (existing.lumenDisplayId === (display ? display.id : null)) {
         existing.setTitle(request.title);
+        // Different outputs on the same display: only the address's hash changes, so the page isn't reloaded.
+        if (existing.lumenRoute !== request.route) {
+          existing.lumenRoute = request.route;
+          existing.loadURL(appUrl(request.route));
+        }
         continue;
       }
       outputs.delete(request.key);

@@ -3,7 +3,7 @@ import { persist } from 'zustand/middleware';
 import { deleteBibleText, type BibleMeta } from './bible';
 import { colorForGroup, getSequence, parseLyrics } from './lyrics';
 import { deleteMediaBlob, putMediaBlob } from './media';
-import { defaultScreenSetup, newOutput, newScreen, nextScreenName } from './screens';
+import { defaultScreenSetup, newOutput, newScreen, nextScreenName, normalizeScreens } from './screens';
 import { defaultThemes, seedMessages, seedPlaylist, seedPresentations } from './seed';
 import type {
   Category,
@@ -502,7 +502,16 @@ export const useStore = create<AppState>()(
           if (!screen) return;
           const n = Math.max(1, Math.min(8, Math.round(count)));
           const outputs = screen.outputs.slice(0, n);
-          while (outputs.length < n) outputs.push(newOutput());
+          while (outputs.length < n) {
+            const prev = outputs[outputs.length - 1];
+            const output = newOutput();
+            // A new output beside one in a 2 x 1 (etc.) region takes the next region of the same signal.
+            if (prev?.target.type === 'grid') {
+              output.display = prev.display;
+              output.target = { ...prev.target, cell: (prev.target.cell + 1) % (prev.target.cols * prev.target.rows) };
+            }
+            outputs.push(output);
+          }
           get().updateScreen(screenId, { outputs });
         },
         updateOutput: (screenId, outputId, patch) => {
@@ -612,7 +621,7 @@ export const useStore = create<AppState>()(
             ...data,
             bibles: data.bibles ?? [],
             fonts: data.fonts ?? [],
-            screens: data.screens ?? defaultScreenSetup(),
+            screens: normalizeScreens(data.screens),
             selectedPresentationId: null,
             selectedPlaylistItemId: null,
             editingThemeId: null,
@@ -635,7 +644,12 @@ export const useStore = create<AppState>()(
       // Saved settings from older versions may lack newer keys.
       merge: (persisted, current) => {
         const saved = (persisted ?? {}) as Partial<LibraryData>;
-        return { ...current, ...saved, settings: { ...current.settings, ...saved.settings } };
+        return {
+          ...current,
+          ...saved,
+          settings: { ...current.settings, ...saved.settings },
+          screens: saved.screens ? normalizeScreens(saved.screens) : current.screens,
+        };
       },
       partialize: (s): LibraryData => ({
         presentations: s.presentations,

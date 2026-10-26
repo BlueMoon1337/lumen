@@ -4,7 +4,7 @@ import { useLiveFrame } from '../liveFrame';
 import { useStore, type LiveTab } from '../store';
 import { formatDuration, parseDuration } from '../util';
 import { OutputView } from './Canvas';
-import { StageView } from './StageApp';
+import { StageView } from './StageView';
 import { Icon, IconButton, SectionHeader, type IconName } from './ui';
 
 function ClearButton({

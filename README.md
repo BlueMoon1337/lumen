@@ -83,8 +83,24 @@ npm run format       # Prettier
 Open **Configure Screens…** from the Screens menu (desktop app), the More menu, Settings, a right-click on the Audience or Stage button, or ⌥⌘1 (Ctrl+Alt+1).
 
 - **Audience and Stage.** Each kind has an on/off switch (the same as the toolbar buttons, ⌘1 and ⌘2) and a **+** to add screens. A screen has a name, a 1920×1080 canvas and a **Screen Color** shown behind everything.
-- **Outputs.** Every screen has one or more outputs that mirror the same picture, for example a projector and a lobby TV. Each output tile shows where it's going and whether it's showing.
-- **Hardware.** Pick which connected display an output goes to, or leave it on **Automatic**, which uses a display other than the one Lumen's controls are on, external screens first. Lumen lists displays by the name they report over HDMI or DisplayPort (for example "E65-E0"), with their resolution and refresh rate. An output assigned to a screen that is unplugged shows **Disconnected: E65-E0** and comes back when that screen is plugged in again, matched by name and size. **Video Delay** holds the picture back by up to 120 frames to line up with a delayed camera feed.
+- **Mode and Outputs.** The menu under the screen name sets how a screen's outputs work together:
+  - **Single:** one output.
+  - **Mirror:** every output shows the whole picture, for example a projector and a lobby TV.
+  - **Grouped:** the outputs sit side by side (set **Columns** for rows of them) and make one large screen. Two 1920 x 1080 outputs make a 3840 x 1080 screen, and each shows its half.
+  - **Edge Blend:** like Grouped, but neighbouring projectors overlap by **Overlap** pixels and fade into each other there. The fade is gamma-corrected (**Gamma**, 2.2 suits most projectors) so the overlap is as bright as the rest of the picture.
+
+  The tiles show each output where it sits, and whether it's showing.
+
+- **Hardware → Output.** The menu matches ProPresenter's:
+  - **System:** connected displays, with a thumbnail of how they're arranged.
+  - **NDI** and **Syphon:** listed, but not available yet (see the roadmap).
+  - **Placeholder:** reserves an output for a display that isn't there yet, at a size you pick. It shows nowhere.
+  - **Disconnected: E65-E0:** an assigned display that's unplugged. The output comes back when that display is plugged in again, matched by name and size.
+
+  Lumen also offers **Automatic**, which uses a display other than the one Lumen's controls are on, external screens first. Displays are listed by the name they report over HDMI or DisplayPort (for example "E65-E0"), with their resolution and refresh rate.
+
+- **Hardware → Output Target.** **Full** fills the display. **2 x 1**, **2 x 2** and **3 x 1** split one display's signal into regions; pick which region the output fills. **Custom** takes a pixel rectangle. This is for multi-display adapters such as a Matrox TripleHead2Go or a Datapath box, which take one wide signal and feed several projectors. Outputs that share a display share one window, each drawn in its region.
+- **Video Delay** holds the picture back by up to 120 frames, to line up with a delayed camera feed.
 - **Color.** Brightness, contrast, saturation and hue for that output alone, to match a projector to the TVs.
 - **Corner Pin.** Drag the corners, or type pixel positions, to straighten a projector that hits the screen at an angle.
 - **Alpha Key** (audience). **Fill** sends lyrics, messages and logo without backgrounds; **Key** sends their white silhouette on black. Use a Fill output and a Key output into a video switcher's key input.
@@ -92,7 +108,7 @@ Open **Configure Screens…** from the Screens menu (desktop app), the More menu
 
 **About HDMI.** Computers report a display's name, size, refresh rate and whether it's built in, but not which cable or port it uses, so Lumen can't tell HDMI apart from DisplayPort, USB-C or an adapter. It shows "External (HDMI, DisplayPort, USB-C…)" for every screen that isn't built in. Set the display to extend the desktop, not mirror it, in the computer's display settings, or there is no second screen to send output to. Wireless displays (AirPlay, Miracast) work the same way once they extend the desktop.
 
-**Browser vs desktop app.** The desktop app opens, moves and closes output windows by itself whenever displays change. A browser can only open windows when you click, so after a reload, or after a screen is plugged in, click the Audience or Stage button again. Chrome and Edge can list your displays and open outputs fullscreen on them once you allow it with **Detect Screens**. Firefox and Safari can't, so drag the window to the projector there.
+**Browser vs desktop app.** The desktop app opens, moves and closes output windows by itself whenever displays change. A browser closes and updates windows by itself, but can only open them when you click. After a reload, or after a screen is plugged in, click the Audience or Stage button again; it turns orange when outputs are waiting to open. Chrome and Edge can list your displays and open outputs fullscreen on them once you allow it with **Detect Screens**. Firefox and Safari can't, so drag the window to the projector there.
 
 ## Importing from ProPresenter
 
@@ -189,10 +205,12 @@ src/
     EditView       slide outline, canvas editor with rulers, inspector
     ReflowView     lyrics text editor
     Canvas         1920×1080 canvas, auto-fitting text, layered output, transitions
-    OutputApp      audience window   (#/output)
-    StageApp       stage display      (#/stage)
     ScreenConfig   Screen Configuration window
-    OutputSurface  per-output delay, color, corner pin, identify and test patterns
+    MenuSelect     ProPresenter-style pop-up menus (checkmarks, headers, submenus, thumbnails)
+    ScreenHostApp  output window (#/screen): every output on one display, each in its region, with its share of a
+                   grouped screen, edge blend, delay, color, corner pin, identify and test patterns.
+                   #/output and #/stage show the first audience or stage screen, e.g. as a browser source in OBS
+    StageView      stage display layout
     ThemeEditor, Dialogs
 electron/          desktop shell: display detection, one fullscreen window per output, Screens menu, app:// protocol
 ```
@@ -206,7 +224,7 @@ The operator window owns all state. Every change produces an `OutputFrame`, a se
 - Slide hotkeys and group color presets shared across songs
 - Audio bin and video playback with sound and transport controls
 - Remote control from a phone over WebSocket
-- NDI or capture-card output for livestreams
+- NDI and Syphon outputs (listed in Screen Configuration's Output menu), or capture-card output for livestreams
 - Import ProPresenter 6, media bundled in playlists, OpenLP, OpenSong, CCLI SongSelect and Planning Center
 - CCLI usage reporting
 - Installers with electron-builder

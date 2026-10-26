@@ -7,14 +7,12 @@ import '@fontsource/cinzel/latin-ext-400.css';
 import '@fontsource/cinzel/latin-700.css';
 import '@fontsource/cinzel/latin-ext-700.css';
 
-// One bundle, three windows: the operator view plus the audience and stage outputs.
+// One bundle, two kinds of window: the operator view, and output windows that
+// show one or more audience or stage outputs.
 const route = location.hash.replace(/^#\/?/, '').split('?')[0];
-const App =
-  route === 'output'
-    ? lazy(() => import('./components/OutputApp'))
-    : route === 'stage'
-      ? lazy(() => import('./components/StageApp'))
-      : lazy(() => import('./components/ControlApp'));
+const App = ['screen', 'output', 'stage'].includes(route)
+  ? lazy(() => import('./components/ScreenHostApp'))
+  : lazy(() => import('./components/ControlApp'));
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>

@@ -1,13 +1,13 @@
 import { create } from 'zustand';
 import { notify } from './notices';
-import { activeOutputs, outputRoute, type DetectedDisplay, type PlannedOutput } from './screens';
+import { activeOutputs, hostRoute, planHosts, type DetectedDisplay, type OutputHost } from './screens';
 import { useStore } from './store';
 import type { ScreenKind } from './types';
 
 /** An output window the desktop app should have open. */
 export interface DesktopOutputRequest {
   key: string;
-  /** App route after "#/", e.g. "output?screen=…&output=…". */
+  /** App route after "#/", e.g. "screen?size=1920x1080&o=…". */
   route: string;
   title: string;
   /** Fullscreen on this display; unset opens a window on the operator's screen. */
@@ -20,7 +20,7 @@ export interface DesktopBridge {
   getDisplays(): Promise<DetectedDisplay[]>;
   onDisplaysChanged(cb: (displays: DetectedDisplay[]) => void): () => void;
   setOutputs(outputs: DesktopOutputRequest[]): Promise<void>;
-  onOutputsChanged(cb: (openKeys: string[]) => void): () => void;
+  onOutputsChanged(cb: (openHosts: string[]) => void): () => void;
   onMenu(cb: (command: string) => void): () => void;
   setMenuState(state: { audienceEnabled: boolean; stageEnabled: boolean; identify: boolean }): void;
 }
@@ -53,11 +53,11 @@ export type ScreenAccess = 'desktop' | 'granted' | 'prompt' | 'denied' | 'unsupp
 interface DisplayState {
   displays: DetectedDisplay[];
   access: ScreenAccess;
-  /** Keys of output windows that are open. */
-  openKeys: string[];
+  /** Keys of the output windows that are open (see hostKey). */
+  openHosts: string[];
 }
 
-export const useDisplays = create<DisplayState>(() => ({ displays: [], access: 'unsupported', openKeys: [] }));
+export const useDisplays = create<DisplayState>(() => ({ displays: [], access: 'unsupported', openHosts: [] }));
 
 const desktop = () => window.lumenDesktop;
 
@@ -66,7 +66,16 @@ const desktop = () => window.lumenDesktop;
 /** The only screen a browser without the Window Management API can tell us about: its own. */
 function basicDisplays(): DetectedDisplay[] {
   return [
-    { label: 'This screen', width: screen.width, height: screen.height, internal: false, primary: true, current: true, left: 0, top: 0 },
+    {
+      label: 'This screen',
+      width: Math.round(screen.width * devicePixelRatio),
+      height: Math.round(screen.height * devicePixelRatio),
+      primary: true,
+      current: true,
+      left: 0,
+      top: 0,
+      scale: devicePixelRatio,
+    },
   ];
 }
 
@@ -87,6 +96,7 @@ function fromScreenDetails(details: ScreenDetails): DetectedDisplay[] {
       current: s === details.currentScreen,
       left: s.left,
       top: s.top,
+      scale: s.devicePixelRatio,
     };
   });
 }
@@ -128,81 +138,104 @@ export async function requestScreenAccess() {
 
 // ---- Output windows --------------------------------------------------------------------
 
-/** Open browser output windows, with the placement each was opened for. */
-const browserWindows = new Map<string, { win: Window; placement: string }>();
-
-const titleFor = (p: PlannedOutput) => `Lumen · ${p.screen.name}${p.screen.outputs.length > 1 ? ` (${p.index + 1})` : ''}`;
-
-function desired(): PlannedOutput[] {
-  return activeOutputs(useStore.getState().screens, useDisplays.getState().displays);
-}
-
-function syncDesktop() {
-  const requests: DesktopOutputRequest[] = desired().map((p) => ({
-    key: p.key,
-    route: outputRoute(p),
-    title: titleFor(p),
-    displayId: p.status === 'display' ? p.display?.id : undefined,
+/** One window per display (holding every output on it), or per output that has no display. */
+function desired(): { host: OutputHost; route: string; title: string }[] {
+  const hosts = planHosts(activeOutputs(useStore.getState().screens, useDisplays.getState().displays));
+  // One window plays video sound: the one with the first audience output.
+  const audio = hosts.find((h) => h.outputs.some((p) => p.kind === 'audience'));
+  return hosts.map((host) => ({
+    host,
+    route: `${hostRoute(host)}${host === audio ? '&audio' : ''}`,
+    title: `Lumen · ${[...new Set(host.outputs.map((p) => p.screen.name))].join(' + ')}`,
   }));
-  void desktop()?.setOutputs(requests);
 }
+
+function desktopRequests(): DesktopOutputRequest[] {
+  return desired().map(({ host, route, title }) => ({ key: host.key, route, title, displayId: host.display?.id }));
+}
+
+/** Open browser output windows, with the placement and address each was opened with, and the kinds of screen they show. */
+const browserWindows = new Map<string, { win: Window; placement: string; route: string; kinds: ScreenKind[] }>();
 
 /**
- * Opens and closes browser windows to match the setup. Must run during a click
- * (or similar), because browsers block windows opened at any other time.
+ * Opens and closes browser windows to match the setup. Opening must happen
+ * during a click (or similar), because browsers block windows opened at any
+ * other time; with `open` false it only closes and re-points windows, which
+ * works any time, e.g. when a screen is unplugged.
  */
-export function syncBrowserWindows(): number {
+export function syncBrowserWindows(open = true): number {
   const wanted = desired();
   let blocked = 0;
   for (const [key, entry] of browserWindows) {
-    if (!wanted.some((p) => p.key === key)) {
+    if (!wanted.some((w) => w.host.key === key)) {
       entry.win.close();
       browserWindows.delete(key);
     }
   }
   const granted = useDisplays.getState().access === 'granted';
-  for (const p of wanted) {
-    const d = p.status === 'display' ? p.display : undefined;
-    // With screen access, Chromium can open the popup fullscreen on the chosen display.
+  for (const { host, route } of wanted) {
+    const kinds = [...new Set(host.outputs.map((p) => p.kind))];
+    const d = host.display;
+    const scale = d?.scale ?? 1;
+    // With screen access, Chromium can open the popup fullscreen on the chosen display (sizes in desktop units).
     const features = d
-      ? `popup,left=${d.left ?? 0},top=${d.top ?? 0},width=${Math.round(d.width)},height=${Math.round(d.height)}${granted ? ',fullscreen' : ''}`
+      ? `popup,left=${d.left ?? 0},top=${d.top ?? 0},width=${Math.round(d.width / scale)},height=${Math.round(d.height / scale)}${granted ? ',fullscreen' : ''}`
       : 'popup,width=960,height=540';
-    const existing = browserWindows.get(p.key);
+    const existing = browserWindows.get(host.key);
     if (existing && !existing.win.closed) {
-      if (existing.placement === features) continue;
-      // Moved to another screen: reopen it there.
+      if (existing.placement === features) {
+        // Same display, different outputs on it: re-point the window instead of reopening it.
+        if (existing.route !== route) {
+          existing.win.location.hash = `#/${route}`;
+          existing.route = route;
+        }
+        existing.kinds = kinds;
+        continue;
+      }
+      // Moved to another screen: reopen it there (on the next click, if this isn't one).
       existing.win.close();
+      browserWindows.delete(host.key);
     }
-    const win = window.open(`${location.pathname}${location.search}#/${outputRoute(p)}`, `lumen-${p.key}`, features);
-    if (win) browserWindows.set(p.key, { win, placement: features });
+    if (!open) continue;
+    const win = window.open(`${location.pathname}${location.search}#/${route}`, `lumen-${host.key}`, features);
+    if (win) browserWindows.set(host.key, { win, placement: features, route, kinds });
     else {
-      browserWindows.delete(p.key);
+      browserWindows.delete(host.key);
       blocked++;
     }
   }
-  pollBrowserWindows();
+  publishOpenHosts();
   if (blocked)
     notify(`The browser blocked ${blocked} output window${blocked === 1 ? '' : 's'}. Allow pop-ups for Lumen, then try again.`, 'error');
   return blocked;
 }
 
+function publishOpenHosts() {
+  const openHosts = [...browserWindows].filter(([, e]) => !e.win.closed).map(([key]) => key);
+  const prev = useDisplays.getState().openHosts;
+  if (prev.length !== openHosts.length || prev.some((k, i) => k !== openHosts[i])) useDisplays.setState({ openHosts });
+}
+
+/** Notices windows the operator closed. Closing every window of a kind by hand switches that kind off. */
 function pollBrowserWindows() {
-  for (const [key, entry] of browserWindows) if (entry.win.closed) browserWindows.delete(key);
-  const openKeys = [...browserWindows.keys()];
-  const prev = useDisplays.getState().openKeys;
-  if (prev.length !== openKeys.length || prev.some((k, i) => k !== openKeys[i])) useDisplays.setState({ openKeys });
+  const closedKinds = new Set<ScreenKind>();
+  for (const [key, entry] of browserWindows) {
+    if (!entry.win.closed) continue;
+    browserWindows.delete(key);
+    entry.kinds.forEach((k) => closedKinds.add(k));
+  }
+  publishOpenHosts();
+  const st = useStore.getState();
+  for (const kind of closedKinds) {
+    const enabled = kind === 'audience' ? st.screens.audienceEnabled : st.screens.stageEnabled;
+    if (enabled && ![...browserWindows.values()].some((e) => e.kinds.includes(kind))) st.setScreensEnabled(kind, false);
+  }
 }
 
 /** Turns all audience or all stage screens on or off (the toolbar buttons and the switches in Screen Configuration). */
 export function setScreensEnabled(kind: ScreenKind, enabled: boolean) {
   useStore.getState().setScreensEnabled(kind, enabled);
   if (!desktop()) syncBrowserWindows();
-}
-
-/** Re-applies the setup after it changes (desktop: windows follow automatically). */
-export function applyScreenSetup() {
-  if (desktop()) syncDesktop();
-  else syncBrowserWindows();
 }
 
 /** Starts display detection and output management for the operator window. Returns a cleanup. */
@@ -214,21 +247,26 @@ export function startScreenManager(): () => void {
     useDisplays.setState({ access: 'desktop' });
     void bridge.getDisplays().then((d) => useDisplays.setState({ displays: d }));
     cleanups.push(bridge.onDisplaysChanged(setDisplays));
-    cleanups.push(bridge.onOutputsChanged((openKeys) => useDisplays.setState({ openKeys })));
+    cleanups.push(bridge.onOutputsChanged((openHosts) => useDisplays.setState({ openHosts })));
     // Outputs follow the setup and the connected displays, so screens come up as soon as an HDMI cable goes in.
     let lastPlan = '';
     let lastMenu = '';
     const sync = () => {
-      const plan = JSON.stringify(desired().map((p) => [p.key, p.status === 'display' ? p.display?.id : null, titleFor(p)]));
+      const requests = desktopRequests();
+      const plan = JSON.stringify(requests);
       if (plan !== lastPlan) {
         lastPlan = plan;
-        syncDesktop();
+        void bridge.setOutputs(requests);
       }
       const s = useStore.getState();
-      const menu = { audienceEnabled: s.screens.audienceEnabled, stageEnabled: s.screens.stageEnabled, identify: s.screenTools.identify };
-      if (JSON.stringify(menu) !== lastMenu) {
-        lastMenu = JSON.stringify(menu);
-        bridge.setMenuState(menu);
+      const menu = JSON.stringify({
+        audienceEnabled: s.screens.audienceEnabled,
+        stageEnabled: s.screens.stageEnabled,
+        identify: s.screenTools.identify,
+      });
+      if (menu !== lastMenu) {
+        lastMenu = menu;
+        bridge.setMenuState(JSON.parse(menu));
       }
     };
     sync();
@@ -248,19 +286,10 @@ export function startScreenManager(): () => void {
         else if (status.state === 'denied') useDisplays.setState({ access: 'denied' });
       })
       .catch(() => {});
-    const timer = setInterval(() => {
-      pollBrowserWindows();
-      // Closing every window of a kind by hand switches that kind off.
-      const st = useStore.getState();
-      const open = useDisplays.getState().openKeys;
-      for (const kind of ['audience', 'stage'] as const) {
-        const enabled = kind === 'audience' ? st.screens.audienceEnabled : st.screens.stageEnabled;
-        const keys = desired()
-          .filter((p) => p.kind === kind)
-          .map((p) => p.key);
-        if (enabled && keys.length && !keys.some((k) => open.includes(k))) st.setScreensEnabled(kind, false);
-      }
-    }, 700);
+    const timer = setInterval(pollBrowserWindows, 700);
+    // Windows close and re-point by themselves when screens or the setup change; opening needs a click.
+    cleanups.push(useDisplays.subscribe((now, before) => now.displays !== before.displays && syncBrowserWindows(false)));
+    cleanups.push(useStore.subscribe((now, before) => now.screens !== before.screens && syncBrowserWindows(false)));
     const closeAll = () => browserWindows.forEach((entry) => entry.win.close());
     window.addEventListener('beforeunload', closeAll);
     cleanups.push(() => {

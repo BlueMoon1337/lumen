@@ -165,11 +165,25 @@ export interface DisplayRef {
   height: number;
 }
 
-/** One output of a screen; a screen's outputs all show the same picture (mirror). */
+/**
+ * The part of the display's signal an output fills. A grid or custom region
+ * splits one signal across several projectors through a multi-display adapter
+ * (TripleHead2Go, Datapath), so several outputs can share one display.
+ */
+export type OutputTarget =
+  | { type: 'full' }
+  | { type: 'grid'; cols: number; rows: number; cell: number }
+  /** In pixels of the display's signal. */
+  | { type: 'custom'; x: number; y: number; width: number; height: number };
+
+/** One output of a screen: a display (or placeholder) and its picture adjustments. */
 export interface ScreenOutput {
   id: string;
   /** The display this output goes to; unset means Automatic. */
   display?: DisplayRef;
+  /** Holds a place for a display that isn't here yet; the output shows nowhere. */
+  placeholder?: { width: number; height: number };
+  target: OutputTarget;
   delayFrames: number;
   color: OutputColor;
   cornerPin: CornerPin;
@@ -177,14 +191,33 @@ export interface ScreenOutput {
   alphaKey: 'off' | 'fill' | 'key';
 }
 
+/**
+ * single: one output. mirror: every output shows the whole picture.
+ * grouped: the outputs sit side by side and together make one large screen.
+ * blend: grouped, with neighbouring projectors overlapping and fading into each other.
+ */
+export type ScreenMode = 'single' | 'mirror' | 'grouped' | 'blend';
+
+export interface EdgeBlend {
+  /** Overlap between neighbouring outputs, in output pixels. */
+  overlap: number;
+  /** Projector gamma the fade is corrected for. */
+  gamma: number;
+}
+
 export interface ScreenConfig {
   id: string;
   kind: ScreenKind;
   name: string;
+  /** Size of one output's picture; a grouped screen is several of these. */
   width: number;
   height: number;
   /** Fills the screen behind everything else; black when unset. */
   screenColor?: string;
+  mode: ScreenMode;
+  /** Outputs per row when grouped or blended. */
+  columns: number;
+  blend: EdgeBlend;
   outputs: ScreenOutput[];
 }
 

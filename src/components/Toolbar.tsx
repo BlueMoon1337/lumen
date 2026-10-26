@@ -1,7 +1,7 @@
 import { useCallback, useMemo, useState, type ReactNode } from 'react';
 import { IMPORT_ACCEPT, importFiles, newPresentation } from '../commands';
 import { setScreensEnabled, syncBrowserWindows, useDisplays } from '../outputs';
-import { activeOutputs } from '../screens';
+import { activeOutputs, hostKey } from '../screens';
 import { useStore, type Mode } from '../store';
 import { applyStyles, resolveTheme } from '../theme';
 import type { ScreenKind, TextStyle, Theme } from '../types';
@@ -43,10 +43,10 @@ function Tool({
 function ScreenTool({ kind, label, onConfigure }: { kind: ScreenKind; label: string; onConfigure: () => void }) {
   const setup = useStore((s) => s.screens);
   const displays = useDisplays((s) => s.displays);
-  const openKeys = useDisplays((s) => s.openKeys);
+  const openHosts = useDisplays((s) => s.openHosts);
   const enabled = kind === 'audience' ? setup.audienceEnabled : setup.stageEnabled;
   const wanted = activeOutputs(setup, displays).filter((p) => p.kind === kind);
-  const showing = wanted.filter((p) => openKeys.includes(p.key)).length;
+  const showing = wanted.filter((p) => openHosts.includes(hostKey(p))).length;
   const hasScreens = setup.screens.some((x) => x.kind === kind);
   const title = !hasScreens
     ? `No ${label.toLowerCase()} screens. Click to set one up.`
