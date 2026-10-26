@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { useRemoteFrame } from '../frame';
+import { useRemoteFrame } from '../sync';
 import { OutputView } from './Canvas';
 
 /** Shared behaviour for output windows: hide the cursor when idle, double-click for fullscreen. */

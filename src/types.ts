@@ -1,3 +1,16 @@
+/** Text formatting that overrides the theme, for one slide or a whole presentation. */
+export interface TextStyle {
+  fontFamily?: string;
+  fontSize?: number;
+  fontWeight?: number;
+  italic?: boolean;
+  uppercase?: boolean;
+  color?: string;
+  textAlign?: Theme['textAlign'];
+  verticalAlign?: Theme['verticalAlign'];
+  inset?: Theme['inset'];
+}
+
 export interface Slide {
   id: string;
   text: string;
@@ -5,6 +18,9 @@ export interface Slide {
   caption?: string;
   /** Shown on the stage display only. */
   notes?: string;
+  style?: TextStyle;
+  /** Replaces the theme background for this slide. */
+  background?: ThemeBackground;
 }
 
 export interface Group {
@@ -23,7 +39,17 @@ export interface Presentation {
   author?: string;
   copyright?: string;
   ccli?: string;
+  artist?: string;
+  album?: string;
+  publisher?: string;
+  year?: string;
+  /** Show the copyright line on the first and last slides. */
+  showCopyright?: boolean;
   themeId?: string;
+  /** Formatting applied to every slide, under any per-slide formatting. */
+  style?: TextStyle;
+  /** Overrides the global transition length; 0 is a cut. */
+  transitionMs?: number;
   groups: Group[];
   /** Group ids in the order they are performed. Groups may repeat. */
   arrangement: string[];
@@ -91,6 +117,8 @@ export interface Settings {
   logoMediaId?: string;
   defaultThemeId: string;
   gridSize: number;
+  slideView: 'grid' | 'list';
+  ccliLicense?: string;
   /** Desktop app only: which screen each output opens on. */
   audienceDisplay?: number;
   stageDisplay?: number;
@@ -121,6 +149,9 @@ export interface LiveState {
   logo: boolean;
   messageId: string | null;
   stageMessage: string | null;
+  mediaPaused: boolean;
+  /** Bumped to restart the live video from the beginning. */
+  mediaRestart: number;
 }
 
 /** One slide of a presentation in performance order. */
@@ -132,7 +163,7 @@ export interface SequenceEntry {
 
 /** Everything an output window needs to draw itself, sent over BroadcastChannel. */
 export interface OutputFrame {
-  slide: { key: string; text: string; caption?: string; theme: Theme } | null;
+  slide: { key: string; text: string; caption?: string; footer?: string; theme: Theme } | null;
   background: FrameBackground | null;
   message: { key: string; text: string } | null;
   logoMediaId: string | null;
@@ -152,4 +183,4 @@ export interface OutputFrame {
 export type FrameBackground =
   | { key: string; kind: 'color'; color: string }
   | { key: string; kind: 'gradient'; color: string; color2: string }
-  | { key: string; kind: 'media'; mediaId: string };
+  | { key: string; kind: 'media'; mediaId: string; paused?: boolean };

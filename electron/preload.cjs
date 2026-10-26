@@ -2,6 +2,7 @@ const { contextBridge, ipcRenderer } = require('electron');
 
 // Implements DesktopBridge from src/outputs.ts.
 contextBridge.exposeInMainWorld('lumenDesktop', {
+  platform: process.platform,
   getDisplays: () => ipcRenderer.invoke('get-displays'),
   openOutput: (kind, displayId) => ipcRenderer.invoke('open-output', kind, displayId),
   closeOutput: (kind) => ipcRenderer.invoke('close-output', kind),

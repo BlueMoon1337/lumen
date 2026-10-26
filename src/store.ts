@@ -1,9 +1,22 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
-import { getSequence, parseLyrics } from './lyrics';
+import { colorForGroup, getSequence, parseLyrics } from './lyrics';
 import { deleteMediaBlob, putMediaBlob } from './media';
 import { defaultThemes, seedMessages, seedPlaylist, seedPresentations } from './seed';
-import type { LiveState, MediaItem, Message, Playlist, PlaylistItem, Presentation, Settings, Theme, TimerState } from './types';
+import type {
+  Category,
+  Group,
+  LiveState,
+  MediaItem,
+  Message,
+  Playlist,
+  PlaylistItem,
+  Presentation,
+  Settings,
+  Slide,
+  Theme,
+  TimerState,
+} from './types';
 import { nextOccurrence, uid } from './util';
 
 /** The part of the state that is saved and exported. */
@@ -17,12 +30,24 @@ export interface LibraryData {
   activePlaylistId: string;
 }
 
+export type Mode = 'show' | 'edit' | 'reflow';
+export type LiveTab = 'stage' | 'timers' | 'messages' | 'props';
+
 interface UIState {
   selectedPresentationId: string | null;
   selectedPlaylistItemId: string | null;
-  centerMode: 'show' | 'edit';
-  bottomTab: 'media' | 'themes';
+  mode: Mode;
+  /** Which collection the sidebar item list shows. */
+  sidebar: 'library' | 'playlist';
+  libraryCategory: Category;
+  /** Slide selected in Edit mode. */
+  editSlideId: string | null;
+  /** Whether the slide's text element is selected on the Edit canvas. */
+  editTextSelected: boolean;
   editingThemeId: string | null;
+  showMediaBin: boolean;
+  mediaFilter: 'all' | 'image' | 'video';
+  liveTab: LiveTab;
 }
 
 interface Actions {
@@ -35,7 +60,14 @@ interface Actions {
   duplicatePresentation(id: string): string | null;
   deletePresentation(id: string): void;
 
-  addToPlaylist(presentationId: string, index?: number): void;
+  updateSlide(presentationId: string, slideId: string, patch: Partial<Slide>): void;
+  updateGroup(presentationId: string, groupId: string, patch: Partial<Group>): void;
+  addSlide(presentationId: string, afterSlideId?: string | null): string | null;
+  duplicateSlide(presentationId: string, slideId: string): string | null;
+  deleteSlide(presentationId: string, slideId: string): void;
+  openEditor(slideId?: string | null): void;
+
+  addToPlaylist(presentationId: string, index?: number, playlistId?: string): void;
   addPlaylistHeader(label: string): void;
   updatePlaylistItem(itemId: string, patch: Partial<{ label: string }>): void;
   movePlaylistItem(from: number, to: number): void;
@@ -68,6 +100,8 @@ interface Actions {
   clearAll(): void;
   clearSlide(): void;
   clearMedia(): void;
+  setMediaPaused(paused: boolean): void;
+  restartMedia(): void;
   setStageMessage(text: string | null): void;
 
   setTimer(patch: Partial<Pick<TimerState, 'mode' | 'durationMs' | 'targetTime'>>): void;
@@ -84,6 +118,14 @@ export type AppState = LibraryData &
     timer: TimerState;
   } & Actions;
 
+const defaultSettings: Settings = {
+  transitionMs: 400,
+  advanceAcrossItems: true,
+  defaultThemeId: 'theme-classic',
+  gridSize: 220,
+  slideView: 'grid',
+};
+
 function initialLibrary(): LibraryData {
   const presentations = seedPresentations();
   const playlist = seedPlaylist(presentations);
@@ -93,12 +135,20 @@ function initialLibrary(): LibraryData {
     playlists: [playlist],
     media: [],
     messages: seedMessages,
-    settings: { transitionMs: 400, advanceAcrossItems: true, defaultThemeId: 'theme-classic', gridSize: 220 },
+    settings: defaultSettings,
     activePlaylistId: playlist.id,
   };
 }
 
-const emptyLive: LiveState = { slide: null, mediaId: null, logo: false, messageId: null, stageMessage: null };
+const emptyLive: LiveState = {
+  slide: null,
+  mediaId: null,
+  logo: false,
+  messageId: null,
+  stageMessage: null,
+  mediaPaused: false,
+  mediaRestart: 0,
+};
 
 const initialTimer: TimerState = {
   mode: 'duration',
@@ -113,13 +163,13 @@ export function activePlaylist(s: LibraryData): Playlist | undefined {
   return s.playlists.find((p) => p.id === s.activePlaylistId) ?? s.playlists[0];
 }
 
-/** The presentation item before/after `itemId` in the active playlist. */
+/** The presentation item before/after `itemId` in whichever playlist holds it. */
 export function adjacentPlaylistItem(
   s: LibraryData,
   itemId: string | null | undefined,
   dir: 1 | -1,
 ): Extract<PlaylistItem, { type: 'presentation' }> | null {
-  const items = activePlaylist(s)?.items ?? [];
+  const items = s.playlists.find((pl) => pl.items.some((it) => it.id === itemId))?.items ?? [];
   let i = items.findIndex((it) => it.id === itemId);
   if (i < 0) return null;
   for (i += dir; i >= 0 && i < items.length; i += dir) {
@@ -129,19 +179,49 @@ export function adjacentPlaylistItem(
   return null;
 }
 
+/** Carries ids, colors and per-slide edits over to re-parsed groups that keep their names. */
+function mergeParsed(p: Presentation, parsed: Pick<Presentation, 'groups' | 'arrangement'>) {
+  const old = new Map(p.groups.map((g) => [g.name.toLowerCase(), g]));
+  const ids = new Map<string, string>();
+  const groups = parsed.groups.map((g) => {
+    const prev = old.get(g.name.toLowerCase());
+    if (!prev) return g;
+    ids.set(g.id, prev.id);
+    const slides = g.slides.map((slide, i) => {
+      const was = prev.slides[i];
+      return was ? { ...slide, id: was.id, style: was.style, background: was.background } : slide;
+    });
+    return { ...g, id: prev.id, color: prev.color, slides };
+  });
+  return { groups, arrangement: parsed.arrangement.map((id) => ids.get(id) ?? id) };
+}
+
 export const useStore = create<AppState>()(
   persist(
     (set, get) => {
-      const updatePlaylist = (fn: (p: Playlist) => Playlist) =>
-        set((s) => ({ playlists: s.playlists.map((p) => (p.id === activePlaylist(s)?.id ? fn(p) : p)) }));
+      const updatePlaylist = (fn: (p: Playlist) => Playlist, playlistId?: string) =>
+        set((s) => {
+          const target = playlistId ?? activePlaylist(s)?.id;
+          return { playlists: s.playlists.map((p) => (p.id === target ? fn(p) : p)) };
+        });
+      const setGroups = (pid: string, fn: (groups: Group[]) => Group[]) => {
+        const p = get().presentations[pid];
+        if (p) get().updatePresentation(pid, { groups: fn(p.groups) });
+      };
 
       return {
         ...initialLibrary(),
         selectedPresentationId: null,
         selectedPlaylistItemId: null,
-        centerMode: 'show',
-        bottomTab: 'media',
+        mode: 'show',
+        sidebar: 'playlist',
+        libraryCategory: 'song',
+        editSlideId: null,
+        editTextSelected: false,
         editingThemeId: null,
+        showMediaBin: true,
+        mediaFilter: 'all',
+        liveTab: 'messages',
         live: emptyLive,
         timer: initialTimer,
 
@@ -169,7 +249,10 @@ export const useStore = create<AppState>()(
             if (!p) return {};
             return { presentations: { ...s.presentations, [id]: { ...p, ...patch, updatedAt: Date.now() } } };
           }),
-        setPresentationText: (id, text) => get().updatePresentation(id, parseLyrics(text)),
+        setPresentationText: (id, text) => {
+          const p = get().presentations[id];
+          if (p) get().updatePresentation(id, mergeParsed(p, parseLyrics(text)));
+        },
         duplicatePresentation: (id) => {
           const p = get().presentations[id];
           if (!p) return null;
@@ -189,12 +272,69 @@ export const useStore = create<AppState>()(
             };
           }),
 
-        addToPlaylist: (presentationId, index) =>
+        updateSlide: (pid, slideId, patch) =>
+          setGroups(pid, (groups) =>
+            groups.map((g) =>
+              g.slides.some((sl) => sl.id === slideId)
+                ? { ...g, slides: g.slides.map((sl) => (sl.id === slideId ? { ...sl, ...patch } : sl)) }
+                : g,
+            ),
+          ),
+        updateGroup: (pid, groupId, patch) => setGroups(pid, (groups) => groups.map((g) => (g.id === groupId ? { ...g, ...patch } : g))),
+        addSlide: (pid, afterSlideId) => {
+          const p = get().presentations[pid];
+          if (!p) return null;
+          const slide: Slide = { id: uid(), text: '' };
+          if (!p.groups.length) {
+            const group: Group = { id: uid(), name: 'Verse 1', color: colorForGroup('Verse 1'), slides: [slide] };
+            get().updatePresentation(pid, { groups: [group], arrangement: [group.id] });
+            return slide.id;
+          }
+          const gi = p.groups.findIndex((g) => g.slides.some((sl) => sl.id === afterSlideId));
+          const target = gi >= 0 ? gi : p.groups.length - 1;
+          setGroups(pid, (groups) =>
+            groups.map((g, i) => {
+              if (i !== target) return g;
+              const slides = [...g.slides];
+              const at = slides.findIndex((sl) => sl.id === afterSlideId);
+              slides.splice(at >= 0 ? at + 1 : slides.length, 0, slide);
+              return { ...g, slides };
+            }),
+          );
+          return slide.id;
+        },
+        duplicateSlide: (pid, slideId) => {
+          const id = uid();
+          setGroups(pid, (groups) =>
+            groups.map((g) => {
+              const at = g.slides.findIndex((sl) => sl.id === slideId);
+              if (at < 0) return g;
+              const slides = [...g.slides];
+              slides.splice(at + 1, 0, { ...structuredClone(g.slides[at]), id });
+              return { ...g, slides };
+            }),
+          );
+          return id;
+        },
+        deleteSlide: (pid, slideId) => {
+          const p = get().presentations[pid];
+          if (!p) return;
+          const groups = p.groups.map((g) => ({ ...g, slides: g.slides.filter((sl) => sl.id !== slideId) }));
+          const emptied = new Set(groups.filter((g) => g.slides.length === 0).map((g) => g.id));
+          get().updatePresentation(pid, {
+            groups: groups.filter((g) => !emptied.has(g.id)),
+            arrangement: p.arrangement.filter((id) => !emptied.has(id)),
+          });
+          if (get().editSlideId === slideId) set({ editSlideId: null });
+        },
+        openEditor: (slideId = null) => set({ mode: 'edit', editSlideId: slideId, editTextSelected: false }),
+
+        addToPlaylist: (presentationId, index, playlistId) =>
           updatePlaylist((pl) => {
             const items = [...pl.items];
             items.splice(index ?? items.length, 0, { id: uid(), type: 'presentation', presentationId });
             return { ...pl, items };
-          }),
+          }, playlistId),
         addPlaylistHeader: (label) => updatePlaylist((pl) => ({ ...pl, items: [...pl.items, { id: uid(), type: 'header', label }] })),
         updatePlaylistItem: (itemId, patch) =>
           updatePlaylist((pl) => ({
@@ -339,11 +479,13 @@ export const useStore = create<AppState>()(
             if (matches(i)) return s.goLive(p.id, i, s.selectedPlaylistItemId);
           }
         },
-        setLiveMedia: (id) => set((s) => ({ live: { ...s.live, mediaId: id } })),
+        setLiveMedia: (id) => set((s) => ({ live: { ...s.live, mediaId: id, mediaPaused: false } })),
         toggleLogo: () => set((s) => ({ live: { ...s.live, logo: !s.live.logo } })),
-        clearAll: () => set((s) => ({ live: { ...emptyLive, stageMessage: s.live.stageMessage } })),
+        clearAll: () => set((s) => ({ live: { ...emptyLive, stageMessage: s.live.stageMessage, mediaRestart: s.live.mediaRestart } })),
         clearSlide: () => set((s) => ({ live: { ...s.live, slide: null } })),
-        clearMedia: () => set((s) => ({ live: { ...s.live, mediaId: null } })),
+        clearMedia: () => set((s) => ({ live: { ...s.live, mediaId: null, mediaPaused: false } })),
+        setMediaPaused: (paused) => set((s) => ({ live: { ...s.live, mediaPaused: paused } })),
+        restartMedia: () => set((s) => ({ live: { ...s.live, mediaPaused: false, mediaRestart: s.live.mediaRestart + 1 } })),
         setStageMessage: (text) => set((s) => ({ live: { ...s.live, stageMessage: text } })),
 
         setTimer: (patch) =>
@@ -379,6 +521,11 @@ export const useStore = create<AppState>()(
     {
       name: 'lumen-library',
       version: 1,
+      // Saved settings from older versions may lack newer keys.
+      merge: (persisted, current) => {
+        const saved = (persisted ?? {}) as Partial<LibraryData>;
+        return { ...current, ...saved, settings: { ...current.settings, ...saved.settings } };
+      },
       partialize: (s): LibraryData => ({
         presentations: s.presentations,
         themes: s.themes,

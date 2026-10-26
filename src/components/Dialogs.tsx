@@ -94,7 +94,7 @@ export function ScriptureDialog({ onClose }: { onClose: () => void }) {
     const id = s.createPresentation({ title, category: 'scripture', themeId }, text);
     s.addToPlaylist(id);
     s.select(id);
-    s.setUI({ centerMode: 'show' });
+    s.setUI({ mode: 'show' });
     onClose();
   };
 
@@ -253,6 +253,14 @@ export function SettingsDialog({ onClose }: { onClose: () => void }) {
               </option>
             ))}
           </select>
+        </label>
+        <label className="field-row">
+          <span>CCLI license #</span>
+          <input
+            value={settings.ccliLicense ?? ''}
+            onChange={(e) => s.updateSettings({ ccliLicense: e.target.value || undefined })}
+            placeholder="Shown in copyright lines"
+          />
         </label>
         <label className="check-row">
           <input

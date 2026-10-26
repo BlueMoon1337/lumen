@@ -2,7 +2,11 @@
 
 Live presentation software for worship services and events, in the spirit of ProPresenter. It lets you build a song and scripture library, plan the service in a playlist, and run lyrics, backgrounds, messages and countdowns on an audience screen and a stage confidence monitor.
 
-![Operator view](docs/control.png)
+The interface deliberately mirrors ProPresenter 7's layout and terms, so teams switching over find things where they expect them.
+
+![Show mode](docs/control.png)
+
+![Edit mode](docs/edit.png)
 
 | Audience output | Stage display |
 | --- | --- |
@@ -39,14 +43,31 @@ npm run build        # production build into dist/
 npm run format       # Prettier
 ```
 
+## Where things are (for ProPresenter users)
+
+| ProPresenter | Lumen |
+| --- | --- |
+| Toolbar: Search · Text, Theme · Show, Edit, Reflow, Bible, More | Same buttons, same order. Text and Theme drop down panels that apply to the selected presentation. |
+| Toolbar: Media, Audience, Stage | Media toggles the media bin. Audience and Stage open the output windows; the ring turns green when a screen is open. |
+| Library and Playlist at the top left, items below with a Filter | Same. Libraries are Songs, Scripture, Announcements and Other. Drag a presentation onto a playlist name to add it. |
+| Slide grid with numbered, colored group labels | Same. Click a slide to go live (orange border), double-click to edit it. |
+| Media bin along the bottom | Same, with All Media / Images / Videos on the left. Click an item to play it behind the slides. |
+| Preview with clear buttons on its right edge, ✕ for Clear All | Same: Messages, Logo, Slide and Media clear buttons light up while their layer is live. |
+| Screen picker, transport, and Stage / Timers / Messages / Props tabs | Same. |
+| Edit: slide list with group headers, Objects, canvas with rulers, Presentation / Slide inspector | Same. Drag or resize the text box, double-click to type on the slide. The Text tab formats one slide. |
+| Reflow | Type the whole song as text with `[Verse 1]` headers. |
+
 ## Features
 
 - **Library** of songs, scripture and announcements, with search across titles and lyrics. Drop `.txt` lyric files on it to import them.
-- **Playlists** for each service, with section headers and drag-and-drop ordering. Advancing past the last slide continues into the next item.
-- **Slide grid** with group colors (Verse, Chorus, Bridge…). Click a slide to put it live.
-- **Text editor** where the lyrics text is the whole presentation: groups, slides, arrangement, captions and stage notes.
-- **Themes** with font, size, colors, shadow, outline, alignment, margins, a lower-third box, and color, gradient or media backgrounds. Text shrinks automatically to fit.
-- **Media bin** for images and looping videos as backgrounds, stored locally in IndexedDB.
+- **Playlists** for each service, with headers and drag-and-drop ordering. Advancing past the last slide continues into the next item.
+- **Slide grid** or list with group colors (Verse, Chorus, Bridge…). Click a slide to put it live.
+- **Edit mode** to move and resize the text box, type directly on the slide, and give a slide its own background, formatting, caption and stage notes.
+- **Reflow** where the lyrics text is the whole presentation: groups, slides, arrangement, captions and stage notes. Edit-mode changes survive reflowing.
+- **Themes** with font, size, colors, shadow, outline, alignment, margins, a lower-third box, and color, gradient or media backgrounds. Text shrinks automatically to fit. Per-presentation formatting from the Text button sits on top of the theme.
+- **Copyright line** (title, author, publisher, CCLI song and license numbers) on the first and last slides when "Show On Screen" is on.
+- **Per-presentation transitions**: cut or fades of different lengths.
+- **Media bin** for images and looping videos as backgrounds, stored locally in IndexedDB, with pause and restart.
 - **Layers** as in ProPresenter: background, slide, message and logo, each cleared on its own, with crossfade transitions.
 - **Countdown timer**, either a duration or a time of day, shown on the stage display and usable in messages.
 - **Messages** on the audience screen, with `{countdown}` and `{clock}` tokens.
@@ -93,25 +114,34 @@ Was blind, but now I see.
 | `F2` / `F3` / `F4` | Clear slide / media / message |
 | `F6` | Toggle logo |
 
-Clickers that send arrow keys or Page Up/Down work out of the box.
+Clickers that send arrow keys or Page Up/Down work out of the box. In Edit mode, the arrow keys nudge the selected text box (Shift for 10px), Enter starts typing, and Escape deselects.
 
 ## How it works
 
 ```
 src/
   types.ts         data model: presentations, themes, playlists, live state, output frame
-  store.ts         Zustand store: library, playlists, live control, timer (saved to localStorage)
+  store.ts         Zustand store: library, playlists, slide editing, live control, timer (saved to localStorage)
   lyrics.ts        text ⇄ groups/slides/arrangement parser
-  frame.ts         derives the OutputFrame from the store; BroadcastChannel sync
+  theme.ts         theme → presentation → slide formatting, backgrounds, copyright line
+  frame.ts         derives the OutputFrame from the store
+  sync.ts          BroadcastChannel between the operator and output windows
   liveFrame.ts     pushes each new frame to output windows and the operator's monitor
   media.ts         IndexedDB storage for images and videos
   outputs.ts       opens output windows (browser popups or Electron windows)
   components/
-    ControlApp     operator window layout and keyboard shortcuts
+    ControlApp     window layout per mode and keyboard shortcuts
+    Toolbar        ProPresenter-style toolbar with Search / Text / Theme / More popovers
+    Sidebar        Library and Playlist collections with their items
+    ShowView       slide grid and list
+    MediaBin       media sidebar and bin
+    LivePanel      preview, clear buttons, transport, Stage / Timers / Messages / Props
+    EditView       slide outline, canvas editor with rulers, inspector
+    ReflowView     lyrics text editor
     Canvas         1920×1080 canvas, auto-fitting text, layered output, transitions
     OutputApp      audience window   (#/output)
     StageApp       stage display      (#/stage)
-    Library, PresentationPanel, LivePanel, BottomPanel, Dialogs
+    ThemeEditor, Dialogs
 electron/          desktop shell: display placement, app:// protocol
 ```
 
@@ -119,8 +149,9 @@ The operator window owns all state. Every change produces an `OutputFrame`, a se
 
 ## Roadmap ideas
 
-- Multiple arrangements per song, and per-slide theme overrides
-- Free-form slide editor (positioned text boxes, shapes, images)
+- Multiple arrangements per song
+- More objects in Edit (extra text boxes, shapes, images), and slide builds
+- Slide hotkeys and group color presets shared across songs
 - Audio bin and video playback with sound and transport controls
 - Remote control from a phone over WebSocket
 - NDI or capture-card output for livestreams

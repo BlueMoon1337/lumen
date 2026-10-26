@@ -81,8 +81,10 @@ function createControlWindow() {
     height: 900,
     minWidth: 1000,
     minHeight: 640,
-    backgroundColor: '#0e0f12',
+    backgroundColor: '#1d1d1d',
     title: 'Lumen',
+    // macOS: traffic lights sit inside the toolbar, as in ProPresenter.
+    titleBarStyle: process.platform === 'darwin' ? 'hiddenInset' : 'default',
     webPreferences,
   });
   control.loadURL(appUrl());

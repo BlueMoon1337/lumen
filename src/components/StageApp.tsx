@@ -1,4 +1,5 @@
-import { timerRemaining, useNow, useRemoteFrame } from '../frame';
+import { timerRemaining, useNow } from '../clock';
+import { useRemoteFrame } from '../sync';
 import { defaultThemes } from '../seed';
 import type { OutputFrame, Theme } from '../types';
 import { formatClock, formatDuration } from '../util';

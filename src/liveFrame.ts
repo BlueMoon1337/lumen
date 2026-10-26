@@ -1,5 +1,6 @@
 import { create } from 'zustand';
-import { buildFrame, startBroadcasting } from './frame';
+import { buildFrame } from './frame';
+import { startBroadcasting } from './sync';
 import { useStore } from './store';
 import type { OutputFrame } from './types';
 

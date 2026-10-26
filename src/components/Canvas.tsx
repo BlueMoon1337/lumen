@@ -1,7 +1,8 @@
 import { useEffect, useLayoutEffect, useRef, useState, type CSSProperties, type ReactNode } from 'react';
-import { timerRemaining, useNow } from '../frame';
+import { timerRemaining, useNow } from '../clock';
 import { useMedia } from '../media';
-import type { FrameBackground, OutputFrame, Theme } from '../types';
+import { toFrameBackground } from '../theme';
+import type { FrameBackground, OutputFrame, Theme, ThemeBackground } from '../types';
 import { formatClock, formatDuration } from '../util';
 
 export const CANVAS_W = 1920;
@@ -49,6 +50,34 @@ function fitKey(text: string, caption: string | undefined, t: Theme) {
     !!t.boxColor,
     t.captionScale,
   ]);
+}
+
+export function slideBoxStyle(theme: Theme): CSSProperties {
+  const { inset } = theme;
+  return {
+    top: `${inset.top}%`,
+    right: `${inset.right}%`,
+    bottom: `${inset.bottom}%`,
+    left: `${inset.left}%`,
+    justifyContent: { top: 'flex-start', middle: 'center', bottom: 'flex-end' }[theme.verticalAlign],
+    background: theme.boxColor || undefined,
+    padding: theme.boxColor ? '24px 48px' : 0,
+  };
+}
+
+export function slideTextStyle(theme: Theme, size: number): CSSProperties {
+  return {
+    fontSize: size,
+    fontFamily: theme.fontFamily,
+    fontWeight: theme.fontWeight,
+    fontStyle: theme.italic ? 'italic' : 'normal',
+    color: theme.color,
+    textAlign: theme.textAlign,
+    textTransform: theme.uppercase ? 'uppercase' : 'none',
+    lineHeight: theme.lineHeight,
+    textShadow: theme.shadow ? '0 0.04em 0.12em rgba(0,0,0,0.75)' : 'none',
+    WebkitTextStroke: theme.outline ? `${theme.outline}px ${theme.outlineColor}` : undefined,
+  };
 }
 
 /** Slide text in a theme, shrunk from the theme's font size until it fits its box. */
@@ -102,32 +131,9 @@ export function SlideText({ text, caption, theme }: { text: string; caption?: st
     setSize(best);
   }, [key, theme.fontSize]);
 
-  const { inset } = theme;
-  const boxStyle: CSSProperties = {
-    top: `${inset.top}%`,
-    right: `${inset.right}%`,
-    bottom: `${inset.bottom}%`,
-    left: `${inset.left}%`,
-    justifyContent: { top: 'flex-start', middle: 'center', bottom: 'flex-end' }[theme.verticalAlign],
-    background: theme.boxColor || undefined,
-    padding: theme.boxColor ? '24px 48px' : 0,
-  };
-  const textStyle: CSSProperties = {
-    fontSize: size,
-    fontFamily: theme.fontFamily,
-    fontWeight: theme.fontWeight,
-    fontStyle: theme.italic ? 'italic' : 'normal',
-    color: theme.color,
-    textAlign: theme.textAlign,
-    textTransform: theme.uppercase ? 'uppercase' : 'none',
-    lineHeight: theme.lineHeight,
-    textShadow: theme.shadow ? '0 0.04em 0.12em rgba(0,0,0,0.75)' : 'none',
-    WebkitTextStroke: theme.outline ? `${theme.outline}px ${theme.outlineColor}` : undefined,
-  };
-
   return (
-    <div ref={boxRef} className="slide-box" style={boxStyle}>
-      <div ref={contentRef} className="slide-content" style={textStyle}>
+    <div ref={boxRef} className="slide-box" style={slideBoxStyle(theme)}>
+      <div ref={contentRef} className="slide-content" style={slideTextStyle(theme, size)}>
         <div className="slide-text">{text}</div>
         {caption && (
           <div className="slide-caption" style={{ fontSize: `${theme.captionScale}em` }}>
@@ -139,11 +145,18 @@ export function SlideText({ text, caption, theme }: { text: string; caption?: st
   );
 }
 
-function MediaFill({ mediaId, muted }: { mediaId: string; muted: boolean }) {
+function MediaFill({ mediaId, muted, paused = false }: { mediaId: string; muted: boolean; paused?: boolean }) {
   const media = useMedia(mediaId);
+  const video = useRef<HTMLVideoElement>(null);
+  useEffect(() => {
+    const v = video.current;
+    if (!v) return;
+    if (paused) v.pause();
+    else void v.play().catch(() => {});
+  }, [paused, media]);
   if (!media) return null;
   return media.isVideo ? (
-    <video className="media-fill" src={media.url} autoPlay loop muted={muted} playsInline />
+    <video ref={video} className="media-fill" src={media.url} autoPlay={!paused} loop muted={muted} playsInline />
   ) : (
     <img className="media-fill" src={media.url} alt="" />
   );
@@ -156,7 +169,7 @@ export function BackgroundFill({ bg, muted = true }: { bg: FrameBackground; mute
     case 'gradient':
       return <div className="fill" style={{ background: `linear-gradient(135deg, ${bg.color}, ${bg.color2})` }} />;
     case 'media':
-      return <MediaFill mediaId={bg.mediaId} muted={muted} />;
+      return <MediaFill mediaId={bg.mediaId} muted={muted} paused={bg.paused} />;
   }
 }
 
@@ -245,7 +258,12 @@ export function OutputView({ frame, muted = true }: { frame: OutputFrame | null;
         {frame?.background && <BackgroundFill bg={frame.background} muted={muted} />}
       </Transition>
       <Transition itemKey={frame?.slide?.key ?? null} duration={d}>
-        {frame?.slide && <SlideText text={frame.slide.text} caption={frame.slide.caption} theme={frame.slide.theme} />}
+        {frame?.slide && (
+          <>
+            <SlideText text={frame.slide.text} caption={frame.slide.caption} theme={frame.slide.theme} />
+            {frame.slide.footer && <div className="slide-footer">{frame.slide.footer}</div>}
+          </>
+        )}
       </Transition>
       <Transition itemKey={frame?.message?.key ?? null} duration={d}>
         {frame?.message && <MessageBanner text={frame.message.text} timer={frame.timer} />}
@@ -261,20 +279,26 @@ export function OutputView({ frame, muted = true }: { frame: OutputFrame | null;
   );
 }
 
-/** A static slide preview, used for thumbnails and theme swatches. */
-export function SlidePreview({ text, caption, theme }: { text: string; caption?: string; theme: Theme }) {
-  const bg = theme.background;
-  const fill: FrameBackground | null =
-    bg.type === 'color'
-      ? { key: '', kind: 'color', color: bg.color }
-      : bg.type === 'gradient'
-        ? { key: '', kind: 'gradient', color: bg.color, color2: bg.color2 }
-        : bg.type === 'media' && bg.mediaId
-          ? { key: '', kind: 'media', mediaId: bg.mediaId }
-          : null;
+/**
+ * A static slide preview, used for thumbnails and theme swatches. A slide
+ * with no background shows a checkerboard, as in ProPresenter, so it reads as
+ * transparent over whatever media is playing.
+ */
+export function SlidePreview({
+  text,
+  caption,
+  theme,
+  background,
+}: {
+  text: string;
+  caption?: string;
+  theme: Theme;
+  background?: ThemeBackground;
+}) {
+  const fill = toFrameBackground(background ?? theme.background);
   return (
     <ScaledCanvas>
-      <div className="fill" style={{ background: '#000' }} />
+      <div className={fill ? 'fill' : 'fill checker'} />
       {fill && <BackgroundFill bg={fill} />}
       <SlideText text={text} caption={caption} theme={theme} />
     </ScaledCanvas>

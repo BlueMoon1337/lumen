@@ -10,6 +10,7 @@ export interface DisplayInfo {
 
 /** Exposed by electron/preload.cjs when running as a desktop app. */
 export interface DesktopBridge {
+  platform: string;
   getDisplays(): Promise<DisplayInfo[]>;
   openOutput(kind: OutputKind, displayId?: number): Promise<void>;
   closeOutput(kind: OutputKind): Promise<void>;

@@ -1,148 +1,13 @@
-import { useState, type ReactNode } from 'react';
-import { useMedia } from '../media';
+import type { ReactNode } from 'react';
 import { useStore } from '../store';
-import type { MediaItem, Theme } from '../types';
+import { FONT_CHOICES } from '../theme';
+import type { Theme } from '../types';
 import { SlidePreview } from './Canvas';
-import { Dialog, Icon, IconButton, pickFiles } from './ui';
-
-export function BottomPanel() {
-  const tab = useStore((s) => s.bottomTab);
-  const { setUI } = useStore.getState();
-  return (
-    <div className="bottom-panel">
-      <nav className="tabs">
-        <button className={tab === 'media' ? 'active' : ''} onClick={() => setUI({ bottomTab: 'media' })}>
-          Media
-        </button>
-        <button className={tab === 'themes' ? 'active' : ''} onClick={() => setUI({ bottomTab: 'themes' })}>
-          Themes
-        </button>
-      </nav>
-      {tab === 'media' ? <MediaBin /> : <ThemePanel />}
-    </div>
-  );
-}
-
-function MediaThumb({ item }: { item: MediaItem }) {
-  const media = useMedia(item.id);
-  if (!media) return <div className="media-thumb-img" />;
-  return media.isVideo ? (
-    <video className="media-thumb-img" src={`${media.url}#t=0.5`} muted preload="metadata" />
-  ) : (
-    <img className="media-thumb-img" src={media.url} alt="" />
-  );
-}
-
-function MediaBin() {
-  const media = useStore((s) => s.media);
-  const liveMedia = useStore((s) => s.live.mediaId);
-  const logoId = useStore((s) => s.settings.logoMediaId);
-  const s = useStore.getState();
-  const [dropping, setDropping] = useState(false);
-
-  const importFiles = (files: File[]) => void s.addMediaFiles(files);
-
-  return (
-    <div
-      className={`media-bin ${dropping ? 'dropping' : ''}`}
-      onDragOver={(e) => {
-        if (e.dataTransfer.types.includes('Files')) {
-          e.preventDefault();
-          setDropping(true);
-        }
-      }}
-      onDragLeave={() => setDropping(false)}
-      onDrop={(e) => {
-        e.preventDefault();
-        setDropping(false);
-        importFiles(Array.from(e.dataTransfer.files));
-      }}
-    >
-      <button className="media-tile add" onClick={() => pickFiles('image/*,video/*').then(importFiles)}>
-        <Icon name="upload" size={22} />
-        <span>Import images or videos</span>
-      </button>
-      {media.map((m) => (
-        <div
-          key={m.id}
-          className={`media-tile ${liveMedia === m.id ? 'live' : ''}`}
-          onClick={() => s.setLiveMedia(liveMedia === m.id ? null : m.id)}
-          title="Click to show as the background, click again to clear"
-        >
-          <MediaThumb item={m} />
-          <div className="media-tile-footer">
-            <span className="list-label">{m.name}</span>
-            {logoId === m.id && <span className="badge">Logo</span>}
-            <span className="row-actions">
-              <IconButton
-                icon="monitor"
-                title={logoId === m.id ? 'Unset logo' : 'Use as logo'}
-                active={logoId === m.id}
-                onClick={() => s.updateSettings({ logoMediaId: logoId === m.id ? undefined : m.id })}
-              />
-              <IconButton icon="trash" title="Delete" danger onClick={() => confirm(`Delete "${m.name}"?`) && s.deleteMedia(m.id)} />
-            </span>
-          </div>
-        </div>
-      ))}
-      {media.length === 0 && <p className="muted media-empty">Drop image or video files here. Click one to put it behind your slides.</p>}
-    </div>
-  );
-}
-
-const FONTS = [
-  { label: 'Helvetica / Arial', value: '"Helvetica Neue", Helvetica, Arial, sans-serif' },
-  { label: 'System UI', value: 'system-ui, -apple-system, "Segoe UI", Roboto, sans-serif' },
-  { label: 'Georgia', value: 'Georgia, "Times New Roman", serif' },
-  { label: 'Times', value: '"Times New Roman", Times, serif' },
-  { label: 'Verdana', value: 'Verdana, Geneva, sans-serif' },
-  { label: 'Trebuchet', value: '"Trebuchet MS", sans-serif' },
-  { label: 'Impact', value: 'Impact, "Arial Black", sans-serif' },
-  { label: 'Courier', value: '"Courier New", Courier, monospace' },
-];
+import { Dialog } from './ui';
 
 const SAMPLE = 'Amazing grace, how sweet the sound\nThat saved a wretch like me';
 
-function ThemePanel() {
-  const themes = useStore((s) => s.themes);
-  const defaultId = useStore((s) => s.settings.defaultThemeId);
-  const selectedId = useStore((s) => s.selectedPresentationId);
-  const presentationTheme = useStore((s) => (s.selectedPresentationId ? s.presentations[s.selectedPresentationId]?.themeId : undefined));
-  const s = useStore.getState();
-  const activeId = selectedId ? (themes.some((t) => t.id === presentationTheme) ? presentationTheme : defaultId) : null;
-
-  return (
-    <div className="theme-list">
-      <button className="theme-card add" onClick={() => s.createTheme()}>
-        <Icon name="plus" size={22} />
-        <span>New theme</span>
-      </button>
-      {themes.map((t) => (
-        <div
-          key={t.id}
-          className={`theme-card ${activeId === t.id ? 'selected' : ''}`}
-          onClick={() => selectedId && s.updatePresentation(selectedId, { themeId: t.id })}
-          onDoubleClick={() => s.setUI({ editingThemeId: t.id })}
-          title={selectedId ? 'Click to apply to this presentation, double-click to edit' : 'Double-click to edit'}
-        >
-          <div className="theme-card-canvas">
-            <SlidePreview text={SAMPLE} theme={t} />
-          </div>
-          <div className="theme-card-name">
-            <span className="list-label">{t.name}</span>
-            {defaultId === t.id && <span className="badge">Default</span>}
-            <span className="row-actions">
-              <IconButton icon="edit" title="Edit theme" onClick={() => s.setUI({ editingThemeId: t.id })} />
-              <IconButton icon="copy" title="Duplicate theme" onClick={() => s.createTheme(t)} />
-            </span>
-          </div>
-        </div>
-      ))}
-    </div>
-  );
-}
-
-function Row({ label, children }: { label: string; children: ReactNode }) {
+export function Row({ label, children }: { label: string; children: ReactNode }) {
   return (
     <label className="field-row">
       <span>{label}</span>
@@ -196,11 +61,11 @@ export function ThemeEditorDialog() {
             <legend>Text</legend>
             <Row label="Font">
               <select
-                value={FONTS.some((f) => f.value === t.fontFamily) ? t.fontFamily : ''}
+                value={FONT_CHOICES.some((f) => f.value === t.fontFamily) ? t.fontFamily : ''}
                 onChange={(e) => set({ fontFamily: e.target.value })}
               >
-                {!FONTS.some((f) => f.value === t.fontFamily) && <option value="">{t.fontFamily}</option>}
-                {FONTS.map((f) => (
+                {!FONT_CHOICES.some((f) => f.value === t.fontFamily) && <option value="">{t.fontFamily}</option>}
+                {FONT_CHOICES.map((f) => (
                   <option key={f.value} value={f.value}>
                     {f.label}
                   </option>
