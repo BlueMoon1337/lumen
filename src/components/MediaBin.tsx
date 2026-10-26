@@ -1,7 +1,8 @@
 import { useEffect, useMemo, useState, type DragEvent } from 'react';
 import { useShallow } from 'zustand/react/shallow';
 import { loadMedia, useMedia } from '../media';
-import { notify } from '../notices';
+import { convertHeicPhotos } from '../heic';
+import { dismiss, notify } from '../notices';
 import { useStore } from '../store';
 import type { MediaItem, MediaPlaylist } from '../types';
 import { formatDuration } from '../util';
@@ -47,7 +48,15 @@ function canPlay(id: string): Promise<boolean> {
  * Imports images and videos (into a media playlist, if given), and says which files were left out
  * or can't be played here, e.g. an HEVC or ProRes video in a browser without that codec.
  */
-export async function importMediaFiles(files: File[], playlistId?: string | null): Promise<MediaItem[]> {
+export async function importMediaFiles(chosen: File[], playlistId?: string | null): Promise<MediaItem[]> {
+  // iPhone photos (HEIC) become JPEGs first, so every screen can show them.
+  let working: number | null = null;
+  const { files, converted, failed } = await convertHeicPhotos(chosen, (count) => {
+    working = notify(`Converting ${count === 1 ? 'a HEIC photo' : `${count} HEIC photos`} to JPEG…`, 'info', 0);
+  });
+  if (working !== null) dismiss(working);
+  if (converted) notify(`${converted === 1 ? 'A HEIC photo was' : `${converted} HEIC photos were`} added as JPEG.`, 'success', 3500);
+  for (const name of failed) notify(`“${name}” couldn’t be converted from HEIC: the photo may be damaged.`, 'error', 9000);
   const added = await useStore.getState().addMediaFiles(files, playlistId);
   const audio = added.filter((m) => m.kind === 'audio').length;
   if (audio) notify(`${audio === 1 ? 'The audio file went' : 'Audio files went'} to the Audio tab, in the live panel.`, 'info');
@@ -68,7 +77,7 @@ export async function importMediaFiles(files: File[], playlistId?: string | null
 }
 
 const importInto = (playlistId?: string | null) =>
-  pickFiles('image/*,video/*,.mp4,.m4v,.mov,.webm').then((files) => importMediaFiles(files, playlistId));
+  pickFiles('image/*,video/*,.heic,.heif,.mp4,.m4v,.mov,.webm').then((files) => importMediaFiles(files, playlistId));
 
 const hasDrag = (e: DragEvent, type: string) => e.dataTransfer.types.includes(type);
 
@@ -315,7 +324,7 @@ function MediaGrid() {
             <Icon name="download" size={40} />
           </button>
           <span>Import Media</span>
-          <span className="muted small-print">Images and videos (MP4, MOV, WebM). Or drop them here.</span>
+          <span className="muted small-print">Images (iPhone HEIC photos become JPEG) and videos (MP4, MOV, WebM). Or drop them here.</span>
         </div>
       ) : (
         <div className="media-grid" style={{ gridTemplateColumns: `repeat(auto-fill, minmax(${size}px, 1fr))` }}>

@@ -157,7 +157,9 @@ A slide comes on screen with its own transition, else its presentation's, else t
 
 ## Videos and the media bin
 
-**Importing.** Press + in the media bin, or drop files on it: images, and videos as MP4 (H.264 plays everywhere), MOV or WebM. Lumen checks each video can be played on this computer and says so if not (an HEVC or ProRes file in a browser without that codec, say). Audio files go to the Audio tab.
+**Importing.** Press + in the media bin, or drop files on it (or on a slide): images, and videos as MP4 (H.264 plays everywhere), MOV or WebM.
+
+**iPhone photos (HEIC).** HEIC and HEIF photos become ordinary JPEGs as they're added, so every screen, browser and computer can show them. The name stays (`IMG_4821.HEIC` becomes `IMG_4821`), the photo keeps its orientation, and one larger than 4K (3840 pixels on its longest side) is scaled down to that, which is plenty for any projector and keeps the library small. On a Mac (and in Safari) macOS does the converting; elsewhere Lumen loads a HEIC decoder the first time it needs one, which takes a second or two per photo. Files with a `.heic` name, a HEIC type, or HEIC contents under another name are all recognised. Lumen checks each video can be played on this computer and says so if not (an HEVC or ProRes file in a browser without that codec, say). Audio files go to the Audio tab.
 
 **Playlists.** As in ProPresenter, the media bin's **Playlists** (+ to add one) keep media in an order, e.g. a service's walk-in loop, countdown and offering video. Importing while a playlist is open puts the files in it; drag tiles from All Media onto a playlist to add them; right-click to rename, delete, or take an item out (it stays in All Media).
 
@@ -321,6 +323,7 @@ src/
   transitions.ts   transition kinds, which one a slide uses, labels, mapping ProPresenter's effects
   labels.ts        group presets and slide labels
   layers.ts        the layers in clear-column order, clearing them, and the default Clear Groups
+  heic.ts          recognising HEIC photos and converting them to JPEG (natively, or with libheif)
   theme.ts         theme → presentation → slide formatting, backgrounds, copyright line
   fonts.ts         font menus, Copperplate fallback chain, reading font files, loading added fonts
   bible.ts         imported and online Bibles: storage, reference parsing (local + English book names), lookups
@@ -373,6 +376,10 @@ public/icons/      browser tab, home-screen and picker images for each icon
 ```
 
 The operator window owns all state. Every change produces an `OutputFrame`, a self-contained description of what each screen should show, which goes to the output windows (as desktop app events, or over `BroadcastChannel` in a browser). Output windows hold no library data. They render the frame and load media from the IndexedDB they share with the operator window. Every view renders onto the same fixed 1920×1080 canvas and scales it, so text wraps the same way in thumbnails, the monitor and the projector.
+
+## Third-party code
+
+HEIC photos are decoded with [libheif](https://github.com/strukturag/libheif), through [heic-to](https://github.com/hoppergee/heic-to), both under the LGPL 3.0. They're built into a file of their own (`dist/assets/heic-to-*.js`) that loads only when a HEIC photo is added, and can be replaced with another build of the same library. Cinzel is under the SIL Open Font License.
 
 ## Roadmap ideas
 
