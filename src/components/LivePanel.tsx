@@ -1,9 +1,10 @@
-import { useState } from 'react';
+import { useRef, useState, type CSSProperties } from 'react';
 import { timerRemaining, useNow } from '../clock';
 import { useLiveFrame } from '../liveFrame';
 import { useStore, type LiveTab } from '../store';
 import { formatDuration, parseDuration } from '../util';
 import { OutputView } from './Canvas';
+import { setPaneSize, Splitter } from './Splitter';
 import { StageView } from './StageView';
 import { Icon, IconButton, SectionHeader, type IconName } from './ui';
 
@@ -49,51 +50,75 @@ export function LivePanel() {
   const s = useStore.getState();
   const [screen, setScreen] = useState<'audience' | 'stage'>('audience');
   const anything = !!(live.slide || live.mediaId || live.messageId || live.logo);
+  // Height of the preview and transport above the tabs; unset, the preview is as tall as its width allows.
+  const topHeight = useStore((s) => s.settings.panes?.liveTop);
+  const side = useRef<HTMLElement>(null);
+  const top = useRef<HTMLDivElement>(null);
 
   return (
-    <aside className="live-side">
-      <div className="preview-row">
-        <div className="preview">{screen === 'audience' ? <OutputView frame={frame} /> : <StageView frame={frame} />}</div>
-        <button className="clear-all" onClick={s.clearAll} disabled={!anything} title="Clear All (F1)" aria-label="Clear all">
-          <Icon name="close" size={14} />
-        </button>
-        <div className="clear-strip">
-          <ClearButton icon="send" label="Messages" hotkey="F4" active={!!live.messageId} onClick={() => s.showMessage(null)} />
-          <ClearButton icon="layers" label="Logo" hotkey="F6" active={live.logo} onClick={s.toggleLogo} />
-          <ClearButton icon="lines" label="Slide" hotkey="F2" active={!!live.slide} onClick={s.clearSlide} />
-          <ClearButton icon="image" label="Media" hotkey="F3" active={!!live.mediaId} onClick={s.clearMedia} />
+    <aside
+      ref={side}
+      className={`live-side ${topHeight ? 'sized' : ''}`}
+      style={topHeight ? ({ '--live-top': `${topHeight}px` } as CSSProperties) : undefined}
+    >
+      <div ref={top} className="live-top">
+        <div className="preview-row">
+          <div className="preview">{screen === 'audience' ? <OutputView frame={frame} /> : <StageView frame={frame} />}</div>
+          <button className="clear-all" onClick={s.clearAll} disabled={!anything} title="Clear All (F1)" aria-label="Clear all">
+            <Icon name="close" size={14} />
+          </button>
+          <div className="clear-strip">
+            <ClearButton icon="send" label="Messages" hotkey="F4" active={!!live.messageId} onClick={() => s.showMessage(null)} />
+            <ClearButton icon="layers" label="Logo" hotkey="F6" active={live.logo} onClick={s.toggleLogo} />
+            <ClearButton icon="lines" label="Slide" hotkey="F2" active={!!live.slide} onClick={s.clearSlide} />
+            <ClearButton icon="image" label="Media" hotkey="F3" active={!!live.mediaId} onClick={s.clearMedia} />
+          </div>
+        </div>
+        <div className="screen-row">
+          <select value={screen} onChange={(e) => setScreen(e.target.value as 'audience' | 'stage')} aria-label="Preview screen">
+            <option value="audience">Audience</option>
+            <option value="stage">Stage</option>
+          </select>
+          <span className="screen-label">{frame.stage.currentLabel ?? ''}</span>
+        </div>
+        <div className="transport">
+          <div className="layer-lights">
+            <span className={live.slide ? 'on' : ''} title="Slide">
+              <Icon name="lines" size={14} />
+            </span>
+            <span className={live.mediaId ? 'on' : ''} title="Media">
+              <Icon name="image" size={14} />
+            </span>
+            <span className={live.messageId ? 'on' : ''} title="Message">
+              <Icon name="send" size={14} />
+            </span>
+          </div>
+          <div className="transport-name">{liveMedia ? liveMedia.name : 'No media playing'}</div>
+          <div className="transport-buttons">
+            <IconButton icon="reset" title="Restart video" disabled={liveMedia?.kind !== 'video'} onClick={s.restartMedia} />
+            <IconButton
+              icon={live.mediaPaused ? 'play' : 'pause'}
+              title={live.mediaPaused ? 'Play' : 'Pause'}
+              disabled={liveMedia?.kind !== 'video'}
+              onClick={() => s.setMediaPaused(!live.mediaPaused)}
+            />
+          </div>
         </div>
       </div>
-      <div className="screen-row">
-        <select value={screen} onChange={(e) => setScreen(e.target.value as 'audience' | 'stage')} aria-label="Preview screen">
-          <option value="audience">Audience</option>
-          <option value="stage">Stage</option>
-        </select>
-        <span className="screen-label">{frame.stage.currentLabel ?? ''}</span>
-      </div>
-      <div className="transport">
-        <div className="layer-lights">
-          <span className={live.slide ? 'on' : ''} title="Slide">
-            <Icon name="lines" size={14} />
-          </span>
-          <span className={live.mediaId ? 'on' : ''} title="Media">
-            <Icon name="image" size={14} />
-          </span>
-          <span className={live.messageId ? 'on' : ''} title="Message">
-            <Icon name="send" size={14} />
-          </span>
-        </div>
-        <div className="transport-name">{liveMedia ? liveMedia.name : 'No media playing'}</div>
-        <div className="transport-buttons">
-          <IconButton icon="reset" title="Restart video" disabled={liveMedia?.kind !== 'video'} onClick={s.restartMedia} />
-          <IconButton
-            icon={live.mediaPaused ? 'play' : 'pause'}
-            title={live.mediaPaused ? 'Play' : 'Pause'}
-            disabled={liveMedia?.kind !== 'video'}
-            onClick={() => s.setMediaPaused(!live.mediaPaused)}
-          />
-        </div>
-      </div>
+      <Splitter
+        axis="y"
+        label="Preview height"
+        className="pane-split-live-top"
+        measure={() => top.current?.offsetHeight ?? 0}
+        min={120}
+        max={() => (side.current?.clientHeight ?? 600) - 140}
+        apply={(size) => {
+          side.current?.classList.add('sized');
+          side.current?.style.setProperty('--live-top', `${size}px`);
+        }}
+        commit={(size) => setPaneSize('liveTop', size)}
+        reset={() => setPaneSize('liveTop', undefined)}
+      />
       <nav className="live-tabs">
         {TABS.map((t) => (
           <button

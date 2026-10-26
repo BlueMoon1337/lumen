@@ -160,6 +160,24 @@ export interface Settings {
   lastBible?: string;
   /** Bible mode's choices (see bibleSettings in src/bibleSlides.ts for the defaults). */
   bible?: Partial<BibleSettings>;
+  /** Sizes the operator dragged the panes to; unset ones use the defaults (DEFAULT_PANES in Splitter.tsx). */
+  panes?: Partial<PaneSizes>;
+}
+
+/** Pane sizes in px. */
+export interface PaneSizes {
+  /** Library and playlist sidebar (and the media sidebar under it), Show and Bible modes. */
+  side: number;
+  /** Live panel on the right. */
+  live: number;
+  /** Media bin along the bottom. */
+  media: number;
+  /** Live panel: preview and transport, above the tabs. Unset: as tall as the preview needs. */
+  liveTop: number;
+  /** Edit and Reflow modes: the slide outline on the left. */
+  outline: number;
+  /** Edit and Reflow modes: the inspector on the right. */
+  inspector: number;
 }
 
 /** Where Bible mode puts a translation's verse text or reference: the template's main box, its caption box, or nowhere. */
