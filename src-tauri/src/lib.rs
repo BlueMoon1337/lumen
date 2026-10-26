@@ -10,6 +10,7 @@ mod files;
 mod icon;
 mod menu;
 mod outputs;
+mod presentation;
 
 use tauri::window::Color;
 use tauri::{Manager, WebviewUrl, WebviewWindowBuilder};
@@ -30,6 +31,7 @@ pub fn run() {
             menu::set_menu_state,
             edit::set_undo_state,
             edit::set_edit_state,
+            presentation::set_presentation_state,
             menu::set_file_state,
             files::open_files,
             files::read_opened_file,
@@ -43,12 +45,13 @@ pub fn run() {
         .setup(|app| {
             let handle = app.handle();
             icon::load(handle);
-            let (menu, screens, edit, file) = menu::build(handle)?;
+            let (menu, screens, edit, presentation, file) = menu::build(handle)?;
             app.set_menu(menu)?;
             #[cfg(target_os = "macos")]
             edit::attach_text_menus();
             app.manage(screens);
             app.manage(edit);
+            app.manage(presentation);
             app.manage(file);
 
             let main = WebviewWindowBuilder::new(app, "main", WebviewUrl::default())

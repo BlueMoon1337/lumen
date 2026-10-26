@@ -244,6 +244,12 @@ interface Actions {
   /** The live video ended: loop, stop, clear or play the next, as the video says. */
   mediaEnded(): void;
   toggleLogo(): void;
+  /** Presentation ▸ Clear to Logo: everything off the screens but the logo. */
+  clearToLogo(): void;
+  /** Presentation ▸ Next / Previous Background: the next or previous image or video, in its media playlist or the media bin. */
+  stepMedia(delta: 1 | -1): void;
+  /** Presentation ▸ Show Slide on Stage Screens Only. */
+  showOnStage(presentationId: string, index: number): void;
   clearAll(): void;
   clearSlide(): void;
   clearMedia(): void;
@@ -906,7 +912,8 @@ export const useStore = create<AppState>()(
           set((s) => {
             const p = s.presentations[presentationId];
             const ref = { presentationId, index, playlistItemId: playlistItemId ?? undefined };
-            let live = layerOf(p) === 'announcement' ? { ...s.live, announcement: ref } : { ...s.live, logo: false, slide: ref };
+            let live =
+              layerOf(p) === 'announcement' ? { ...s.live, announcement: ref } : { ...s.live, logo: false, slide: ref, stageSlide: null };
             // A slide with a media cue starts its media on the Media layer (unless it's already playing).
             const cue = p ? getSequence(p)[index]?.slide.media : undefined;
             if (cue && cue !== s.live.mediaId && s.media.some((m) => m.id === cue))
@@ -1048,6 +1055,18 @@ export const useStore = create<AppState>()(
           }
         },
         toggleLogo: () => set((s) => ({ live: { ...s.live, logo: !s.live.logo } })),
+        clearToLogo: () => set((s) => ({ live: { ...clearLive(s.live, ALL_LAYERS), logo: !!s.settings.logoMediaId } })),
+        stepMedia: (delta) => {
+          const s = get();
+          const visual = new Set(s.media.filter((m) => m.kind !== 'audio').map((m) => m.id));
+          const from = s.live.mediaId ? s.live.mediaFrom : s.mediaFilter === 'playlist' ? s.mediaPlaylistId : null;
+          const order = (s.mediaPlaylists.find((pl) => pl.id === from)?.items ?? s.media.map((m) => m.id)).filter((id) => visual.has(id));
+          if (!order.length) return;
+          const at = s.live.mediaId ? order.indexOf(s.live.mediaId) : -1;
+          const next = at < 0 ? (delta > 0 ? 0 : order.length - 1) : at + delta;
+          if (next >= 0 && next < order.length) s.setLiveMedia(order[next], from);
+        },
+        showOnStage: (presentationId, index) => set((s) => ({ live: { ...s.live, stageSlide: { presentationId, index } } })),
         clearAll: () => get().clearLayers(ALL_LAYERS),
         clearSlide: () => get().clearLayers(['slide']),
         clearMedia: () => get().clearLayers(['media']),

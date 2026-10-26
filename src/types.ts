@@ -442,6 +442,11 @@ export interface LiveState {
   announcement: LiveSlideRef | null;
   /** A camera or capture card on the Video Input layer, under everything. */
   videoInput: { deviceId: string; label: string } | null;
+  /**
+   * Presentation ▸ Show Slide on Stage Screens Only: a slide the stage screens show in place of
+   * the live one, until the next slide goes live or the slide layer is cleared.
+   */
+  stageSlide?: LiveSlideRef | null;
 }
 
 /** One slide of a presentation in performance order. */

@@ -7,9 +7,9 @@ import type { ClearGroup, ClearLayer, LiveState, Settings } from './types';
 
 export const LAYERS: { id: ClearLayer; label: string; icon: IconName; hotkey?: string }[] = [
   { id: 'audio', label: 'Audio', icon: 'music', hotkey: 'F5' },
-  { id: 'messages', label: 'Messages', icon: 'send', hotkey: 'F4' },
-  { id: 'logo', label: 'Logo', icon: 'layers', hotkey: 'F6' },
-  { id: 'announcements', label: 'Announcements', icon: 'megaphone' },
+  { id: 'messages', label: 'Messages', icon: 'send', hotkey: 'F6' },
+  { id: 'logo', label: 'Logo', icon: 'layers', hotkey: 'F4' },
+  { id: 'announcements', label: 'Announcements', icon: 'megaphone', hotkey: 'F7' },
   { id: 'slide', label: 'Slide', icon: 'lines', hotkey: 'F2' },
   { id: 'media', label: 'Media', icon: 'image', hotkey: 'F3' },
   { id: 'videoInput', label: 'Video Input', icon: 'video' },
@@ -70,7 +70,7 @@ export function clearLive(live: LiveState, layers: ClearLayer[]): LiveState {
     if (layer === 'messages') next.messageId = null;
     if (layer === 'logo') next.logo = false;
     if (layer === 'announcements') next.announcement = null;
-    if (layer === 'slide') next.slide = null;
+    if (layer === 'slide') Object.assign(next, { slide: null, stageSlide: null });
     if (layer === 'media') Object.assign(next, { mediaId: null, mediaPaused: false });
     if (layer === 'videoInput') next.videoInput = null;
   }

@@ -2,7 +2,8 @@
 //! ⌥⌘1 Configure Screens…, Identify Screens. Clicks go to the operator window, which
 //! owns the setup and sends back the checkmarks.
 //!
-//! The Edit menu is ProPresenter's too (see edit.rs); its commands run in the operator window.
+//! The Edit and Presentation menus are ProPresenter's too (see edit.rs and presentation.rs);
+//! their commands run in the operator window.
 //!
 //! The File menu is ProPresenter's: New Presentation, Playlist and Library, and Import and Export
 //! submenus. Its commands also run in the operator window.
@@ -12,6 +13,7 @@ use tauri::menu::{CheckMenuItem, Menu, MenuEvent, MenuItem, MenuItemKind, Predef
 use tauri::{AppHandle, Emitter, Wry};
 
 use crate::edit::{self, EditMenu};
+use crate::presentation::{self, PresentationMenu};
 
 const COMMANDS: [&str; 18] = [
     "toggle-audience",
@@ -95,7 +97,7 @@ fn file_menu(app: &AppHandle) -> tauri::Result<(Vec<MenuItemKind<Wry>>, FileMenu
 
 /// The platform's standard menus (so copy and paste work in text fields) plus Screens, before Window.
 /// Edit's Undo and Redo are Lumen's own, in place of the standard ones that only undo typing.
-pub fn build(app: &AppHandle) -> tauri::Result<(Menu<Wry>, ScreensMenu, EditMenu, FileMenu)> {
+pub fn build(app: &AppHandle) -> tauri::Result<(Menu<Wry>, ScreensMenu, EditMenu, PresentationMenu, FileMenu)> {
     let audience = CheckMenuItem::with_id(app, "toggle-audience", "Audience", true, false, Some("CmdOrCtrl+1"))?;
     let stage = CheckMenuItem::with_id(app, "toggle-stage", "Stage", true, false, Some("CmdOrCtrl+2"))?;
     let configure = MenuItem::with_id(app, "configure-screens", "Configure Screens…", true, Some("Alt+CmdOrCtrl+1"))?;
@@ -108,6 +110,8 @@ pub fn build(app: &AppHandle) -> tauri::Result<(Menu<Wry>, ScreensMenu, EditMenu
 
     // Edit: Lumen's own, in place of the standard one (Linux has none, so it goes after File).
     let (edit, edit_menu) = edit::build(app)?;
+    // Presentation comes after Edit, as in ProPresenter.
+    let (presentation, presentation_menu) = presentation::build(app)?;
     let items = menu.items()?;
     match items
         .iter()
@@ -116,8 +120,12 @@ pub fn build(app: &AppHandle) -> tauri::Result<(Menu<Wry>, ScreensMenu, EditMenu
         Some(at) => {
             menu.remove_at(at)?;
             menu.insert(&edit, at)?;
+            menu.insert(&presentation, at + 1)?;
         }
-        None => menu.insert(&edit, 0)?,
+        None => {
+            menu.insert(&edit, 0)?;
+            menu.insert(&presentation, 1)?;
+        }
     }
 
     // File: Lumen's commands above the standard Close Window (and Quit). Linux has no standard
@@ -141,7 +149,7 @@ pub fn build(app: &AppHandle) -> tauri::Result<(Menu<Wry>, ScreensMenu, EditMenu
             menu.insert(&Submenu::with_items(app, "File", true, &items)?, 0)?;
         }
     }
-    Ok((menu, ScreensMenu { audience, stage, identify }, edit_menu, file))
+    Ok((menu, ScreensMenu { audience, stage, identify }, edit_menu, presentation_menu, file))
 }
 
 pub fn on_event(app: &AppHandle, event: MenuEvent) {
@@ -152,7 +160,7 @@ pub fn on_event(app: &AppHandle, event: MenuEvent) {
         if !edit::forward_to_panel(app, id) {
             let _ = app.emit_to("main", "menu", id);
         }
-    } else if COMMANDS.contains(&id) {
+    } else if COMMANDS.contains(&id) || presentation::is_command(id) {
         let _ = app.emit_to("main", "menu", id);
     }
 }

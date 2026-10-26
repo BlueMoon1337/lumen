@@ -267,15 +267,31 @@ export function SettingsDialog({ onClose, onScreens }: { onClose: () => void; on
           <dt>
             <kbd>F2</kbd> / <kbd>F3</kbd> / <kbd>F4</kbd>
           </dt>
-          <dd>Clear slide / media / message</dd>
+          <dd>Clear slide / media / logo</dd>
           <dt>
-            <kbd>F5</kbd>
+            <kbd>F5</kbd> / <kbd>F6</kbd> / <kbd>F7</kbd>
           </dt>
-          <dd>Clear audio</dd>
+          <dd>Clear audio / messages / announcements</dd>
           <dt>
-            <kbd>F6</kbd>
+            <kbd>F12</kbd>
           </dt>
-          <dd>Toggle logo</dd>
+          <dd>Clear to logo</dd>
+          <dt>
+            <kbd>{MOD}</kbd> <kbd>←</kbd> / <kbd>→</kbd>
+          </dt>
+          <dd>Previous / next background from the media bin</dd>
+          <dt>
+            <kbd>Shift</kbd> <kbd>{MOD}</kbd> <kbd>N</kbd>
+          </dt>
+          <dd>New slide</dd>
+          <dt>
+            <kbd>{MOD}</kbd> <kbd>L</kbd> / <kbd>Shift</kbd> <kbd>{MOD}</kbd> <kbd>L</kbd> / <kbd>{ALT}</kbd> <kbd>{MOD}</kbd> <kbd>L</kbd>
+          </dt>
+          <dd>Show the triggered presentation / announcement; reveal the presentation in its library</dd>
+          <dt>
+            <kbd>{MOD}</kbd> <kbd>0</kbd>
+          </dt>
+          <dd>Show the selected slide on the stage screens only</dd>
           <dt>
             <kbd>{MOD}</kbd> <kbd>1</kbd> / <kbd>{MOD}</kbd> <kbd>2</kbd>
           </dt>

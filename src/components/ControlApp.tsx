@@ -17,6 +17,7 @@ import { ContextMenuHost } from './ContextMenu';
 import { LabelsDialog, SettingsDialog } from './Dialogs';
 import { useEditKeys, useEditMenuState } from './editCommands';
 import { EditView } from './EditView';
+import { usePresentationKeys, usePresentationMenu } from './presentationCommands';
 import { exportTarget, importFileCommand, newPresentationCommand, runFileCommand } from './fileCommands';
 import { ExportThemesDialog, SlideImagesDialog, TextImportDialog } from './FileDialogs';
 import { WelcomeDialog } from './IconChooser';
@@ -70,16 +71,8 @@ function useShortcuts(enabled: boolean) {
     const onKey = (e: KeyboardEvent) => {
       if (isTypingTarget(e.target) || e.metaKey || e.ctrlKey || e.altKey) return;
       const s = useStore.getState();
-      // Clearing works from every mode; slide navigation only in Show,
-      // where Edit's arrow keys nudge the selected text box instead.
-      const clears: Record<string, () => void> = {
-        F1: s.clearAll,
-        F2: s.clearSlide,
-        F3: s.clearMedia,
-        F4: () => s.showMessage(null),
-        F5: () => s.clearLayers(['audio']),
-        F6: s.toggleLogo,
-      };
+      // Slide navigation only in Show, where Edit's arrow keys nudge the selected text box instead.
+      // (The function keys clear layers: see presentationCommands.ts.)
       const navigation: Record<string, () => void> = {
         ArrowRight: s.next,
         ArrowDown: s.next,
@@ -99,7 +92,7 @@ function useShortcuts(enabled: boolean) {
         ArrowUp: () => s.bibleStep(-1),
         PageUp: () => s.bibleStep(-1),
       };
-      const action = clears[e.key] ?? (s.mode === 'show' ? navigation[e.key] : s.mode === 'bible' ? bibleSteps[e.key] : undefined);
+      const action = s.mode === 'show' ? navigation[e.key] : s.mode === 'bible' ? bibleSteps[e.key] : undefined;
       if (action) {
         e.preventDefault();
         action();
@@ -345,6 +338,8 @@ export default function ControlApp() {
   useShortcuts(dialog === null && !editingTheme && !!appIcon);
   useEditKeys();
   useEditMenuState();
+  usePresentationKeys();
+  usePresentationMenu();
   useEffect(() => {
     // The desktop app's web view has its own right-click menu (Reload, Inspect…); Lumen's
     // menus replace it, and text fields keep theirs for copy and paste.

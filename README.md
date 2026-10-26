@@ -57,26 +57,27 @@ npm run format       # Prettier
 
 ## Where things are (for ProPresenter users)
 
-| ProPresenter                                                                                                                                | Lumen                                                                                                                                                                                                                                              |
-| ------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Toolbar: Search · Text, Theme · Show, Edit, Reflow, Bible, More                                                                             | Same buttons, same order. Text and Theme drop down panels that apply to the selected presentation.                                                                                                                                                 |
-| Toolbar: Media, Audience, Stage                                                                                                             | Media toggles the media bin. Audience and Stage turn those screens on or off; the ring is green when they're showing and orange when some outputs aren't. Right-click either one to configure screens.                                             |
-| Screens menu and Screen Configuration (⌥⌘1)                                                                                                 | Same layout: Audience and Stage lists with on/off switches and +, Identify Screens, Test Patterns, then per screen its name, size, Screen Color, Outputs, the output tiles, and Hardware / Color / Corner Pin / Alpha Key tabs. See Screens below. |
-| Bible: reference with Book › Chapter › Verse menu, Search, Options; translation with Verse and Reference boxes, License, +; Save As…        | Same layout and options. See Bible below.                                                                                                                                                                                                          |
-| Dividers between the panes (library, slides, media bin, live panel, and above the live panel’s tabs)                                        | Same: drag to resize, double-click to reset. Edit mode’s slide list and inspector resize too. Sizes are kept.                                                                                                                                      |
-| Library and Playlist at the top left, items below with a Filter                                                                             | Same. Libraries are Songs, Scripture, Announcements and Other, plus any made with **New Library**. Drag a presentation onto a library or playlist name to move or add it.                                                                          |
-| Slide grid with numbered, colored group labels                                                                                              | Same. Click a slide to go live (orange border), double-click to edit it.                                                                                                                                                                           |
-| Media bin along the bottom, with Playlists                                                                                                  | Same: All Media / Images / Videos, media Playlists and Video Inputs on the left. Click an item to play it on the Media layer, or a camera to show it underneath. Drag a video onto a slide to play it with that slide.                             |
-| Preview with clear buttons on its right edge, ✕ for Clear All, Clear Groups underneath                                                      | Same column in the same order: Audio, Messages, Logo (where ProPresenter has Props), Announcements, Slide, Media, Video Input. Each lights up while its layer is live. Clear Groups clear several layers at once.                                  |
-| Screen picker, transport, and Audio / Stage / Timers / Messages / Props tabs                                                                | Same. The Audio tab is the audio bin.                                                                                                                                                                                                              |
-| Edit: slide list with group headers, Objects, canvas with rulers, Presentation / Slide inspector                                            | Same. Drag or resize the text box, double-click to type on the slide. The Text tab formats one slide.                                                                                                                                              |
-| Reflow                                                                                                                                      | Type the whole song as text with `[Verse 1]` headers.                                                                                                                                                                                              |
-| File menu: New Presentation, New Playlist, New Library, Import ▸, Export ▸                                                                  | Same, in the desktop app's menu bar and under **More ▸ File**. Import has File…, Library…, Media…, Text from Clipboard… and Import Bible…; Export has Presentation…, Presentation Bundle…, Text…, Slide Images…, Playlist… and Themes…. No Print.  |
-| Edit menu: Undo, Redo, Cut, Copy ▸, Paste ▸, Duplicate, Delete, Select All, Deselect All, Search, Spelling and Grammar ▸, Transformations ▸ | Same, in the menu bar and under **More**. In a text field they work on its text; elsewhere on the selected slides (⌘-click and ⇧-click select more), or the presentation or playlist item selected in the sidebar.                                 |
-| Right-click menus                                                                                                                           | Same: slides, group headers, the Edit canvas, library and playlist items, playlists, headers and media each have one. See Slides, groups and labels below.                                                                                         |
-| Copy Style / Paste Style (⌥⌘C / ⌥⌘V)                                                                                                        | Same: right-click a slide, or the Text tab's Copy Style and Paste Style buttons. Paste onto one slide, a group, or every slide.                                                                                                                    |
-| Group and Label (right-click a slide), Edit Groups…                                                                                         | Same. Picking a group starts it at that slide. Labels are colored tags on the thumbnails. **Edit Groups & Labels…** sets the lists.                                                                                                                |
-| Transitions                                                                                                                                 | Thirteen kinds with direction, length and easing, for a slide (right-click, or its badge), a group, a presentation (the button under the slides), every slide (**Global**, the button under the preview) or media from the media bin.              |
+| ProPresenter                                                                                                                                                                           | Lumen                                                                                                                                                                                                                                              |
+| -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Toolbar: Search · Text, Theme · Show, Edit, Reflow, Bible, More                                                                                                                        | Same buttons, same order. Text and Theme drop down panels that apply to the selected presentation.                                                                                                                                                 |
+| Toolbar: Media, Audience, Stage                                                                                                                                                        | Media toggles the media bin. Audience and Stage turn those screens on or off; the ring is green when they're showing and orange when some outputs aren't. Right-click either one to configure screens.                                             |
+| Screens menu and Screen Configuration (⌥⌘1)                                                                                                                                            | Same layout: Audience and Stage lists with on/off switches and +, Identify Screens, Test Patterns, then per screen its name, size, Screen Color, Outputs, the output tiles, and Hardware / Color / Corner Pin / Alpha Key tabs. See Screens below. |
+| Bible: reference with Book › Chapter › Verse menu, Search, Options; translation with Verse and Reference boxes, License, +; Save As…                                                   | Same layout and options. See Bible below.                                                                                                                                                                                                          |
+| Dividers between the panes (library, slides, media bin, live panel, and above the live panel’s tabs)                                                                                   | Same: drag to resize, double-click to reset. Edit mode’s slide list and inspector resize too. Sizes are kept.                                                                                                                                      |
+| Library and Playlist at the top left, items below with a Filter                                                                                                                        | Same. Libraries are Songs, Scripture, Announcements and Other, plus any made with **New Library**. Drag a presentation onto a library or playlist name to move or add it.                                                                          |
+| Slide grid with numbered, colored group labels                                                                                                                                         | Same. Click a slide to go live (orange border), double-click to edit it.                                                                                                                                                                           |
+| Media bin along the bottom, with Playlists                                                                                                                                             | Same: All Media / Images / Videos, media Playlists and Video Inputs on the left. Click an item to play it on the Media layer, or a camera to show it underneath. Drag a video onto a slide to play it with that slide.                             |
+| Preview with clear buttons on its right edge, ✕ for Clear All, Clear Groups underneath                                                                                                 | Same column in the same order: Audio, Messages, Logo (where ProPresenter has Props), Announcements, Slide, Media, Video Input. Each lights up while its layer is live. Clear Groups clear several layers at once.                                  |
+| Screen picker, transport, and Audio / Stage / Timers / Messages / Props tabs                                                                                                           | Same. The Audio tab is the audio bin.                                                                                                                                                                                                              |
+| Edit: slide list with group headers, Objects, canvas with rulers, Presentation / Slide inspector                                                                                       | Same. Drag or resize the text box, double-click to type on the slide. The Text tab formats one slide.                                                                                                                                              |
+| Reflow                                                                                                                                                                                 | Type the whole song as text with `[Verse 1]` headers.                                                                                                                                                                                              |
+| File menu: New Presentation, New Playlist, New Library, Import ▸, Export ▸                                                                                                             | Same, in the desktop app's menu bar and under **More ▸ File**. Import has File…, Library…, Media…, Text from Clipboard… and Import Bible…; Export has Presentation…, Presentation Bundle…, Text…, Slide Images…, Playlist… and Themes…. No Print.  |
+| Edit menu: Undo, Redo, Cut, Copy ▸, Paste ▸, Duplicate, Delete, Select All, Deselect All, Search, Spelling and Grammar ▸, Transformations ▸                                            | Same, in the menu bar and under **More**. In a text field they work on its text; elsewhere on the selected slides (⌘-click and ⇧-click select more), or the presentation or playlist item selected in the sidebar.                                 |
+| Presentation menu: New Slide, Next/Previous Slide and Background, Clear Groups ▸, the Clear items, Clear to Logo, Show Triggered…, Reveal in Library, Show Slide on Stage Screens Only | Same, in the menu bar and under **More**, with the same function keys. Clear Logo (F4) stands where ProPresenter has Clear Props.                                                                                                                  |
+| Right-click menus                                                                                                                                                                      | Same: slides, group headers, the Edit canvas, library and playlist items, playlists, headers and media each have one. See Slides, groups and labels below.                                                                                         |
+| Copy Style / Paste Style (⌥⌘C / ⌥⌘V)                                                                                                                                                   | Same: right-click a slide, or the Text tab's Copy Style and Paste Style buttons. Paste onto one slide, a group, or every slide.                                                                                                                    |
+| Group and Label (right-click a slide), Edit Groups…                                                                                                                                    | Same. Picking a group starts it at that slide. Labels are colored tags on the thumbnails. **Edit Groups & Labels…** sets the lists.                                                                                                                |
+| Transitions                                                                                                                                                                            | Thirteen kinds with direction, length and easing, for a slide (right-click, or its badge), a group, a presentation (the button under the slides), every slide (**Global**, the button under the preview) or media from the media bin.              |
 
 ## Features
 
@@ -222,6 +223,24 @@ In the desktop app it's in the menu bar; in a browser it's under **More ▸ File
 
 Importing a Lumen file adds its presentations as new ones (to the open library), and its playlist, themes and media. A theme or media file the library already has is shared rather than copied. Exports save through the system's Save panel in the desktop app, and as downloads in a browser. To move everything to another computer, use **Settings ▸ Back Up Library…** and **Restore Backup…**.
 
+## The Presentation menu
+
+In the desktop app it's in the menu bar, after Edit; in a browser it's under **More ▸ Presentation**.
+
+| Item                                                     | Keys    | What it does                                                                                                                                                |
+| -------------------------------------------------------- | ------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| New Slide                                                | ⇧⌘N     | A blank slide after the selected one, open in Edit mode                                                                                                     |
+| Next Slide, Previous Slide                               | → ←     | As the arrow keys: through the presentation, on into the next playlist item                                                                                 |
+| Next Background, Previous Background                     | ⌘→ ⌘←   | The next or previous image or video on the Media layer: in the media playlist it was started from, else the media bin                                       |
+| Clear Groups ▸                                           | F1      | **Clear All**, each of your clear groups, and **Configure Clear Groups…**                                                                                   |
+| Clear Slide, Media, Logo, Audio, Messages, Announcements | F2–F7   | One layer each. Clear Logo stands where ProPresenter has Clear Props                                                                                        |
+| Clear to Logo                                            | F12     | Everything off the screens but the logo (set one in the Props tab first)                                                                                    |
+| Show Triggered Presentation, Announcement                | ⌘L, ⇧⌘L | Opens the presentation that's on the slide or Announcements layer, in the playlist or library it was started from                                           |
+| Reveal in Library                                        | ⌥⌘L     | Shows the selected presentation in its library                                                                                                              |
+| Show Slide on Stage Screens Only                         | ⌘0      | Sends the selected slide to the stage screens (with the slide after it as next) and leaves the audience screens as they are, until the next slide goes live |
+
+The function keys are ProPresenter's: F4 now clears the logo and F6 the messages (they used to be the other way round).
+
 ## Videos and the media bin
 
 **Importing.** Press + in the media bin, or drop files on it (or on a slide): images, and videos as MP4 (H.264 plays everywhere), MOV or WebM.
@@ -248,9 +267,9 @@ The column on the right of the preview clears one layer each, top to bottom as i
 | Layer         | What's on it                                                                                      | Clear |
 | ------------- | ------------------------------------------------------------------------------------------------- | ----- |
 | Audio         | A track from the **Audio** tab, playing from this computer. Clearing fades it out.                | F5    |
-| Messages      | A message from the Messages tab                                                                   | F4    |
-| Logo          | The logo (Props tab, or a media item's right-click menu)                                          | F6    |
-| Announcements | A slide from a presentation that plays on Announcements, with its own background, over the slides |       |
+| Messages      | A message from the Messages tab                                                                   | F6    |
+| Logo          | The logo (Props tab, or a media item's right-click menu)                                          | F4    |
+| Announcements | A slide from a presentation that plays on Announcements, with its own background, over the slides | F7    |
 | Slide         | The slide, and the background that goes with it                                                   | F2    |
 | Media         | An image or video from the media bin, in place of slide backgrounds                               | F3    |
 | Video Input   | A camera or capture card, underneath everything                                                   |       |
@@ -362,25 +381,30 @@ Was blind, but now I see.
 
 ## Keyboard
 
-| Key                            | Action                                                                          |
-| ------------------------------ | ------------------------------------------------------------------------------- |
-| `→` `↓` `Space` `PgDn`         | Next slide                                                                      |
-| `←` `↑` `PgUp`                 | Previous slide                                                                  |
-| `C`, `V`, `B`, …               | Jump to the next group starting with that letter                                |
-| `F1`                           | Clear all                                                                       |
-| `F2` / `F3` / `F4` / `F5`      | Clear slide / media / message / audio                                           |
-| `F6`                           | Toggle logo                                                                     |
-| `⌘1` / `⌘2` (Ctrl on Windows)  | Audience / Stage screens on or off (browsers may keep these for switching tabs) |
-| `⌥⌘1` (Ctrl+Alt+1)             | Configure Screens                                                               |
-| `⌘Z` / `⇧⌘Z` (Ctrl+Z / Ctrl+Y) | Undo / redo                                                                     |
-| `⌘X` `⌘C` `⌘V` `⌘D` (Ctrl)     | Cut, copy, paste, duplicate the selected slides (any mode)                      |
-| `⌘A` / `⇧⌘A`                   | Select all / deselect all slides                                                |
-| `⌥⇧⌘V`                         | Paste and match style                                                           |
-| `⌘F`                           | Search                                                                          |
-| `⌘N` (Ctrl+N)                  | New presentation (in a browser, only where the browser lets the key through)    |
-| `⇧⌘I` (Ctrl+Shift+I)           | Import a file                                                                   |
-| `Delete` / `⌫`                 | Delete the selected slides, presentation, playlist item, or library             |
-| `⌥⌘C` / `⌥⌘V` (Ctrl+Alt+C/V)   | Copy / paste the selected slides' text style                                    |
+| Key                            | Action                                                                                          |
+| ------------------------------ | ----------------------------------------------------------------------------------------------- |
+| `→` `↓` `Space` `PgDn`         | Next slide                                                                                      |
+| `←` `↑` `PgUp`                 | Previous slide                                                                                  |
+| `C`, `V`, `B`, …               | Jump to the next group starting with that letter                                                |
+| `F1`                           | Clear all                                                                                       |
+| `F2` / `F3` / `F4`             | Clear slide / media / logo                                                                      |
+| `F5` / `F6` / `F7`             | Clear audio / messages / announcements                                                          |
+| `F12`                          | Clear to logo: everything off but the logo                                                      |
+| `⌘←` / `⌘→`                    | Previous / next background from the media bin (its playlist, if it was started from one)        |
+| `⇧⌘N`                          | New slide                                                                                       |
+| `⌘L` / `⇧⌘L` / `⌥⌘L`           | Show the triggered presentation / announcement; reveal the selected presentation in its library |
+| `⌘0`                           | Show the selected slide on the stage screens only                                               |
+| `⌘1` / `⌘2` (Ctrl on Windows)  | Audience / Stage screens on or off (browsers may keep these for switching tabs)                 |
+| `⌥⌘1` (Ctrl+Alt+1)             | Configure Screens                                                                               |
+| `⌘Z` / `⇧⌘Z` (Ctrl+Z / Ctrl+Y) | Undo / redo                                                                                     |
+| `⌘X` `⌘C` `⌘V` `⌘D` (Ctrl)     | Cut, copy, paste, duplicate the selected slides (any mode)                                      |
+| `⌘A` / `⇧⌘A`                   | Select all / deselect all slides                                                                |
+| `⌥⇧⌘V`                         | Paste and match style                                                                           |
+| `⌘F`                           | Search                                                                                          |
+| `⌘N` (Ctrl+N)                  | New presentation (in a browser, only where the browser lets the key through)                    |
+| `⇧⌘I` (Ctrl+Shift+I)           | Import a file                                                                                   |
+| `Delete` / `⌫`                 | Delete the selected slides, presentation, playlist item, or library                             |
+| `⌥⌘C` / `⌥⌘V` (Ctrl+Alt+C/V)   | Copy / paste the selected slides' text style                                                    |
 
 Clickers that send arrow keys or Page Up/Down work out of the box. In Edit mode, the arrow keys nudge the selected text box (Shift for 10px), Enter starts typing, and Escape deselects.
 
@@ -417,6 +441,7 @@ src/
   components/
     ControlApp     window layout per mode and keyboard shortcuts
     fileCommands   the File menu: New, Import and Export, saving through the desktop app or downloads
+    presentationCommands  the Presentation menu: its commands, function keys and desktop menu state
     editCommands   the Edit menu: what each command does in a text field, a list or the selected slides; its keys;
                    slide selection; keeping the desktop menu's items on and off
     FileDialogs    Text from Clipboard, Export Slide Images and Export Themes windows
@@ -450,6 +475,7 @@ src-tauri/          the desktop app (Tauri, Rust)
   src/outputs.rs   output windows: one fullscreen per display, or a window per output without one
   src/camera.rs    lets the web views open cameras (Video Input)
   src/menu.rs      menu bar: File (New, Import, Export) and Screens
+  src/presentation.rs  the Presentation menu, with the operator's clear groups listed in Clear Groups
   src/edit.rs      the Edit menu: its items on and off, Undo and Redo named after the next step, macOS's own
                    Spelling and Grammar and Transformations, and Edit's commands for a Save or Open panel in front
   src/files.rs     Open and Save panels, the slide-image folder, and the clipboard, for the File menu

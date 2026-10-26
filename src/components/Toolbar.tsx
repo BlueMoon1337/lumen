@@ -9,6 +9,7 @@ import { SlidePreview } from './Canvas';
 import { openContextMenu } from './ContextMenu';
 import { editContext, editEntries, refocus, type EditContext } from './editCommands';
 import { fileEntries } from './fileCommands';
+import { presentationEntries } from './presentationCommands';
 import { FontSelect } from './FontSelect';
 import { useToolbarPop, type PopoverName } from './toolbarState';
 import { Icon, IconButton, Popover, shortcut, type IconName } from './ui';
@@ -367,6 +368,7 @@ function openMoreMenu(
         ...editEntries(ctx),
       ],
     },
+    { label: 'Presentation', submenu: presentationEntries },
     '-',
     { label: 'Bible…', action: onBible },
     { label: 'Configure Screens…', shortcut: shortcut('1', true), action: onScreens },

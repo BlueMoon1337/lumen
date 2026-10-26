@@ -132,7 +132,12 @@ pub struct UndoState {
 #[tauri::command]
 pub fn set_undo_state(menu: tauri::State<'_, EditMenu>, state: UndoState) {
     for (item, verb, label) in [(&menu.undo, "Undo", state.undo), (&menu.redo, "Redo", state.redo)] {
-        let _ = item.set_text(label.as_deref().map_or(verb.to_string(), |l| format!("{verb} {l}")));
+        // "&&" for a plain "&" in a step's name ("Edit Groups & Labels").
+        let _ = item.set_text(
+            label
+                .as_deref()
+                .map_or(verb.to_string(), |l| format!("{verb} {}", l.replace('&', "&&"))),
+        );
         let _ = item.set_enabled(label.is_some());
     }
 }

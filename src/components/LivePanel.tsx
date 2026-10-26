@@ -404,7 +404,9 @@ function PropsTab() {
             {logoOn ? 'Hide' : 'Show'}
           </button>
         </div>
-        <p className="muted small-print">The logo covers everything on the audience screen. Toggle it with F6.</p>
+        <p className="muted small-print">
+          The logo covers everything on the audience screen. F4 clears it; F12 clears everything else and shows it.
+        </p>
       </div>
     </>
   );

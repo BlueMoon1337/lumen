@@ -74,6 +74,31 @@ export function buildFrame(s: AppState): OutputFrame {
         }
       : null;
 
+  // Show Slide on Stage Screens Only: the stage shows that slide (and the one after it) instead.
+  const sRef = s.live.stageSlide;
+  const sp = sRef ? s.presentations[sRef.presentationId] : undefined;
+  const sSeq = sp ? getSequence(sp) : [];
+  const sEntry = sRef ? sSeq[sRef.index] : undefined;
+  const sNext = sRef ? sSeq[sRef.index + 1] : undefined;
+  const stage =
+    sp && sEntry
+      ? {
+          title: sp.title,
+          current: sEntry.slide.text,
+          currentLabel: label(sp, sEntry.group.name),
+          next: sNext?.slide.text ?? null,
+          nextLabel: sNext ? label(sp, sNext.group.name) : null,
+          notes: sEntry.slide.notes ?? null,
+        }
+      : {
+          title: p?.title ?? null,
+          current: entry ? entry.slide.text : null,
+          currentLabel: p && entry ? label(p, entry.group.name) : null,
+          next: next?.text ?? null,
+          nextLabel: next?.label ?? null,
+          notes: entry?.slide.notes ?? null,
+        };
+
   return {
     slide,
     background,
@@ -90,14 +115,6 @@ export function buildFrame(s: AppState): OutputFrame {
     screens: s.screens,
     screenTools: s.screenTools,
     timer: s.timer,
-    stage: {
-      title: p?.title ?? null,
-      current: entry ? entry.slide.text : null,
-      currentLabel: p && entry ? label(p, entry.group.name) : null,
-      next: next?.text ?? null,
-      nextLabel: next?.label ?? null,
-      notes: entry?.slide.notes ?? null,
-      message: s.live.stageMessage,
-    },
+    stage: { ...stage, message: s.live.stageMessage },
   };
 }
