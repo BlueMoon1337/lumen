@@ -8,6 +8,7 @@ import {
   type PointerEvent as ReactPointerEvent,
   type ReactNode,
 } from 'react';
+import { undoBatch } from '../history';
 import { groupPresets, LABEL_SWATCHES, labelPresets } from '../labels';
 import { colorForGroup } from '../lyrics';
 import { useMedia } from '../media';
@@ -978,10 +979,12 @@ function TextTab({ presentation: p, slide }: { presentation: Presentation; slide
         <button
           className="btn"
           disabled={!slide.style}
-          onClick={() => {
-            s.updatePresentation(p.id, { style: { ...p.style, ...slide.style } });
-            s.updateSlide(p.id, slide.id, { style: undefined });
-          }}
+          onClick={() =>
+            undoBatch('Apply to All Slides', () => {
+              s.updatePresentation(p.id, { style: { ...p.style, ...slide.style } });
+              s.updateSlide(p.id, slide.id, { style: undefined });
+            })
+          }
           title="Use this slide's formatting for every slide in the presentation"
         >
           Apply to All Slides

@@ -36,6 +36,7 @@ export function installDesktopBridge() {
     },
     onMenu: (cb) => subscribe('menu', cb),
     setMenuState: (state) => void invoke('set_menu_state', { state }),
+    setUndoState: (state) => void invoke('set_undo_state', { state }),
     setAppIcon: (id) => void invoke('set_app_icon', { id }),
   };
 }

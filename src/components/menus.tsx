@@ -11,8 +11,9 @@ import { setTransitionFor, TargetTransitionPicker, transitionState, type Transit
 
 const IS_MAC = /Mac|iPhone|iPad/.test(navigator.platform);
 
-/** How a shortcut reads on this computer: "⌥⌘C" on a Mac, "Ctrl+Alt+C" elsewhere. */
-export const shortcut = (key: string, alt = false) => (IS_MAC ? `${alt ? '⌥' : ''}⌘${key}` : `Ctrl+${alt ? 'Alt+' : ''}${key}`);
+/** How a shortcut reads on this computer: "⌥⌘C" or "⇧⌘Z" on a Mac, "Ctrl+Alt+C" or "Ctrl+Shift+Z" elsewhere. */
+export const shortcut = (key: string, alt = false, shift = false) =>
+  IS_MAC ? `${alt ? '⌥' : ''}${shift ? '⇧' : ''}⌘${key}` : `Ctrl+${alt ? 'Alt+' : ''}${shift ? 'Shift+' : ''}${key}`;
 
 const st = () => useStore.getState();
 
@@ -158,14 +159,7 @@ export function slideMenu(
     opts.index != null && { label: 'Show Slide', action: () => s.goLive(p.id, opts.index!, opts.playlistItemId) },
     !inEdit && { label: 'Edit Slide', action: () => s.openEditor(slide.id) },
     '-',
-    {
-      label: 'Cut',
-      shortcut: key('X'),
-      action: () => {
-        s.copySlides(p.id, [slide.id]);
-        s.deleteSlide(p.id, slide.id);
-      },
-    },
+    { label: 'Cut', shortcut: key('X'), action: () => s.cutSlides(p.id, [slide.id]) },
     { label: 'Copy', shortcut: key('C'), action: () => s.copySlides(p.id, [slide.id]) },
     {
       label: s.slideClipboard && s.slideClipboard.length > 1 ? `Paste ${s.slideClipboard.length} Slides` : 'Paste',

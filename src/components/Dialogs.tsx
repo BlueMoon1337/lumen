@@ -250,6 +250,10 @@ export function SettingsDialog({ onClose, onScreens }: { onClose: () => void; on
           </dt>
           <dd>Configure Screens</dd>
           <dt>
+            <kbd>{MOD}</kbd> <kbd>Z</kbd> / <kbd>Shift</kbd> <kbd>{MOD}</kbd> <kbd>Z</kbd>
+          </dt>
+          <dd>Undo / redo</dd>
+          <dt>
             <kbd>{ALT}</kbd> <kbd>{MOD}</kbd> <kbd>C</kbd> / <kbd>V</kbd>
           </dt>
           <dd>Copy / paste text style (Edit mode)</dd>

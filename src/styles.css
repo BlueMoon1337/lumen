@@ -742,9 +742,31 @@ body.resizing-y * {
   cursor: pointer;
 }
 
-.menu button:hover {
+.menu button {
+  display: flex;
+  align-items: center;
+  gap: 24px;
+  white-space: nowrap;
+}
+
+.menu button:hover:not(:disabled) {
   background: var(--pink);
   color: #fff;
+}
+
+.menu button:disabled {
+  color: var(--text-3);
+  cursor: default;
+}
+
+.menu-shortcut {
+  margin-left: auto;
+  color: var(--text-2);
+  font-size: 12.5px;
+}
+
+.menu button:hover:not(:disabled) .menu-shortcut {
+  color: rgba(255, 255, 255, 0.85);
 }
 
 .menu hr {

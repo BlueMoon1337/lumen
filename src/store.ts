@@ -106,6 +106,8 @@ interface Actions {
   /** Sets or (undefined) clears the transition of a slide, a group's slides, or the presentation. */
   setTransition(presentationId: string, scope: SlideScope, transition: SlideTransition | undefined): void;
   copySlides(presentationId: string, slideIds: string[]): void;
+  /** Copies slides, then deletes them. */
+  cutSlides(presentationId: string, slideIds: string[]): void;
   /** Pastes copied slides after a slide (or at the end); returns the first pasted slide's id. */
   pasteSlides(presentationId: string, afterSlideId: string | null): string | null;
 
@@ -471,6 +473,10 @@ export const useStore = create<AppState>()(
           const slides = p?.groups.flatMap((g) => g.slides).filter((sl) => slideIds.includes(sl.id));
           if (slides?.length) set({ slideClipboard: structuredClone(slides) });
         },
+        cutSlides: (pid, slideIds) => {
+          get().copySlides(pid, slideIds);
+          for (const id of slideIds) get().deleteSlide(pid, id);
+        },
         pasteSlides: (pid, afterSlideId) => {
           const slides = get().slideClipboard;
           const p = get().presentations[pid];
@@ -560,8 +566,8 @@ export const useStore = create<AppState>()(
           }
           if (added.length) set((s) => ({ media: [...s.media, ...added] }));
         },
-        deleteMedia: (id) => {
-          quietly(deleteMediaBlob(id));
+        // The file stays until the next launch (deleteUnusedBlobs), so Undo can bring it back.
+        deleteMedia: (id) =>
           set((s) => ({
             media: s.media.filter((m) => m.id !== id),
             live: s.live.mediaId === id ? { ...s.live, mediaId: null } : s.live,
@@ -569,8 +575,7 @@ export const useStore = create<AppState>()(
             themes: s.themes.map((t) =>
               t.background.mediaId === id ? { ...t, background: { ...t.background, type: 'color', mediaId: undefined } } : t,
             ),
-          }));
-        },
+          })),
 
         updateMedia: (id, patch) => set((s) => ({ media: s.media.map((m) => (m.id === id ? { ...m, ...patch } : m)) })),
 

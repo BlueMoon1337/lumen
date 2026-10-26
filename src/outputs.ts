@@ -23,6 +23,8 @@ export interface DesktopBridge {
   onOutputsChanged(cb: (openHosts: string[]) => void): () => void;
   onMenu(cb: (command: string) => void): () => void;
   setMenuState(state: { audienceEnabled: boolean; stageEnabled: boolean; identify: boolean }): void;
+  /** Names Edit ▸ Undo and Redo after the steps they'd take; null turns one off. */
+  setUndoState(state: { undo: string | null; redo: string | null }): void;
   /** Dock (macOS), taskbar and window icons. */
   setAppIcon(id: AppIconId): void;
 }

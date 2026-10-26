@@ -1,5 +1,6 @@
 import { useCallback, useMemo, useState, type ReactNode } from 'react';
 import { IMPORT_ACCEPT, importFiles, newPresentation } from '../commands';
+import { runHistoryCommand, useHistory } from '../history';
 import { setScreensEnabled, syncBrowserWindows, useDisplays } from '../outputs';
 import { activeOutputs, hostKey } from '../screens';
 import { useStore, type Mode } from '../store';
@@ -7,6 +8,7 @@ import { applyStyles, resolveTheme } from '../theme';
 import type { ScreenKind, TextStyle, Theme } from '../types';
 import { SlidePreview } from './Canvas';
 import { FontSelect } from './FontSelect';
+import { shortcut } from './menus';
 import { Icon, IconButton, pickFiles, Popover, type IconName } from './ui';
 
 type PopoverName = 'search' | 'text' | 'theme' | 'more';
@@ -329,18 +331,24 @@ function MoreMenu({
   onSettings: () => void;
   onScreens: () => void;
 }) {
-  const item = (label: string, action: () => void) => (
+  const history = useHistory();
+  const item = (label: string, action: () => void, disabled = false, shortcut?: string) => (
     <button
+      disabled={disabled}
       onClick={() => {
         onDone();
         action();
       }}
     >
       {label}
+      {shortcut && <span className="menu-shortcut">{shortcut}</span>}
     </button>
   );
   return (
     <div className="menu">
+      {item(history.undo ? `Undo ${history.undo}` : 'Undo', () => runHistoryCommand('undo'), !history.undo, shortcut('Z'))}
+      {item(history.redo ? `Redo ${history.redo}` : 'Redo', () => runHistoryCommand('redo'), !history.redo, shortcut('Z', false, true))}
+      <hr />
       {item('New Presentation', () => newPresentation(useStore.getState().libraryCategory))}
       {item('Import Songs, Playlists or Bibles…', () => pickFiles(IMPORT_ACCEPT).then((files) => importFiles(files)))}
       {item('Bible…', onBible)}

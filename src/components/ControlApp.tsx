@@ -1,7 +1,9 @@
 import { useCallback, useEffect, useRef, type CSSProperties, type RefObject } from 'react';
 import { applyAppIcon } from '../appIcons';
 import { registerFonts } from '../fonts';
+import { installHistory, runHistoryCommand, useHistory } from '../history';
 import { startFrameSync } from '../liveFrame';
+import { deleteUnusedBlobs } from '../media';
 import { dismiss, useNotices } from '../notices';
 import { setScreensEnabled, startScreenManager } from '../outputs';
 import { useStore } from '../store';
@@ -20,6 +22,40 @@ import { Sidebar } from './Sidebar';
 import { DEFAULT_PANES, setPaneSize, Splitter } from './Splitter';
 import { ThemeEditorDialog } from './ThemeEditor';
 import { Toolbar } from './Toolbar';
+
+// Record edits for undo from the start, before any view reads the store's actions.
+installHistory();
+
+/**
+ * ⌘Z undoes, ⇧⌘Z (or Ctrl+Y) redoes. The desktop app's Edit menu handles the keys itself
+ * and sends them here; in a text field they undo the typing.
+ */
+function useUndoKeys() {
+  useEffect(() => {
+    const bridge = window.lumenDesktop;
+    const stopMenu = bridge?.onMenu((command) => {
+      if (command === 'undo' || command === 'redo') runHistoryCommand(command);
+    });
+    const onKey = (e: KeyboardEvent) => {
+      if (!(e.metaKey || e.ctrlKey) || e.altKey || isTypingTarget(e.target)) return;
+      const command = e.code === 'KeyZ' ? (e.shiftKey ? 'redo' : 'undo') : e.code === 'KeyY' && !e.shiftKey ? 'redo' : null;
+      // The desktop menu has ⌘Z and ⇧⌘Z; Ctrl+Y isn't on it.
+      if (!command || (bridge && e.code === 'KeyZ')) return;
+      e.preventDefault();
+      runHistoryCommand(command);
+    };
+    window.addEventListener('keydown', onKey);
+    // Keep the desktop menu's Undo and Redo named after the next step.
+    const name = () => bridge?.setUndoState(useHistory.getState());
+    name();
+    const stopNames = useHistory.subscribe(name);
+    return () => {
+      stopMenu?.();
+      stopNames();
+      window.removeEventListener('keydown', onKey);
+    };
+  }, []);
+}
 
 function useShortcuts(enabled: boolean) {
   useEffect(() => {
@@ -89,10 +125,7 @@ function useEditShortcuts(enabled: boolean) {
         ? { KeyC: () => s.copyTextStyle(p.id, id), KeyV: () => s.pasteTextStyle(p.id, { slideId: id }) }
         : {
             KeyC: () => s.copySlides(p.id, [id]),
-            KeyX: () => {
-              s.copySlides(p.id, [id]);
-              s.deleteSlide(p.id, id);
-            },
+            KeyX: () => s.cutSlides(p.id, [id]),
             KeyV: () => {
               const pasted = s.pasteSlides(p.id, id);
               if (pasted) s.openEditor(pasted);
@@ -267,6 +300,12 @@ export default function ControlApp() {
   const appIcon = useStore((s) => s.settings.appIcon);
 
   useEffect(() => startFrameSync(), []);
+  useEffect(() => {
+    // Deleted media keeps its file for Undo until now.
+    const { media, fonts } = useStore.getState();
+    void deleteUnusedBlobs(new Set([...media.map((m) => m.id), ...fonts.map((f) => f.id)])).catch(() => {});
+  }, []);
+  useUndoKeys();
   useEffect(() => startScreenManager(), []);
   const openScreens = useCallback(() => setDialog('screens'), [setDialog]);
   useScreenCommands(openScreens);

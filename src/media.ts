@@ -12,6 +12,17 @@ export const deleteMediaBlob = (id: string) => {
   return request('readwrite', (s) => s.delete(id));
 };
 
+/**
+ * Deletes stored files nothing uses any more. Deleting media keeps its file until then (the
+ * next launch), so Undo can bring it back.
+ */
+export async function deleteUnusedBlobs(used: Set<string>): Promise<number> {
+  const ids = await request<IDBValidKey[]>('readonly', (s) => s.getAllKeys());
+  const unused = ids.filter((id): id is string => typeof id === 'string' && !used.has(id));
+  await Promise.all(unused.map(deleteMediaBlob));
+  return unused.length;
+}
+
 export interface LoadedMedia {
   url: string;
   isVideo: boolean;

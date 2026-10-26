@@ -4,6 +4,7 @@ import { parseProPlaylist } from './import/proplaylist';
 import { parseProPresenter7, type ImportedPresentation } from './import/propresenter';
 import { parseRvBible } from './import/rvbible';
 import { colorForGroup, getSequence } from './lyrics';
+import { undoBatch } from './history';
 import { putMediaBlob } from './media';
 import { dismiss, notify } from './notices';
 import { useStore } from './store';
@@ -182,7 +183,12 @@ export async function importBibleFile(file: File): Promise<BibleMeta> {
  * plain-text lyrics (.txt) and ProPresenter Bibles (.rvbible), then reports
  * what happened.
  */
-export async function importFiles(files: File[], category: Category = useStore.getState().libraryCategory) {
+/** Imports songs, playlists, lyrics and Bibles; the whole import is one step to undo. */
+export function importFiles(files: File[], category: Category = useStore.getState().libraryCategory) {
+  return undoBatch(files.length === 1 ? `Import ${files[0].name}` : `Import ${files.length} Files`, () => importAll(files, category));
+}
+
+async function importAll(files: File[], category: Category) {
   if (!files.length) return;
   const working =
     files.length > 3 || files.some((f) => ['rvbible', 'proplaylist'].includes(extension(f)))

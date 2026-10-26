@@ -1,0 +1,345 @@
+/**
+ * Undo and redo for the library: presentations, slides, groups, playlists, themes, messages,
+ * media and the settings that shape them. Showing slides, screens, selection and pane sizes
+ * aren't edits, so undo leaves them alone.
+ *
+ * Every store action is one step ("Delete Slide", "Paste Text Style"), however many changes it
+ * makes. Typing in a field or dragging a slider makes one step too: repeated edits of the same
+ * thing less than a second apart join the step before. `undoBatch` groups several actions.
+ */
+import { create } from 'zustand';
+import { notify } from './notices';
+import { useStore, type AppState } from './store';
+import type { Presentation, Settings } from './types';
+import { isTypingTarget } from './util';
+
+/** The settings undo covers; the rest are preferences (pane sizes, grid size, app icon…). */
+const SETTING_KEYS = ['transition', 'groupPresets', 'labelPresets', 'defaultThemeId', 'logoMediaId', 'ccliLicense'] as const;
+type SettingKey = (typeof SETTING_KEYS)[number];
+
+type Doc = Pick<AppState, 'presentations' | 'themes' | 'playlists' | 'messages' | 'media'> & { settings: Pick<Settings, SettingKey> };
+
+interface Entry {
+  label: string;
+  /** The library before this step. */
+  doc: Doc;
+  /** Same key, less than COALESCE_MS later: the edit joins this step. */
+  key: string | null;
+  time: number;
+  /** The action call that made it, so its later changes join it. */
+  call: number;
+}
+
+const LIMIT = 200;
+const COALESCE_MS = 1000;
+
+/** What the toolbar and menus show: the step undo and redo would take. */
+export const useHistory = create<{ undo: string | null; redo: string | null }>(() => ({ undo: null, redo: null }));
+
+let undoStack: Entry[] = [];
+let redoStack: { label: string; doc: Doc }[] = [];
+let depth = 0;
+let callSeq = 0;
+let current: { label: string; key: string | null; call: number } | null = null;
+let applying = false;
+let installed = false;
+/** An async action's name, for the change it makes when it finishes (importing media). */
+let finishing: string | null = null;
+
+const publish = () => useHistory.setState({ undo: undoStack.at(-1)?.label ?? null, redo: redoStack.at(-1)?.label ?? null });
+
+function docOf(s: AppState): Doc {
+  return {
+    presentations: s.presentations,
+    themes: s.themes,
+    playlists: s.playlists,
+    messages: s.messages,
+    media: s.media,
+    settings: Object.fromEntries(SETTING_KEYS.map((k) => [k, s.settings[k]])) as Doc['settings'],
+  };
+}
+
+const visible = (all: Record<string, Presentation>) => Object.entries(all).filter(([, p]) => !p.hidden);
+
+/** Whether the library changed. Bible mode's working passage (a hidden presentation) doesn't count. */
+function docChanged(a: AppState, b: AppState): boolean {
+  if (a.themes !== b.themes || a.playlists !== b.playlists || a.messages !== b.messages || a.media !== b.media) return true;
+  if (SETTING_KEYS.some((k) => a.settings[k] !== b.settings[k])) return true;
+  if (a.presentations === b.presentations) return false;
+  const before = visible(a.presentations);
+  const after = visible(b.presentations);
+  return before.length !== after.length || after.some(([id, p]) => a.presentations[id] !== p);
+}
+
+/** Presentations whose content differs between two libraries, as `result` has them where it has them. */
+function changedPresentations(result: Doc, other: Doc): Presentation[] {
+  const ids = new Set([...Object.keys(result.presentations), ...Object.keys(other.presentations)]);
+  return [...ids]
+    .filter((id) => result.presentations[id] !== other.presentations[id])
+    .map((id) => result.presentations[id] ?? other.presentations[id])
+    .filter((p) => !p.hidden);
+}
+
+/** Puts a library back, keeping the live screen, selection and Bible mode's passage as consistent as it can. */
+function restore(doc: Doc) {
+  const s = useStore.getState();
+  const hidden = Object.entries(s.presentations).filter(([, p]) => p.hidden);
+  const presentations = Object.fromEntries([...visible(doc.presentations), ...hidden]);
+  const inPlaylist = (id: string | null) => !!id && doc.playlists.some((pl) => pl.items.some((it) => it.id === id));
+  applying = true;
+  try {
+    useStore.setState({
+      presentations,
+      themes: doc.themes,
+      playlists: doc.playlists,
+      messages: doc.messages,
+      media: doc.media,
+      settings: { ...s.settings, ...doc.settings },
+      selectedPresentationId: s.selectedPresentationId && presentations[s.selectedPresentationId] ? s.selectedPresentationId : null,
+      selectedPlaylistItemId: inPlaylist(s.selectedPlaylistItemId) ? s.selectedPlaylistItemId : null,
+      editingThemeId: doc.themes.some((t) => t.id === s.editingThemeId) ? s.editingThemeId : null,
+      live: {
+        ...s.live,
+        slide: s.live.slide && presentations[s.live.slide.presentationId] ? s.live.slide : null,
+        mediaId: s.live.mediaId && doc.media.some((m) => m.id === s.live.mediaId) ? s.live.mediaId : null,
+        messageId: s.live.messageId && doc.messages.some((m) => m.id === s.live.messageId) ? s.live.messageId : null,
+      },
+    });
+  } finally {
+    applying = false;
+  }
+}
+
+/** "Delete Slide" → "Delete Slide (Amazing Grace)" when one presentation changed, named as it is now. */
+function describe(label: string, result: Doc, other: Doc) {
+  const changed = changedPresentations(result, other);
+  return changed.length === 1 ? `${label} (${changed[0].title})` : label;
+}
+
+export function undo(): string | null {
+  const entry = undoStack.pop();
+  if (!entry) return null;
+  const now = docOf(useStore.getState());
+  redoStack.push({ label: entry.label, doc: now });
+  restore(entry.doc);
+  publish();
+  return describe(entry.label, entry.doc, now);
+}
+
+export function redo(): string | null {
+  const entry = redoStack.pop();
+  if (!entry) return null;
+  const now = docOf(useStore.getState());
+  undoStack.push({ label: entry.label, doc: now, key: null, time: 0, call: -1 });
+  restore(entry.doc);
+  publish();
+  return describe(entry.label, entry.doc, now);
+}
+
+/** Undo or redo from a key or menu, saying what changed. Typing in a text field undoes the typing instead. */
+export function runHistoryCommand(command: 'undo' | 'redo') {
+  if (isTypingTarget(document.activeElement)) {
+    document.execCommand(command);
+    return;
+  }
+  const label = command === 'undo' ? undo() : redo();
+  if (label) notify(`${command === 'undo' ? 'Undo' : 'Redo'}: ${label}`, 'info', 2500);
+}
+
+export function clearHistory() {
+  undoStack = [];
+  redoStack = [];
+  publish();
+}
+
+function onChange(state: AppState, prev: AppState) {
+  if (applying || !docChanged(prev, state)) return;
+  const now = Date.now();
+  const top = undoStack.at(-1);
+  if (current && top?.call === current.call) {
+    top.time = now;
+    return;
+  }
+  if (current?.key && top?.key === current.key && now - top.time < COALESCE_MS && !redoStack.length) {
+    top.time = now;
+    top.call = current.call;
+    return;
+  }
+  const label = current?.label ?? finishing ?? 'Change';
+  finishing = null;
+  undoStack.push({ label, doc: docOf(prev), key: current?.key ?? null, time: now, call: current?.call ?? -1 });
+  if (undoStack.length > LIMIT) undoStack.shift();
+  redoStack = [];
+  publish();
+}
+
+/** Runs `fn` as one step, however many actions it calls. Waits for it when it returns a promise. */
+export function undoBatch<T>(label: string, fn: () => T): T {
+  const outer = depth === 0;
+  if (outer) current = { label, key: null, call: ++callSeq };
+  depth++;
+  let result: T;
+  try {
+    result = fn();
+  } catch (e) {
+    end(outer);
+    throw e;
+  }
+  if (result instanceof Promise) return result.finally(() => end(outer)) as T;
+  end(outer);
+  return result;
+}
+
+function end(outer: boolean) {
+  depth--;
+  if (outer) current = null;
+}
+
+// ---- What each action is called in Edit ▸ Undo ----------------------------------------------
+
+const keysOf = (x: unknown) => (x && typeof x === 'object' && !Array.isArray(x) ? Object.keys(x) : []);
+const has = (patch: unknown, ...keys: string[]) => keys.some((k) => keysOf(patch).includes(k));
+
+const LABELS: Record<string, string | ((args: unknown[]) => string)> = {
+  createPresentation: 'New Presentation',
+  updatePresentation: ([, patch]) =>
+    has(patch, 'title')
+      ? 'Rename'
+      : has(patch, 'themeId')
+        ? 'Theme'
+        : has(patch, 'category')
+          ? 'Move to Library'
+          : has(patch, 'style')
+            ? 'Text Style'
+            : has(patch, 'transition')
+              ? 'Transition'
+              : has(patch, 'groups', 'arrangement')
+                ? 'Edit Slides'
+                : 'Edit Presentation',
+  setPresentationText: 'Reflow',
+  duplicatePresentation: 'Duplicate Presentation',
+  deletePresentation: 'Delete Presentation',
+  updateSlide: ([, , patch]) =>
+    has(patch, 'text')
+      ? 'Edit Text'
+      : has(patch, 'style')
+        ? keysOf((patch as { style?: object }).style).every((k) => k === 'inset')
+          ? 'Move Text Box'
+          : 'Text Style'
+        : has(patch, 'background')
+          ? 'Slide Background'
+          : has(patch, 'caption')
+            ? 'Caption'
+            : has(patch, 'notes')
+              ? 'Stage Notes'
+              : 'Edit Slide',
+  updateGroup: ([, , patch]) => (has(patch, 'name') ? 'Rename Group' : has(patch, 'color') ? 'Group Color' : 'Edit Group'),
+  addSlide: 'New Slide',
+  duplicateSlide: 'Duplicate Slide',
+  deleteSlide: 'Delete Slide',
+  cutSlides: 'Cut',
+  pasteSlides: 'Paste',
+  assignGroup: 'Group',
+  deleteGroup: 'Delete Group',
+  duplicateGroup: 'Duplicate Group',
+  setSlideLabel: 'Label',
+  pasteTextStyle: 'Paste Text Style',
+  clearTextStyle: 'Clear Text Style',
+  setTransition: 'Transition',
+  addToPlaylist: 'Add to Playlist',
+  addPlaylistHeader: 'Add Header',
+  updatePlaylistItem: 'Rename Header',
+  movePlaylistItem: 'Move',
+  removePlaylistItem: 'Remove from Playlist',
+  createPlaylist: 'New Playlist',
+  addPlaylist: 'Import Playlist',
+  renamePlaylist: 'Rename Playlist',
+  deletePlaylist: 'Delete Playlist',
+  createTheme: 'New Theme',
+  updateTheme: 'Edit Theme',
+  deleteTheme: 'Delete Theme',
+  addMediaFiles: 'Import Media',
+  deleteMedia: 'Delete Media',
+  updateMedia: 'Rename Media',
+  addMessage: 'New Message',
+  updateMessage: 'Edit Message',
+  deleteMessage: 'Delete Message',
+  updateSettings: ([patch]) =>
+    has(patch, 'transition')
+      ? 'Default Transition'
+      : has(patch, 'groupPresets')
+        ? 'Edit Groups'
+        : has(patch, 'labelPresets')
+          ? 'Edit Labels'
+          : has(patch, 'logoMediaId')
+            ? 'Logo'
+            : 'Settings',
+  saveBible: 'Save Passage',
+  copyBibleTo: 'Copy Passage',
+  importLibrary: 'Import Library',
+};
+
+const ASYNC = new Set(['addMediaFiles']);
+
+/** Edits that come one keystroke or slider step at a time, and so join into one step. */
+const CONTINUOUS = new Set([
+  'updatePresentation',
+  'setPresentationText',
+  'updateSlide',
+  'updateGroup',
+  'setSlideLabel',
+  'setTransition',
+  'updatePlaylistItem',
+  'renamePlaylist',
+  'updateTheme',
+  'updateMedia',
+  'updateMessage',
+  'updateSettings',
+]);
+
+/** Identifies "the same edit": the action, the ids it's given, and which fields it changes. */
+function keyOf(name: string, args: unknown[]): string {
+  const part = (a: unknown) =>
+    typeof a === 'string'
+      ? a
+      : keysOf(a)
+          .map((k) => {
+            const v = (a as Record<string, unknown>)[k];
+            return typeof v === 'string' && /Id$/.test(k) ? `${k}=${v}` : k;
+          })
+          .sort()
+          .join(',');
+  return [name, ...args.map(part)].join('|');
+}
+
+/**
+ * Starts recording. Each store action is wrapped so that whatever it changes becomes one
+ * step; actions it calls along the way are part of that step.
+ */
+export function installHistory() {
+  if (installed) return;
+  installed = true;
+  const state = useStore.getState() as unknown as Record<string, unknown>;
+  const wrapped: Record<string, unknown> = {};
+  for (const [name, value] of Object.entries(state)) {
+    if (typeof value !== 'function') continue;
+    const fn = value as (...args: unknown[]) => unknown;
+    wrapped[name] = (...args: unknown[]) => {
+      if (depth > 0) return fn(...args);
+      const label = LABELS[name];
+      const text = typeof label === 'function' ? label(args) : (label ?? name);
+      // Async actions (importing media) change the library when they finish; other edits made
+      // meanwhile stay separate steps.
+      if (ASYNC.has(name)) {
+        finishing = text;
+        return fn(...args);
+      }
+      return undoBatch(text, () => {
+        if (current && CONTINUOUS.has(name)) current.key = keyOf(name, args);
+        return fn(...args);
+      });
+    };
+  }
+  useStore.setState(wrapped as Partial<AppState>);
+  useStore.subscribe(onChange);
+}

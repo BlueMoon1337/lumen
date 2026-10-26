@@ -20,14 +20,16 @@ pub fn run() {
             outputs::set_outputs,
             outputs::open_outputs,
             menu::set_menu_state,
+            menu::set_undo_state,
             icon::set_app_icon,
         ])
         .setup(|app| {
             let handle = app.handle();
             icon::load(handle);
-            let (menu, screens) = menu::build(handle)?;
+            let (menu, screens, edit) = menu::build(handle)?;
             app.set_menu(menu)?;
             app.manage(screens);
+            app.manage(edit);
 
             let main = WebviewWindowBuilder::new(app, "main", WebviewUrl::default())
                 .title("Lumen")

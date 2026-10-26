@@ -87,6 +87,7 @@ npm run format       # Prettier
 - **Fonts**: Copperplate from the computer (with a free bundled stand-in), any installed font by name, and font files you add (see below).
 - **Copyright line** (title, author, publisher, CCLI song and license numbers) on the first and last slides when "Show On Screen" is on.
 - **Transitions**: Cut, Dissolve, Fade, Push, Wipe, Zoom and Blur, with a direction for Push and Wipe and any length, for one slide, a presentation, or as the default. A picker plays each one as you choose.
+- **Undo and redo** for every change to the library, slides, playlists, themes and messages (see Undo below).
 - **Right-click menus** everywhere, **Copy / Paste Text Style**, **group presets** and **slide labels** (see Slides, groups and labels below).
 - **Media bin** for images and looping videos as backgrounds, stored locally in IndexedDB, with pause and restart.
 - **Layers** as in ProPresenter: background, slide, message and logo, each cleared on its own, with crossfade transitions.
@@ -114,6 +115,16 @@ The Slide inspector in Edit mode has the same choices: the slide's group, its la
 ### Transitions
 
 A slide comes on screen with its own transition if it has one, else its presentation's (the button under the slides in Show mode, or the Presentation inspector), else the default in Settings. Push and Wipe move left, right, up or down. Backgrounds dissolve over the same time, and cut when the slide cuts. Messages and the logo fade with the default's length. ProPresenter's transitions import with their kind, direction and length.
+
+## Undo
+
+**⌘Z** (Ctrl+Z) undoes, **⇧⌘Z** (Ctrl+Shift+Z, or Ctrl+Y) redoes. They're also at the top of the **More** menu and, in the desktop app, in **Edit**, named after the step they'd take ("Undo Delete Slide"). A note at the bottom of the window says what was undone, and in which presentation.
+
+- Each action is one step: deleting, cutting or pasting slides, a group or label, a pasted text style, a transition, a rename, moving a playlist item, an import.
+- Typing in a field, or dragging a slider or color, is one step for as long as you keep at it.
+- In a text field, ⌘Z undoes the typing, as usual; click outside it to undo whole steps.
+- Showing slides, clearing the screen, Bible mode's passage, screen setup, pane sizes and other preferences aren't edits and stay as they are.
+- Up to 200 steps, until Lumen is closed. A deleted media file is kept until the next launch, so undoing brings it back.
 
 ## Screens
 
@@ -214,18 +225,19 @@ Was blind, but now I see.
 
 ## Keyboard
 
-| Key                           | Action                                                                          |
-| ----------------------------- | ------------------------------------------------------------------------------- |
-| `→` `↓` `Space` `PgDn`        | Next slide                                                                      |
-| `←` `↑` `PgUp`                | Previous slide                                                                  |
-| `C`, `V`, `B`, …              | Jump to the next group starting with that letter                                |
-| `F1`                          | Clear all                                                                       |
-| `F2` / `F3` / `F4`            | Clear slide / media / message                                                   |
-| `F6`                          | Toggle logo                                                                     |
-| `⌘1` / `⌘2` (Ctrl on Windows) | Audience / Stage screens on or off (browsers may keep these for switching tabs) |
-| `⌥⌘1` (Ctrl+Alt+1)            | Configure Screens                                                               |
-| `⌥⌘C` / `⌥⌘V` (Ctrl+Alt+C/V)  | Edit mode: copy / paste the selected slide's text style                         |
-| `⌘X` `⌘C` `⌘V` `⌘D` (Ctrl)    | Edit mode: cut, copy, paste, duplicate the selected slide                       |
+| Key                            | Action                                                                          |
+| ------------------------------ | ------------------------------------------------------------------------------- |
+| `→` `↓` `Space` `PgDn`         | Next slide                                                                      |
+| `←` `↑` `PgUp`                 | Previous slide                                                                  |
+| `C`, `V`, `B`, …               | Jump to the next group starting with that letter                                |
+| `F1`                           | Clear all                                                                       |
+| `F2` / `F3` / `F4`             | Clear slide / media / message                                                   |
+| `F6`                           | Toggle logo                                                                     |
+| `⌘1` / `⌘2` (Ctrl on Windows)  | Audience / Stage screens on or off (browsers may keep these for switching tabs) |
+| `⌥⌘1` (Ctrl+Alt+1)             | Configure Screens                                                               |
+| `⌘Z` / `⇧⌘Z` (Ctrl+Z / Ctrl+Y) | Undo / redo                                                                     |
+| `⌥⌘C` / `⌥⌘V` (Ctrl+Alt+C/V)   | Edit mode: copy / paste the selected slide's text style                         |
+| `⌘X` `⌘C` `⌘V` `⌘D` (Ctrl)     | Edit mode: cut, copy, paste, duplicate the selected slide                       |
 
 Clickers that send arrow keys or Page Up/Down work out of the box. In Edit mode, the arrow keys nudge the selected text box (Shift for 10px), Enter starts typing, and Escape deselects.
 
@@ -236,6 +248,7 @@ src/
   types.ts         data model: presentations, themes, playlists, live state, output frame
   store.ts         Zustand store: library, playlists, slide editing, live control, timer (saved to localStorage)
   lyrics.ts        text ⇄ groups/slides/arrangement parser
+  history.ts       undo and redo: each store action is a step, typing joins into one, names for the Edit menu
   slideOps.ts      slide and group edits shared by menus, inspector and keys: assign a group, paste a text style, transitions
   transitions.ts   transition kinds, which one a slide uses, labels, mapping ProPresenter's effects
   labels.ts        group presets and slide labels
@@ -278,7 +291,7 @@ src/
 src-tauri/          the desktop app (Tauri, Rust)
   src/displays.rs  display list with real names (macOS: from AppKit), hot-plug watcher
   src/outputs.rs   output windows: one fullscreen per display, or a window per output without one
-  src/menu.rs      menu bar with the Screens menu
+  src/menu.rs      menu bar with the Screens menu, and Edit's Undo and Redo named after the next step
   src/icon.rs      app icon choice: Dock on macOS, window icons elsewhere, remembered on disk
   icons/           the packaged app's icon (Projector) and the four choices
 design/icons/      .svg sources of the four icons
@@ -292,7 +305,6 @@ The operator window owns all state. Every change produces an `OutputFrame`, a se
 - Multiple arrangements per song
 - More objects in Edit (extra text boxes, shapes, images), and slide builds
 - Slide hotkeys, and selecting several slides at once for the right-click menu
-- Undo
 - Audio bin and video playback with sound and transport controls
 - Remote control from a phone over WebSocket
 - NDI and Syphon outputs (listed in Screen Configuration's Output menu), or capture-card output for livestreams
