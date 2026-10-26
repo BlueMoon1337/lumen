@@ -119,6 +119,8 @@ export interface Settings {
   gridSize: number;
   slideView: 'grid' | 'list';
   ccliLicense?: string;
+  /** Translation last used in the Bible dialog: an imported Bible's id or an online one. */
+  lastBible?: string;
   /** Desktop app only: which screen each output opens on. */
   audienceDisplay?: number;
   stageDisplay?: number;

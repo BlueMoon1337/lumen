@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { startFrameSync } from '../liveFrame';
+import { dismiss, useNotices } from '../notices';
 import { useStore } from '../store';
 import { isTypingTarget } from '../util';
 import { ScriptureDialog, SettingsDialog } from './Dialogs';
@@ -49,6 +50,20 @@ function useShortcuts(enabled: boolean) {
   }, [enabled]);
 }
 
+function Notices() {
+  const notices = useNotices((s) => s.notices);
+  if (!notices.length) return null;
+  return (
+    <div className="notices" role="status">
+      {notices.map((n) => (
+        <div key={n.id} className={`notice ${n.kind}`} onClick={() => dismiss(n.id)} title="Dismiss">
+          {n.text}
+        </div>
+      ))}
+    </div>
+  );
+}
+
 export default function ControlApp() {
   const [dialog, setDialog] = useState<'scripture' | 'settings' | null>(null);
   const mode = useStore((s) => s.mode);
@@ -81,6 +96,7 @@ export default function ControlApp() {
       {dialog === 'scripture' && <ScriptureDialog onClose={() => setDialog(null)} />}
       {dialog === 'settings' && <SettingsDialog onClose={() => setDialog(null)} />}
       {editingTheme && <ThemeEditorDialog />}
+      <Notices />
     </div>
   );
 }

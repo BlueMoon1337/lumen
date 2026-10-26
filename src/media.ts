@@ -1,33 +1,7 @@
 import { useEffect, useState } from 'react';
+import { idbRequest } from './idb';
 
-// Media files live in IndexedDB so every window on this origin (control,
-// audience, stage) can load them without sending blobs between windows.
-
-const DB_NAME = 'lumen-media';
-const STORE = 'blobs';
-
-let dbPromise: Promise<IDBDatabase> | null = null;
-
-function db(): Promise<IDBDatabase> {
-  dbPromise ??= new Promise((resolve, reject) => {
-    const req = indexedDB.open(DB_NAME, 1);
-    req.onupgradeneeded = () => req.result.createObjectStore(STORE);
-    req.onsuccess = () => resolve(req.result);
-    req.onerror = () => reject(req.error);
-  });
-  return dbPromise;
-}
-
-function request<T>(mode: IDBTransactionMode, run: (store: IDBObjectStore) => IDBRequest<T>): Promise<T> {
-  return db().then(
-    (d) =>
-      new Promise<T>((resolve, reject) => {
-        const req = run(d.transaction(STORE, mode).objectStore(STORE));
-        req.onsuccess = () => resolve(req.result);
-        req.onerror = () => reject(req.error);
-      }),
-  );
-}
+const request = <T>(mode: IDBTransactionMode, run: (store: IDBObjectStore) => IDBRequest<T>) => idbRequest('blobs', mode, run);
 
 export const putMediaBlob = (id: string, blob: Blob) => request('readwrite', (s) => s.put(blob, id));
 export const deleteMediaBlob = (id: string) => {

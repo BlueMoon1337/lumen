@@ -1,22 +1,12 @@
 import { useEffect, useState } from 'react';
+import { bookLabel, lookupLocal, parseReference, type Passage, type Verse } from '../bible';
+import { importBibleFile, importFiles } from '../commands';
+import { notify } from '../notices';
 import { type DisplayInfo, type OutputKind } from '../outputs';
 import { exportLibrary, isLibraryData, useStore } from '../store';
 import { Dialog, downloadFile, pickFiles } from './ui';
 
-interface Verse {
-  book_name: string;
-  chapter: number;
-  verse: number;
-  text: string;
-}
-
-interface Passage {
-  reference: string;
-  verses: Verse[];
-  translation_id: string;
-}
-
-const TRANSLATIONS = [
+const ONLINE = [
   { id: 'web', label: 'World English Bible' },
   { id: 'kjv', label: 'King James Version' },
   { id: 'asv', label: 'American Standard (1901)' },
@@ -55,16 +45,58 @@ function manualToText(reference: string, text: string) {
     .join('\n\n');
 }
 
+let lastReference = '';
+
 export function ScriptureDialog({ onClose }: { onClose: () => void }) {
-  const [reference, setReference] = useState('John 3:16-18');
-  const [translation, setTranslation] = useState('web');
+  const bibles = useStore((s) => s.bibles);
+  const lastBible = useStore((s) => s.settings.lastBible);
+  const [translation, setTranslation] = useState(() =>
+    lastBible && (bibles.some((b) => b.id === lastBible) || ONLINE.some((t) => t.id === lastBible)) ? lastBible : (bibles[0]?.id ?? 'web'),
+  );
+  const local = bibles.find((b) => b.id === translation);
+  const [reference, setReference] = useState(() => lastReference || (local?.language === 'spa' ? 'Juan 3:16-18' : 'John 3:16-18'));
   const [perSlide, setPerSlide] = useState(1);
   const [numbers, setNumbers] = useState(true);
   const [passage, setPassage] = useState<Passage | null>(null);
   const [manual, setManual] = useState('');
   const [status, setStatus] = useState<{ loading?: boolean; error?: string }>({});
 
-  const lookup = async () => {
+  const chooseTranslation = (id: string) => {
+    setTranslation(id);
+    setPassage(null);
+    setStatus({});
+    useStore.getState().updateSettings({ lastBible: id });
+  };
+
+  // Imported Bibles answer instantly, so look up as the reference is typed.
+  useEffect(() => {
+    if (!local) return;
+    if (!reference.trim()) {
+      setPassage(null);
+      setStatus({});
+      return;
+    }
+    let alive = true;
+    const t = setTimeout(() => {
+      lookupLocal(local, reference)
+        .then((p) => {
+          if (!alive) return;
+          setPassage(p);
+          setStatus({});
+        })
+        .catch((e: Error) => {
+          if (!alive) return;
+          setPassage(null);
+          setStatus({ error: e.message });
+        });
+    }, 150);
+    return () => {
+      alive = false;
+      clearTimeout(t);
+    };
+  }, [local, reference]);
+
+  const lookupOnline = async () => {
     setStatus({ loading: true });
     setPassage(null);
     try {
@@ -80,8 +112,21 @@ export function ScriptureDialog({ onClose }: { onClose: () => void }) {
         error:
           e instanceof Error && e.message !== 'Failed to fetch'
             ? e.message
-            : 'Could not reach the scripture service. Paste the text below instead.',
+            : 'Could not reach the scripture service. Paste the text below, or import a Bible to work offline.',
       });
+    }
+  };
+
+  const importBible = async () => {
+    const [file] = await pickFiles('.rvbible', false);
+    if (!file) return;
+    setStatus({ loading: true });
+    try {
+      const meta = await importBibleFile(file);
+      chooseTranslation(meta.id);
+      notify(`Imported ${meta.abbreviation} (${meta.books.length} books).`, 'success');
+    } catch (e) {
+      setStatus({ error: e instanceof Error ? e.message : String(e) });
     }
   };
 
@@ -89,6 +134,7 @@ export function ScriptureDialog({ onClose }: { onClose: () => void }) {
     const s = useStore.getState();
     const text = passage ? passageToText(passage, perSlide, numbers) : manualToText(reference.trim(), manual);
     if (!text) return;
+    lastReference = reference;
     const title = passage ? `${passage.reference} (${passage.translation_id.toUpperCase()})` : reference.trim() || 'Scripture';
     const themeId = s.themes.some((t) => t.id === 'theme-scripture') ? 'theme-scripture' : undefined;
     const id = s.createPresentation({ title, category: 'scripture', themeId }, text);
@@ -98,33 +144,88 @@ export function ScriptureDialog({ onClose }: { onClose: () => void }) {
     onClose();
   };
 
+  const range = local ? parseReference(reference, local.books) : null;
+  const book = range && !('error' in range) ? range.book : undefined;
+  const chapter = range && !('error' in range) ? range.chapter : undefined;
+
   return (
-    <Dialog title="Add scripture" onClose={onClose} wide>
+    <Dialog title="Bible" onClose={onClose} wide>
       <form
         className="scripture-form"
         onSubmit={(e) => {
           e.preventDefault();
-          void lookup();
+          if (local && passage) create();
+          else if (!local) void lookupOnline();
         }}
       >
         <input
           value={reference}
           onChange={(e) => setReference(e.target.value)}
-          placeholder="e.g. Psalm 23"
+          placeholder={local?.language === 'spa' ? 'p. ej. Juan 3:16 o Salmos 23' : 'e.g. John 3:16 or Psalm 23'}
           autoFocus
           aria-label="Reference"
         />
-        <select value={translation} onChange={(e) => setTranslation(e.target.value)} aria-label="Translation">
-          {TRANSLATIONS.map((t) => (
-            <option key={t.id} value={t.id}>
-              {t.label}
-            </option>
-          ))}
+        <select value={translation} onChange={(e) => chooseTranslation(e.target.value)} aria-label="Translation">
+          {bibles.length > 0 && (
+            <optgroup label="On this computer">
+              {bibles.map((b) => (
+                <option key={b.id} value={b.id}>
+                  {b.abbreviation} · {b.name}
+                </option>
+              ))}
+            </optgroup>
+          )}
+          <optgroup label="Online (bible-api.com)">
+            {ONLINE.map((t) => (
+              <option key={t.id} value={t.id}>
+                {t.label}
+              </option>
+            ))}
+          </optgroup>
         </select>
-        <button className="btn primary" type="submit" disabled={status.loading}>
-          {status.loading ? 'Looking up…' : 'Look up'}
-        </button>
+        {!local && (
+          <button className="btn primary" type="submit" disabled={status.loading}>
+            {status.loading ? 'Looking up…' : 'Look up'}
+          </button>
+        )}
       </form>
+      {local && (
+        <div className="scripture-browse">
+          <select
+            value={book?.code ?? ''}
+            onChange={(e) => {
+              const b = local.books.find((x) => x.code === e.target.value);
+              if (b) setReference(`${bookLabel(b)} 1`);
+            }}
+            aria-label="Book"
+          >
+            <option value="" disabled>
+              Book
+            </option>
+            {local.books.map((b) => (
+              <option key={b.code} value={b.code}>
+                {bookLabel(b)}
+              </option>
+            ))}
+          </select>
+          <select
+            value={chapter ?? ''}
+            disabled={!book}
+            onChange={(e) => book && setReference(`${bookLabel(book)} ${e.target.value}`)}
+            aria-label="Chapter"
+          >
+            <option value="" disabled>
+              Chapter
+            </option>
+            {book?.verses.map((_, i) => (
+              <option key={i} value={i + 1}>
+                {i + 1}
+              </option>
+            ))}
+          </select>
+          <span className="muted">or type a reference such as “Jn 3:16”, “Salmos 23:1-3” or “1 Co 13”.</span>
+        </div>
+      )}
       <div className="scripture-options">
         <label>
           Verses per slide
@@ -141,26 +242,38 @@ export function ScriptureDialog({ onClose }: { onClose: () => void }) {
       {status.error && <p className="error">{status.error}</p>}
       {passage ? (
         <div className="scripture-preview">
+          <div className="scripture-ref">
+            {passage.reference} · {passage.translation_id.toUpperCase()}
+          </div>
           {passage.verses.map((v) => (
             <p key={`${v.chapter}:${v.verse}`}>
-              <sup>{v.verse}</sup> {v.text.trim()}
+              <sup>{v.chapter !== passage.verses[0].chapter || v.verse === 1 ? `${v.chapter}:${v.verse}` : v.verse}</sup> {v.text.trim()}
             </p>
           ))}
         </div>
       ) : (
-        <label className="field">
-          Or paste the text (blank lines separate slides)
-          <textarea rows={6} value={manual} onChange={(e) => setManual(e.target.value)} />
-        </label>
+        !local && (
+          <label className="field">
+            Or paste the text (blank lines separate slides)
+            <textarea rows={6} value={manual} onChange={(e) => setManual(e.target.value)} />
+          </label>
+        )
       )}
       <p className="muted small-print">
-        Lookups use the free bible-api.com service and public-domain translations. Check licensing before projecting other translations.
+        {local
+          ? `${local.name} is stored on this computer and works offline.`
+          : 'Online lookups use the free bible-api.com service and public-domain translations.'}{' '}
+        Import ProPresenter .rvbible files to add more translations.
       </p>
       <div className="dialog-actions">
+        <button className="btn" onClick={importBible} disabled={status.loading}>
+          Import Bible (.rvbible)…
+        </button>
+        <span className="dialog-actions-spacer" />
         <button className="btn" onClick={onClose}>
           Cancel
         </button>
-        <button className="btn primary" disabled={!passage && !manual.trim()} onClick={create}>
+        <button className="btn primary" disabled={!passage && (!!local || !manual.trim())} onClick={create}>
           Add to playlist
         </button>
       </div>
@@ -172,6 +285,7 @@ export function SettingsDialog({ onClose }: { onClose: () => void }) {
   const settings = useStore((s) => s.settings);
   const themes = useStore((s) => s.themes);
   const media = useStore((s) => s.media);
+  const bibles = useStore((s) => s.bibles);
   const s = useStore.getState();
   const [displays, setDisplays] = useState<DisplayInfo[]>([]);
 
@@ -279,6 +393,29 @@ export function SettingsDialog({ onClose }: { onClose: () => void }) {
         </section>
       )}
       <section className="settings-section">
+        <h4>Bibles</h4>
+        {bibles.map((b) => (
+          <div key={b.id} className="bible-row">
+            <span className="list-label">
+              <b>{b.abbreviation}</b> {b.name}
+            </span>
+            <span className="muted">{b.books.length} books</span>
+            <button
+              className="btn small danger"
+              onClick={() => confirm(`Remove ${b.abbreviation} from this computer?`) && s.deleteBible(b.id)}
+            >
+              Remove
+            </button>
+          </div>
+        ))}
+        {bibles.length === 0 && <p className="muted small-print">Import ProPresenter .rvbible files to look up scripture offline.</p>}
+        <div className="button-row">
+          <button className="btn" onClick={() => pickFiles('.rvbible').then((files) => importFiles(files))}>
+            Import Bible (.rvbible)…
+          </button>
+        </div>
+      </section>
+      <section className="settings-section">
         <h4>Library</h4>
         <div className="button-row">
           <button
@@ -303,7 +440,9 @@ export function SettingsDialog({ onClose }: { onClose: () => void }) {
             Reset
           </button>
         </div>
-        <p className="muted small-print">Exports include songs, playlists, themes and messages. Media files stay on this computer.</p>
+        <p className="muted small-print">
+          Exports include songs, playlists, themes and messages. Media files and Bible text stay on this computer.
+        </p>
       </section>
       <section className="settings-section">
         <h4>Keyboard</h4>

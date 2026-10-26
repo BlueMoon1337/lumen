@@ -1,5 +1,5 @@
 import { useCallback, useMemo, useState, type ReactNode } from 'react';
-import { importTextFiles, newPresentation } from '../commands';
+import { IMPORT_ACCEPT, importFiles, newPresentation } from '../commands';
 import { closeOutput, openOutput, useOpenOutputs, type OutputKind } from '../outputs';
 import { useStore, type Mode } from '../store';
 import { applyStyles, FONT_CHOICES, resolveTheme } from '../theme';
@@ -314,9 +314,7 @@ function MoreMenu({ onDone, onBible, onSettings }: { onDone: () => void; onBible
   return (
     <div className="menu">
       {item('New Presentation', () => newPresentation(useStore.getState().libraryCategory))}
-      {item('Import Lyrics (.txt)…', () =>
-        pickFiles('.txt,text/plain').then((files) => importTextFiles(files, useStore.getState().libraryCategory)),
-      )}
+      {item('Import ProPresenter, Lyrics or Bible…', () => pickFiles(IMPORT_ACCEPT).then((files) => importFiles(files)))}
       {item('Add Scripture…', onBible)}
       <hr />
       {item('Settings & Shortcuts…', onSettings)}

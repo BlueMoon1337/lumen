@@ -1,8 +1,8 @@
 import { useMemo, useState, type DragEvent } from 'react';
-import { importTextFiles, newPresentation } from '../commands';
+import { IMPORT_ACCEPT, importFiles, newPresentation } from '../commands';
 import { useStore } from '../store';
 import type { Category, Playlist } from '../types';
-import { DRAG_PLAYLIST_ITEM, DRAG_PRESENTATION, FilterField, Icon, IconButton, SectionHeader } from './ui';
+import { DRAG_PLAYLIST_ITEM, DRAG_PRESENTATION, FilterField, Icon, IconButton, pickFiles, SectionHeader } from './ui';
 
 export const LIBRARIES: { category: Category; label: string }[] = [
   { category: 'song', label: 'Songs' },
@@ -42,7 +42,13 @@ function Collections() {
         addTitle="New presentation"
         collapsed={!libOpen}
         onToggle={() => setLibOpen(!libOpen)}
-      />
+      >
+        <IconButton
+          icon="download"
+          title="Import ProPresenter (.pro), lyrics (.txt) or Bible (.rvbible) files"
+          onClick={() => pickFiles(IMPORT_ACCEPT).then((files) => importFiles(files))}
+        />
+      </SectionHeader>
       {libOpen &&
         LIBRARIES.map((lib) => (
           <div
@@ -61,7 +67,7 @@ function Collections() {
               setDropTarget(null);
               const id = e.dataTransfer.getData(DRAG_PRESENTATION);
               if (id) s.updatePresentation(id, { category: lib.category });
-              else void importTextFiles(Array.from(e.dataTransfer.files), lib.category);
+              else void importFiles(Array.from(e.dataTransfer.files), lib.category);
             }}
           >
             <span className="collection-icon library">
@@ -211,7 +217,7 @@ function LibraryItems() {
       onDrop={(e) => {
         e.preventDefault();
         setDropping(false);
-        void importTextFiles(Array.from(e.dataTransfer.files), category);
+        void importFiles(Array.from(e.dataTransfer.files), category);
       }}
     >
       <SectionHeader
@@ -243,7 +249,9 @@ function LibraryItems() {
             </span>
           </li>
         ))}
-        {list.length === 0 && <li className="empty">{filter ? 'No matches.' : 'Drop .txt lyric files here, or press + to add.'}</li>}
+        {list.length === 0 && (
+          <li className="empty">{filter ? 'No matches.' : 'Drop ProPresenter .pro or .txt lyric files here, or press + to add.'}</li>
+        )}
       </ul>
       <FilterField value={filter} onChange={setFilter} />
     </div>

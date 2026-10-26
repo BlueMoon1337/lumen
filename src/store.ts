@@ -1,5 +1,6 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
+import { deleteBibleText, type BibleMeta } from './bible';
 import { colorForGroup, getSequence, parseLyrics } from './lyrics';
 import { deleteMediaBlob, putMediaBlob } from './media';
 import { defaultThemes, seedMessages, seedPlaylist, seedPresentations } from './seed';
@@ -28,6 +29,8 @@ export interface LibraryData {
   messages: Message[];
   settings: Settings;
   activePlaylistId: string;
+  /** Imported Bibles; their text is stored in IndexedDB. */
+  bibles: BibleMeta[];
 }
 
 export type Mode = 'show' | 'edit' | 'reflow';
@@ -84,6 +87,9 @@ interface Actions {
   addMediaFiles(files: File[]): Promise<void>;
   deleteMedia(id: string): void;
 
+  addBible(meta: BibleMeta): void;
+  deleteBible(id: string): void;
+
   addMessage(text: string): void;
   updateMessage(id: string, text: string): void;
   deleteMessage(id: string): void;
@@ -137,6 +143,7 @@ function initialLibrary(): LibraryData {
     messages: seedMessages,
     settings: defaultSettings,
     activePlaylistId: playlist.id,
+    bibles: [],
   };
 }
 
@@ -412,6 +419,21 @@ export const useStore = create<AppState>()(
           }));
         },
 
+        addBible: (meta) =>
+          set((s) => {
+            // Re-importing the same translation replaces it.
+            const replaced = s.bibles.filter((b) => b.abbreviation === meta.abbreviation && b.name === meta.name);
+            for (const b of replaced) void deleteBibleText(b.id);
+            return { bibles: [...s.bibles.filter((b) => !replaced.includes(b)), meta], settings: { ...s.settings, lastBible: meta.id } };
+          }),
+        deleteBible: (id) => {
+          void deleteBibleText(id);
+          set((s) => ({
+            bibles: s.bibles.filter((b) => b.id !== id),
+            settings: s.settings.lastBible === id ? { ...s.settings, lastBible: undefined } : s.settings,
+          }));
+        },
+
         addMessage: (text) => set((s) => ({ messages: [...s.messages, { id: uid(), text }] })),
         updateMessage: (id, text) => set((s) => ({ messages: s.messages.map((m) => (m.id === id ? { ...m, text } : m)) })),
         deleteMessage: (id) =>
@@ -511,6 +533,7 @@ export const useStore = create<AppState>()(
         importLibrary: (data) =>
           set({
             ...data,
+            bibles: data.bibles ?? [],
             selectedPresentationId: null,
             selectedPlaylistItemId: null,
             editingThemeId: null,
@@ -534,6 +557,7 @@ export const useStore = create<AppState>()(
         messages: s.messages,
         settings: s.settings,
         activePlaylistId: s.activePlaylistId,
+        bibles: s.bibles,
       }),
     },
   ),
