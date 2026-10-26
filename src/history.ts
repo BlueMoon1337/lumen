@@ -100,6 +100,9 @@ function restore(doc: Doc) {
   const hidden = Object.entries(s.presentations).filter(([, p]) => p.hidden);
   const presentations = Object.fromEntries([...visible(doc.presentations), ...hidden]);
   const inPlaylist = (id: string | null) => !!id && doc.playlists.some((pl) => pl.items.some((it) => it.id === id));
+  const slides = new Set(
+    (s.selectedPresentationId ? presentations[s.selectedPresentationId]?.groups : undefined)?.flatMap((g) => g.slides.map((sl) => sl.id)),
+  );
   applying = true;
   try {
     useStore.setState({
@@ -114,6 +117,7 @@ function restore(doc: Doc) {
       settings: { ...s.settings, ...doc.settings },
       selectedPresentationId: s.selectedPresentationId && presentations[s.selectedPresentationId] ? s.selectedPresentationId : null,
       selectedPlaylistItemId: inPlaylist(s.selectedPlaylistItemId) ? s.selectedPlaylistItemId : null,
+      selectedSlideIds: s.selectedSlideIds.filter((id) => slides.has(id)),
       editingThemeId: doc.themes.some((t) => t.id === s.editingThemeId) ? s.editingThemeId : null,
       live: {
         ...s.live,
@@ -271,8 +275,10 @@ const LABELS: Record<string, string | ((args: unknown[]) => string)> = {
   addSlide: 'New Slide',
   duplicateSlide: 'Duplicate Slide',
   deleteSlide: 'Delete Slide',
+  deleteSlides: ([, ids]) => ((ids as string[]).length === 1 ? 'Delete Slide' : 'Delete Slides'),
+  duplicateSlides: ([, ids]) => ((ids as string[]).length === 1 ? 'Duplicate Slide' : 'Duplicate Slides'),
   cutSlides: 'Cut',
-  pasteSlides: 'Paste',
+  pasteSlides: ([, , options]) => ((options as { matchStyle?: boolean } | undefined)?.matchStyle ? 'Paste and Match Style' : 'Paste'),
   assignGroup: 'Group',
   deleteGroup: 'Delete Group',
   duplicateGroup: 'Duplicate Group',

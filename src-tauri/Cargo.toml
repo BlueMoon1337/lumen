@@ -26,11 +26,11 @@ lto = true
 opt-level = "s"
 strip = true
 
-# macOS: display names from AppKit and the Dock icon. Same versions Tauri itself uses.
+# macOS: display names from AppKit, the Dock icon, and Edit's Spelling and Transformations menus. Same versions Tauri itself uses.
 [target.'cfg(target_os = "macos")'.dependencies]
 objc2 = "0.6"
 objc2-foundation = { version = "0.3", features = ["NSArray", "NSData", "NSDictionary", "NSString", "NSValue"] }
-objc2-app-kit = { version = "0.3", features = ["NSApplication", "NSResponder", "NSGraphics", "NSImage", "NSScreen", "objc2-core-foundation"] }
+objc2-app-kit = { version = "0.3", features = ["NSApplication", "NSResponder", "NSGraphics", "NSImage", "NSMenu", "NSMenuItem", "NSScreen", "objc2-core-foundation"] }
 
 # Linux: lets the web view open cameras (the Video Input layer). Same version wry uses.
 [target.'cfg(target_os = "linux")'.dependencies]

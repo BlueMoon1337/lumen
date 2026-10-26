@@ -7,11 +7,11 @@ import { applyStyles, resolveTheme } from '../theme';
 import type { ScreenKind, TextStyle, Theme } from '../types';
 import { SlidePreview } from './Canvas';
 import { openContextMenu } from './ContextMenu';
+import { editContext, editEntries, refocus, type EditContext } from './editCommands';
 import { fileEntries } from './fileCommands';
 import { FontSelect } from './FontSelect';
+import { useToolbarPop, type PopoverName } from './toolbarState';
 import { Icon, IconButton, Popover, shortcut, type IconName } from './ui';
-
-type PopoverName = 'search' | 'text' | 'theme';
 
 function Tool({
   icon,
@@ -19,6 +19,7 @@ function Tool({
   active,
   disabled,
   onClick,
+  onMouseDown,
   children,
   glyph,
 }: {
@@ -27,12 +28,20 @@ function Tool({
   active?: boolean;
   disabled?: boolean;
   onClick: (e: MouseEvent<HTMLButtonElement>) => void;
+  onMouseDown?: (e: MouseEvent<HTMLButtonElement>) => void;
   children?: ReactNode;
   glyph?: ReactNode;
 }) {
   return (
     <div className="tool">
-      <button type="button" className={`tool-btn ${active ? 'active' : ''}`} disabled={disabled} onClick={onClick} title={label}>
+      <button
+        type="button"
+        className={`tool-btn ${active ? 'active' : ''}`}
+        disabled={disabled}
+        onClick={onClick}
+        onMouseDown={onMouseDown}
+        title={label}
+      >
         <span className="tool-icon">{glyph ?? (icon && <Icon name={icon} size={20} />)}</span>
         <span className="tool-label">{label}</span>
       </button>
@@ -79,9 +88,9 @@ export function Toolbar({ onSettings, onScreens }: { onSettings: () => void; onS
   const mode = useStore((s) => s.mode);
   const hasSelection = useStore((s) => !!s.selectedPresentationId && !!s.presentations[s.selectedPresentationId]);
   const showMediaBin = useStore((s) => s.showMediaBin);
-  const [pop, setPop] = useState<PopoverName | null>(null);
-  const close = useCallback(() => setPop(null), []);
-  const toggle = (name: PopoverName) => setPop((p) => (p === name ? null : name));
+  const pop = useToolbarPop((s) => s.pop);
+  const close = useCallback(() => useToolbarPop.setState({ pop: null }), []);
+  const toggle = (name: PopoverName) => useToolbarPop.setState((s) => ({ pop: s.pop === name ? null : name }));
   const setMode = (m: Mode) => useStore.getState().setUI({ mode: m });
   const macInset = window.lumenDesktop?.platform === 'darwin';
 
@@ -115,6 +124,8 @@ export function Toolbar({ onSettings, onScreens }: { onSettings: () => void; onS
         <Tool
           icon="more"
           label="More"
+          // Edit's commands work where the focus was before the menu took it.
+          onMouseDown={() => (moreContext = editContext())}
           onClick={(e) => openMoreMenu(e.currentTarget, { onBible: () => setMode('bible'), onSettings, onScreens })}
         />
       </div>
@@ -320,26 +331,42 @@ function ThemePopover() {
   );
 }
 
+/** Where the focus was when More was pressed. */
+let moreContext: EditContext | null = null;
+
 /**
- * More: Undo and Redo, the File menu (New, Import, Export, as in ProPresenter's menu bar, for a
- * browser, which has none), and the windows.
+ * More: the menu bar's File and Edit menus (for a browser, which has no menu bar), and the
+ * windows.
  */
 function openMoreMenu(
   button: HTMLElement,
   { onBible, onSettings, onScreens }: { onBible: () => void; onSettings: () => void; onScreens: () => void },
 ) {
   const { undo, redo } = useHistory.getState();
+  const ctx = moreContext ?? editContext();
+  moreContext = null;
   const r = button.getBoundingClientRect();
   openContextMenu({ clientX: r.left, clientY: r.bottom + 4, preventDefault() {}, stopPropagation() {}, currentTarget: button }, [
-    { label: undo ? `Undo ${undo}` : 'Undo', shortcut: shortcut('Z'), disabled: !undo, action: () => runHistoryCommand('undo') },
+    { label: 'File', submenu: fileEntries },
     {
-      label: redo ? `Redo ${redo}` : 'Redo',
-      shortcut: shortcut('Z', false, true),
-      disabled: !redo,
-      action: () => runHistoryCommand('redo'),
+      label: 'Edit',
+      submenu: () => [
+        {
+          label: undo ? `Undo ${undo}` : 'Undo',
+          shortcut: shortcut('Z'),
+          disabled: !undo && ctx.kind !== 'text',
+          action: () => (refocus(ctx), runHistoryCommand('undo')),
+        },
+        {
+          label: redo ? `Redo ${redo}` : 'Redo',
+          shortcut: shortcut('Z', false, true),
+          disabled: !redo && ctx.kind !== 'text',
+          action: () => (refocus(ctx), runHistoryCommand('redo')),
+        },
+        '-',
+        ...editEntries(ctx),
+      ],
     },
-    '-',
-    ...fileEntries(),
     '-',
     { label: 'Bible…', action: onBible },
     { label: 'Configure Screens…', shortcut: shortcut('1', true), action: onScreens },

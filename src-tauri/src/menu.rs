@@ -2,8 +2,7 @@
 //! ⌥⌘1 Configure Screens…, Identify Screens. Clicks go to the operator window, which
 //! owns the setup and sends back the checkmarks.
 //!
-//! Edit ▸ Undo and Redo go to the operator window too: it undoes typing in a text field,
-//! or else the last change to the library, and names that change in the menu ("Undo Delete Slide").
+//! The Edit menu is ProPresenter's too (see edit.rs); its commands run in the operator window.
 //!
 //! The File menu is ProPresenter's: New Presentation, Playlist and Library, and Import and Export
 //! submenus. Its commands also run in the operator window.
@@ -12,13 +11,13 @@ use serde::Deserialize;
 use tauri::menu::{CheckMenuItem, Menu, MenuEvent, MenuItem, MenuItemKind, PredefinedMenuItem, Submenu};
 use tauri::{AppHandle, Emitter, Wry};
 
-const COMMANDS: [&str; 20] = [
+use crate::edit::{self, EditMenu};
+
+const COMMANDS: [&str; 18] = [
     "toggle-audience",
     "toggle-stage",
     "configure-screens",
     "identify-screens",
-    "undo",
-    "redo",
     "new-presentation",
     "new-playlist",
     "new-library",
@@ -40,12 +39,6 @@ pub struct ScreensMenu {
     audience: CheckMenuItem<Wry>,
     stage: CheckMenuItem<Wry>,
     identify: CheckMenuItem<Wry>,
-}
-
-/// Edit ▸ Undo and Redo, renamed after the step they'd take.
-pub struct EditMenu {
-    undo: MenuItem<Wry>,
-    redo: MenuItem<Wry>,
 }
 
 /// File ▸ Export's items, on only when there's a presentation selected to export.
@@ -113,18 +106,18 @@ pub fn build(app: &AppHandle) -> tauri::Result<(Menu<Wry>, ScreensMenu, EditMenu
     let at = menu.items()?.len().saturating_sub(2);
     menu.insert(&screens, at)?;
 
-    let undo = MenuItem::with_id(app, "undo", "Undo", false, Some("CmdOrCtrl+Z"))?;
-    let redo = MenuItem::with_id(app, "redo", "Redo", false, Some("Shift+CmdOrCtrl+Z"))?;
-    for item in menu.items()? {
-        if let MenuItemKind::Submenu(edit) = item
-            && edit.text()? == "Edit"
-        {
-            // The standard Undo and Redo come first.
-            edit.remove_at(0)?;
-            edit.remove_at(0)?;
-            edit.insert(&undo, 0)?;
-            edit.insert(&redo, 1)?;
+    // Edit: Lumen's own, in place of the standard one (Linux has none, so it goes after File).
+    let (edit, edit_menu) = edit::build(app)?;
+    let items = menu.items()?;
+    match items
+        .iter()
+        .position(|item| matches!(item, MenuItemKind::Submenu(sub) if sub.text().ok().as_deref() == Some("Edit")))
+    {
+        Some(at) => {
+            menu.remove_at(at)?;
+            menu.insert(&edit, at)?;
         }
+        None => menu.insert(&edit, 0)?,
     }
 
     // File: Lumen's commands above the standard Close Window (and Quit). Linux has no standard
@@ -148,13 +141,17 @@ pub fn build(app: &AppHandle) -> tauri::Result<(Menu<Wry>, ScreensMenu, EditMenu
             menu.insert(&Submenu::with_items(app, "File", true, &items)?, 0)?;
         }
     }
-    Ok((menu, ScreensMenu { audience, stage, identify }, EditMenu { undo, redo }, file))
+    Ok((menu, ScreensMenu { audience, stage, identify }, edit_menu, file))
 }
 
 pub fn on_event(app: &AppHandle, event: MenuEvent) {
     let id = event.id().as_ref();
     if id == "quit" {
         app.exit(0);
+    } else if edit::COMMANDS.contains(&id) {
+        if !edit::forward_to_panel(app, id) {
+            let _ = app.emit_to("main", "menu", id);
+        }
     } else if COMMANDS.contains(&id) {
         let _ = app.emit_to("main", "menu", id);
     }
@@ -173,21 +170,6 @@ pub fn set_menu_state(menu: tauri::State<'_, ScreensMenu>, state: MenuState) {
     let _ = menu.audience.set_checked(state.audience_enabled);
     let _ = menu.stage.set_checked(state.stage_enabled);
     let _ = menu.identify.set_checked(state.identify);
-}
-
-#[derive(Deserialize)]
-pub struct UndoState {
-    undo: Option<String>,
-    redo: Option<String>,
-}
-
-/// Names the steps Undo and Redo would take, and turns them off when there's none.
-#[tauri::command]
-pub fn set_undo_state(menu: tauri::State<'_, EditMenu>, state: UndoState) {
-    for (item, verb, label) in [(&menu.undo, "Undo", state.undo), (&menu.redo, "Redo", state.redo)] {
-        let _ = item.set_text(label.as_deref().map_or(verb.to_string(), |l| format!("{verb} {l}")));
-        let _ = item.set_enabled(label.is_some());
-    }
 }
 
 #[derive(Deserialize)]

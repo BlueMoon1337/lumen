@@ -36,6 +36,9 @@ export interface DesktopBridge {
   /** Writes a file into the folder chosen last. */
   writeExportFile(name: string, data: Uint8Array): Promise<void>;
   readClipboardText(): Promise<string | null>;
+  writeClipboardText(text: string): Promise<void>;
+  /** Turns Edit's items on and off (by command id) and sets Check Spelling While Typing. */
+  setEditState(state: { enabled: string[]; spellCheck: boolean }): void;
   /** Shows the Open panel for files (or a folder, giving the files in it with those extensions). */
   openFiles(options: {
     extensions: string[];

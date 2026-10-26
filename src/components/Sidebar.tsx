@@ -2,7 +2,6 @@ import { useMemo, useState, type DragEvent } from 'react';
 import { importFiles, newPresentation } from '../commands';
 import { useStore } from '../store';
 import type { Category } from '../types';
-import { isTypingTarget } from '../util';
 import { openContextMenu, type ContextEntries } from './ContextMenu';
 import { deleteLibrary, deletePlaylist, deletePresentation, removePlaylistItem } from './deleting';
 import { importFileCommand, newLibrary, newPlaylist } from './fileCommands';
@@ -49,17 +48,8 @@ function Collections() {
   const [renaming, setRenaming] = useState<string | null>(null);
 
   return (
-    <div
-      className="collections"
-      tabIndex={-1}
-      onKeyDown={(e) => {
-        // Delete removes the open library or playlist (after asking).
-        if ((e.key !== 'Delete' && e.key !== 'Backspace') || isTypingTarget(e.target) || renaming) return;
-        e.preventDefault();
-        if (sidebar === 'library') deleteLibrary(category);
-        else deletePlaylist(activeId);
-      }}
-    >
+    // Edit ▸ Delete (and the Delete key) here deletes the open library or playlist, after asking.
+    <div className="collections" tabIndex={-1} data-edit-scope="collections">
       <SectionHeader
         title="Library"
         onAdd={() => void newLibrary()}
@@ -285,15 +275,7 @@ function LibraryItems() {
         onAdd={() => newPresentation(category)}
         addTitle="New presentation"
       />
-      <ul
-        className="item-list"
-        tabIndex={-1}
-        onKeyDown={(e) => {
-          if ((e.key !== 'Delete' && e.key !== 'Backspace') || !selectedId || selectedItem || isTypingTarget(e.target)) return;
-          e.preventDefault();
-          deletePresentation(selectedId);
-        }}
-      >
+      <ul className="item-list" tabIndex={-1} data-edit-scope="library">
         {list.map((p) => (
           <li
             key={p.id}
@@ -372,16 +354,8 @@ function PlaylistItems() {
         onAdd={() => s.addPlaylistHeader('Header')}
         addTitle="Add header"
       />
-      <ul
-        className="item-list"
-        tabIndex={-1}
-        onKeyDown={(e) => {
-          // Delete takes the selected entry out of the playlist; the presentation stays in the library.
-          if ((e.key !== 'Delete' && e.key !== 'Backspace') || !selectedItem || isTypingTarget(e.target)) return;
-          e.preventDefault();
-          removePlaylistItem(selectedItem);
-        }}
-      >
+      {/* Delete takes the selected entry out of the playlist; the presentation stays in the library. */}
+      <ul className="item-list" tabIndex={-1} data-edit-scope="playlist">
         {items.map((item, index) => {
           if (!visible(index)) return null;
           const drop = dropIndex === index ? 'drop-before' : dropIndex === index + 1 && index === items.length - 1 ? 'drop-after' : '';

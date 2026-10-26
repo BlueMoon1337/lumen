@@ -5,6 +5,7 @@ import { inkFor, resolveTheme, slideTheme } from '../theme';
 import type { ColorLabel, Presentation, SequenceEntry, Slide, Theme } from '../types';
 import { SlidePreview } from './Canvas';
 import { openContextMenu, openPopupBelow } from './ContextMenu';
+import { clickSlide, selectForMenu } from './editCommands';
 import { slideMenu } from './menus';
 import { TargetTransitionPicker, TransitionButton, TransitionGlyph } from './TransitionPicker';
 import { importMediaFiles } from './MediaBin';
@@ -98,7 +99,9 @@ export function MediaBadge({ presentationId, slide }: { presentationId: string; 
 /** Opens a slide's right-click menu (Show mode). */
 function slideContextMenu(e: ReactMouseEvent, presentationId: string, entry: SequenceEntry, index: number, playlistItemId: string | null) {
   const p = useStore.getState().presentations[presentationId];
-  if (p) openContextMenu(e, slideMenu(p, entry.slide, entry.group, { index, playlistItemId }));
+  if (!p) return;
+  selectForMenu(entry.slide.id);
+  openContextMenu(e, slideMenu(p, entry.slide, entry.group, { index, playlistItemId }));
 }
 
 export function ShowView() {
@@ -193,6 +196,13 @@ function useSlides(p: Presentation) {
   const base = resolveTheme({ themes, settings }, p);
   const seq = useMemo(() => getSequence(p), [p]);
   const liveIndex = live?.presentationId === p.id ? live.index : -1;
+  const liveId = seq[liveIndex]?.slide.id;
+  useEffect(() => {
+    // The selection follows the slide on screen as it changes, unless several are selected.
+    const s = useStore.getState();
+    if (liveId && s.selectedPresentationId === p.id && s.selectedSlideIds.length <= 1 && s.selectedSlideIds[0] !== liveId)
+      s.setUI({ selectedSlideIds: [liveId] });
+  }, [liveId, p.id]);
   return { base, seq, liveIndex };
 }
 
@@ -256,17 +266,18 @@ const SlideThumb = memo(function SlideThumb({
 }) {
   const { group, slide } = entry;
   const { over, ...drop } = useMediaDrop(presentationId, slide.id);
+  const selected = useStore((s) => s.selectedSlideIds.includes(slide.id));
   return (
     <div
       ref={ref}
       role="button"
       tabIndex={-1}
-      className={`slide-thumb ${live ? 'live' : ''} ${over ? 'drop-media' : ''}`}
+      className={`slide-thumb ${live ? 'live' : ''} ${selected ? 'selected' : ''} ${over ? 'drop-media' : ''}`}
       {...drop}
-      onClick={() => useStore.getState().goLive(presentationId, index, playlistItemId)}
+      onClick={(e) => clickSlide(e, presentationId, slide.id) && useStore.getState().goLive(presentationId, index, playlistItemId)}
       onDoubleClick={() => useStore.getState().openEditor(slide.id)}
       onContextMenu={(e) => slideContextMenu(e, presentationId, entry, index, playlistItemId)}
-      title="Click to show · Double-click to edit · Right-click for more"
+      title="Click to show · ⌘-click or ⇧-click to select more · Double-click to edit · Right-click for more"
     >
       <div className="slide-thumb-canvas">
         <SlidePreview text={slide.text} caption={slide.caption} theme={theme} background={slide.background} media={slide.media} />
@@ -317,13 +328,14 @@ function SlideRow({
 }) {
   const { group, slide, indexInGroup } = entry;
   const { over, ...drop } = useMediaDrop(presentationId, slide.id);
+  const selected = useStore((s) => s.selectedSlideIds.includes(slide.id));
   return (
     <div
       role="button"
       tabIndex={-1}
-      className={`slide-row ${live ? 'live' : ''} ${over ? 'drop-media' : ''}`}
+      className={`slide-row ${live ? 'live' : ''} ${selected ? 'selected' : ''} ${over ? 'drop-media' : ''}`}
       {...drop}
-      onClick={() => useStore.getState().goLive(presentationId, index, playlistItemId)}
+      onClick={(e) => clickSlide(e, presentationId, slide.id) && useStore.getState().goLive(presentationId, index, playlistItemId)}
       onDoubleClick={() => useStore.getState().openEditor(slide.id)}
       onContextMenu={(e) => slideContextMenu(e, presentationId, entry, index, playlistItemId)}
     >

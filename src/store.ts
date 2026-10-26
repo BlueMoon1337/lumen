@@ -91,6 +91,11 @@ interface UIState {
   /** Which collection the sidebar item list shows. */
   sidebar: 'library' | 'playlist';
   libraryCategory: Category;
+  /**
+   * Slides selected in the selected presentation (click, ⌘-click, ⇧-click, Select All), which
+   * Edit ▸ Cut, Copy, Duplicate, Delete and the rest act on.
+   */
+  selectedSlideIds: string[];
   /** Slide selected in Edit mode. */
   editSlideId: string | null;
   /** Whether the slide's text element is selected on the Edit canvas. */
@@ -144,10 +149,16 @@ interface Actions {
   /** Every presentation (and its slides) uses the global transition. */
   clearPresentationTransitions(): void;
   copySlides(presentationId: string, slideIds: string[]): void;
+  /** Duplicates slides, each copy after its slide, and selects the copies; returns their ids. */
+  duplicateSlides(presentationId: string, slideIds: string[]): string[];
+  deleteSlides(presentationId: string, slideIds: string[]): void;
   /** Copies slides, then deletes them. */
   cutSlides(presentationId: string, slideIds: string[]): void;
-  /** Pastes copied slides after a slide (or at the end); returns the first pasted slide's id. */
-  pasteSlides(presentationId: string, afterSlideId: string | null): string | null;
+  /**
+   * Pastes copied slides after a slide (or at the end) and selects them; returns the first
+   * pasted slide's id. `matchStyle` drops their own text formatting (Paste and Match Style).
+   */
+  pasteSlides(presentationId: string, afterSlideId: string | null, options?: { matchStyle?: boolean }): string | null;
 
   addToPlaylist(presentationId: string, index?: number, playlistId?: string): void;
   addPlaylistHeader(label: string): void;
@@ -448,6 +459,7 @@ export const useStore = create<AppState>()(
         ...initialLibrary(),
         selectedPresentationId: null,
         selectedPlaylistItemId: null,
+        selectedSlideIds: [],
         mode: 'show',
         sidebar: 'playlist',
         libraryCategory: 'song',
@@ -466,7 +478,11 @@ export const useStore = create<AppState>()(
         screenTools: { identify: false, testPattern: null },
 
         select: (presentationId, playlistItemId = null) =>
-          set({ selectedPresentationId: presentationId, selectedPlaylistItemId: playlistItemId }),
+          set((s) => ({
+            selectedPresentationId: presentationId,
+            selectedPlaylistItemId: playlistItemId,
+            selectedSlideIds: s.selectedPresentationId === presentationId ? s.selectedSlideIds : [],
+          })),
         setUI: (patch) => set(patch),
 
         createPresentation: (init, text = '') => {
@@ -572,8 +588,11 @@ export const useStore = create<AppState>()(
             arrangement: p.arrangement.filter((id) => !emptied.has(id)),
           });
           if (get().editSlideId === slideId) set({ editSlideId: null });
+          if (get().selectedSlideIds.includes(slideId))
+            set((s) => ({ selectedSlideIds: s.selectedSlideIds.filter((id) => id !== slideId) }));
         },
-        openEditor: (slideId = null) => set({ mode: 'edit', editSlideId: slideId, editTextSelected: false }),
+        openEditor: (slideId = null) =>
+          set({ mode: 'edit', editSlideId: slideId, editTextSelected: false, selectedSlideIds: slideId ? [slideId] : [] }),
         assignGroup: (pid, slideId, preset) => edit(pid, (p) => ops.assignGroup(p, slideId, preset)),
         deleteGroup: (pid, groupId) => {
           edit(pid, (p) => ops.deleteGroup(p, groupId));
@@ -611,16 +630,26 @@ export const useStore = create<AppState>()(
         },
         cutSlides: (pid, slideIds) => {
           get().copySlides(pid, slideIds);
-          for (const id of slideIds) get().deleteSlide(pid, id);
+          get().deleteSlides(pid, slideIds);
         },
-        pasteSlides: (pid, afterSlideId) => {
-          const slides = get().slideClipboard;
+        pasteSlides: (pid, afterSlideId, options) => {
+          const copied = get().slideClipboard;
           const p = get().presentations[pid];
-          if (!slides?.length || !p) return null;
+          if (!copied?.length || !p) return null;
+          const slides = options?.matchStyle ? ops.matchStyle(copied) : copied;
           const before = new Set(p.groups.flatMap((g) => g.slides.map((sl) => sl.id)));
           get().updatePresentation(pid, ops.insertSlides(p, afterSlideId, slides));
-          const after = get().presentations[pid]?.groups.flatMap((g) => g.slides) ?? [];
-          return after.find((sl) => !before.has(sl.id))?.id ?? null;
+          const pasted = (get().presentations[pid]?.groups.flatMap((g) => g.slides) ?? []).filter((sl) => !before.has(sl.id));
+          set({ selectedSlideIds: pasted.map((sl) => sl.id) });
+          return pasted[0]?.id ?? null;
+        },
+        duplicateSlides: (pid, slideIds) => {
+          const copies = slideIds.map((id) => get().duplicateSlide(pid, id)).filter((id): id is string => !!id);
+          set({ selectedSlideIds: copies });
+          return copies;
+        },
+        deleteSlides: (pid, slideIds) => {
+          for (const id of slideIds) get().deleteSlide(pid, id);
         },
 
         addToPlaylist: (presentationId, index, playlistId) =>

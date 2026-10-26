@@ -17,7 +17,17 @@ import {
 } from '../transitions';
 import type { Group, Library, MediaItem, Playlist, PlaylistItem, Presentation, Slide, SlideTransition, VideoPlayback } from '../types';
 import { NamePopup, openPopupAtMenu, type ContextEntries } from './ContextMenu';
-import { deleteGroup, deleteLibrary, deleteMedia, deletePlaylist, deletePresentation, deleteSlide, removePlaylistItem } from './deleting';
+import {
+  deleteGroup,
+  deleteLibrary,
+  deleteMedia,
+  deletePlaylist,
+  deletePresentation,
+  deleteSlide,
+  deleteSlides,
+  removePlaylistItem,
+} from './deleting';
+import { selectedSlides } from './editCommands';
 import {
   exportBundle,
   exportPlaylist,
@@ -84,16 +94,17 @@ export function transitionEntries(target: TransitionTarget): ContextEntries {
 }
 
 /** Copy, paste and clear text formatting. */
-function styleEntries(p: Presentation, slide: Slide, group: Group, inEdit: boolean): ContextEntries {
+/** Text style entries; `slideIds` are the slides Paste Text Style goes on (the selection, if the slide is in it). */
+function styleEntries(p: Presentation, slide: Slide, group: Group, slideIds: string[] = [slide.id]): ContextEntries {
   const s = st();
   const clip = !!s.styleClipboard;
   return [
-    { label: 'Copy Text Style', shortcut: inEdit ? shortcut('C', true) : undefined, action: () => s.copyTextStyle(p.id, slide.id) },
+    { label: 'Copy Text Style', shortcut: shortcut('C', true), action: () => s.copyTextStyle(p.id, slide.id) },
     {
-      label: 'Paste Text Style',
-      shortcut: inEdit ? shortcut('V', true) : undefined,
+      label: slideIds.length > 1 ? `Paste Text Style to ${slideIds.length} Slides` : 'Paste Text Style',
+      shortcut: shortcut('V', true),
       disabled: !clip,
-      action: () => s.pasteTextStyle(p.id, { slideId: slide.id }),
+      action: () => s.pasteTextStyle(p.id, { slideIds }),
     },
     {
       label: 'Paste Text Style To',
@@ -162,7 +173,8 @@ function labelEntries(p: Presentation, slide: Slide): ContextEntries {
 
 /**
  * A slide's menu, in Show mode's slides (with `index`, its place in the arrangement, to show it)
- * or Edit mode's slide list (`inEdit`, where the keyboard shortcuts work).
+ * or Edit mode's slide list (`inEdit`). Cut, Copy, Duplicate, Delete and Paste Text Style work
+ * on all the selected slides when the slide is one of them.
  */
 export function slideMenu(
   p: Presentation,
@@ -172,26 +184,28 @@ export function slideMenu(
 ): ContextEntries {
   const s = st();
   const inEdit = !!opts.inEdit;
-  const key = (k: string) => (inEdit ? shortcut(k) : undefined);
-  // In Edit mode a new slide becomes the selected one.
-  const select = (id: string | null) => inEdit && id && s.openEditor(id);
+  const chosen = selectedSlides(s, p);
+  const ids = chosen.includes(slide.id) ? chosen : [slide.id];
+  const many = ids.length > 1 ? ` ${ids.length} Slides` : '';
+  // In Edit mode a new slide becomes the one on the canvas.
+  const select = (id: string | null) => inEdit && id && s.setUI({ editSlideId: id, editTextSelected: false });
   return [
     opts.index != null && { label: 'Show Slide', action: () => s.goLive(p.id, opts.index!, opts.playlistItemId) },
     !inEdit && { label: 'Edit Slide', action: () => s.openEditor(slide.id) },
     '-',
-    { label: 'Cut', shortcut: key('X'), action: () => s.cutSlides(p.id, [slide.id]) },
-    { label: 'Copy', shortcut: key('C'), action: () => s.copySlides(p.id, [slide.id]) },
+    { label: `Cut${many}`, shortcut: shortcut('X'), action: () => s.cutSlides(p.id, ids) },
+    { label: `Copy${many}`, shortcut: shortcut('C'), action: () => s.copySlides(p.id, ids) },
     {
       label: s.slideClipboard && s.slideClipboard.length > 1 ? `Paste ${s.slideClipboard.length} Slides` : 'Paste',
-      shortcut: key('V'),
+      shortcut: shortcut('V'),
       disabled: !s.slideClipboard,
-      action: () => select(s.pasteSlides(p.id, slide.id)),
+      action: () => select(s.pasteSlides(p.id, ids[ids.length - 1])),
     },
-    { label: 'Duplicate', shortcut: key('D'), action: () => select(s.duplicateSlide(p.id, slide.id)) },
+    { label: `Duplicate${many}`, shortcut: shortcut('D'), action: () => select(s.duplicateSlides(p.id, ids)[0] ?? null) },
     { label: 'Insert Blank Slide', action: () => select(s.addSlide(p.id, slide.id)) },
-    { label: 'Delete Slide', shortcut: inEdit ? '⌫' : undefined, danger: true, action: () => deleteSlide(p.id, slide.id) },
+    { label: many ? `Delete${many}` : 'Delete Slide', shortcut: '⌫', danger: true, action: () => deleteSlides(p.id, ids) },
     '-',
-    ...styleEntries(p, slide, group, inEdit),
+    ...styleEntries(p, slide, group, ids),
     '-',
     { label: 'Group', swatch: group.color, submenu: () => slideGroupEntries(p, slide, group) },
     { label: 'Label', swatch: slide.label?.color, submenu: () => labelEntries(p, slide) },
@@ -509,7 +523,7 @@ export function canvasMenu(p: Presentation, slide: Slide, group: Group, editText
   return [
     { label: 'Edit Text', shortcut: '↩', action: editText },
     '-',
-    ...styleEntries(p, slide, group, true),
+    ...styleEntries(p, slide, group),
     '-',
     { label: 'Label', swatch: slide.label?.color, submenu: () => labelEntries(p, slide) },
     { label: 'Transition', submenu: () => transitionEntries({ presentationId: p.id, scope: { slideId: slide.id } }) },

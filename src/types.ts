@@ -215,6 +215,8 @@ export type AppIconId = 'star' | 'camera' | 'film' | 'projector';
 
 export interface Settings {
   /** Chosen on first launch; unset until then. */
+  /** Check Spelling While Typing (Edit ▸ Spelling and Grammar); on when unset. */
+  spellcheck?: boolean;
   appIcon?: AppIconId;
   /** The slide transition used unless a presentation or slide sets its own. */
   transition: SlideTransition;

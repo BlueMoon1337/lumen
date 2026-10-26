@@ -42,19 +42,32 @@ export function deletePresentation(id: string) {
   );
 }
 
-/** Deletes a slide (no question: it's one slide, and Undo brings it back). In Edit mode the slide after it is selected. */
-export function deleteSlide(presentationId: string, slideId: string) {
+/** Deletes a slide (no question: it's one slide, and Undo brings it back). */
+export const deleteSlide = (presentationId: string, slideId: string) => deleteSlides(presentationId, [slideId]);
+
+/** Deletes slides straight away (Undo brings them back), and selects the slide after them. */
+export function deleteSlides(presentationId: string, slideIds: string[]) {
   const s = st();
   const p = s.presentations[presentationId];
   if (!p) return;
   const slides = slidesOf(p);
-  const at = slides.findIndex((sl) => sl.id === slideId);
-  if (at < 0) return;
-  const neighbour = slides[at + 1] ?? slides[at - 1];
-  const wasSelected = s.editSlideId === slideId;
-  s.deleteSlide(presentationId, slideId);
-  if (wasSelected && neighbour) st().setUI({ editSlideId: neighbour.id, editTextSelected: false });
-  notify(`Deleted slide ${at + 1}. ${undoHint()}`, 'info', 3500);
+  const gone = new Set(slideIds);
+  const positions = slides.flatMap((sl, i) => (gone.has(sl.id) ? [i] : []));
+  if (!positions.length) return;
+  const last = positions[positions.length - 1];
+  const neighbour = slides.slice(last + 1).find((sl) => !gone.has(sl.id)) ?? [...slides.slice(0, positions[0])].reverse()[0];
+  const editing = s.editSlideId !== null && gone.has(s.editSlideId);
+  s.deleteSlides(
+    presentationId,
+    positions.map((i) => slides[i].id),
+  );
+  if (neighbour)
+    st().setUI({ selectedSlideIds: [neighbour.id], ...(editing ? { editSlideId: neighbour.id, editTextSelected: false } : {}) });
+  notify(
+    `${positions.length === 1 ? `Deleted slide ${positions[0] + 1}` : `Deleted ${positions.length} slides`}. ${undoHint()}`,
+    'info',
+    3500,
+  );
 }
 
 export function deleteGroup(presentationId: string, groupId: string) {

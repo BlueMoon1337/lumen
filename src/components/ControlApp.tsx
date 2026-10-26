@@ -15,7 +15,8 @@ import { ClearGroupsDialog } from './ClearGroups';
 import { MediaClock } from './MediaClock';
 import { ContextMenuHost } from './ContextMenu';
 import { LabelsDialog, SettingsDialog } from './Dialogs';
-import { EditView, findSlide } from './EditView';
+import { useEditKeys, useEditMenuState } from './editCommands';
+import { EditView } from './EditView';
 import { exportTarget, importFileCommand, newPresentationCommand, runFileCommand } from './fileCommands';
 import { ExportThemesDialog, SlideImagesDialog, TextImportDialog } from './FileDialogs';
 import { WelcomeDialog } from './IconChooser';
@@ -105,47 +106,6 @@ function useShortcuts(enabled: boolean) {
       } else if (s.mode === 'show' && /^[a-z]$/i.test(e.key) && !e.shiftKey) {
         s.jumpToGroup(e.key);
       }
-    };
-    window.addEventListener('keydown', onKey);
-    return () => window.removeEventListener('keydown', onKey);
-  }, [enabled]);
-}
-
-/**
- * Edit mode's slide shortcuts, as in ProPresenter: ⌥⌘C / ⌥⌘V copy and paste the selected
- * slide's text style; ⌘X, ⌘C, ⌘V and ⌘D cut, copy, paste and duplicate the slide.
- */
-function useEditShortcuts(enabled: boolean) {
-  useEffect(() => {
-    if (!enabled) return;
-    const onKey = (e: KeyboardEvent) => {
-      const s = useStore.getState();
-      if (s.mode !== 'edit' || !(e.metaKey || e.ctrlKey) || e.shiftKey || isTypingTarget(e.target)) return;
-      // Leave ⌘C alone when there's text selected to copy.
-      if (!window.getSelection()?.isCollapsed) return;
-      const p = s.selectedPresentationId ? s.presentations[s.selectedPresentationId] : undefined;
-      const found = p && findSlide(p, s.editSlideId);
-      if (!p || !found) return;
-      const id = found.slide.id;
-      // e.code, because ⌥C types "ç" on a Mac.
-      const actions: Record<string, () => void> = e.altKey
-        ? { KeyC: () => s.copyTextStyle(p.id, id), KeyV: () => s.pasteTextStyle(p.id, { slideId: id }) }
-        : {
-            KeyC: () => s.copySlides(p.id, [id]),
-            KeyX: () => s.cutSlides(p.id, [id]),
-            KeyV: () => {
-              const pasted = s.pasteSlides(p.id, id);
-              if (pasted) s.openEditor(pasted);
-            },
-            KeyD: () => {
-              const copy = s.duplicateSlide(p.id, id);
-              if (copy) s.openEditor(copy);
-            },
-          };
-      const action = actions[e.code];
-      if (!action) return;
-      e.preventDefault();
-      action();
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
@@ -383,7 +343,8 @@ export default function ControlApp() {
     if (appIcon) applyAppIcon(appIcon);
   }, [appIcon]);
   useShortcuts(dialog === null && !editingTheme && !!appIcon);
-  useEditShortcuts(dialog === null && !editingTheme && !!appIcon);
+  useEditKeys();
+  useEditMenuState();
   useEffect(() => {
     // The desktop app's web view has its own right-click menu (Reload, Inspect…); Lumen's
     // menus replace it, and text fields keep theirs for copy and paste.
@@ -395,6 +356,7 @@ export default function ControlApp() {
 
   const appRef = useRef<HTMLDivElement>(null);
   const savedPanes = useStore((s) => s.settings.panes);
+  const spellcheck = useStore((s) => s.settings.spellcheck !== false);
   const panes = { ...DEFAULT_PANES, ...savedPanes };
   const sizes = {
     '--side-w': `${panes.side}px`,
@@ -406,7 +368,13 @@ export default function ControlApp() {
 
   return (
     // Bible mode has Show mode's layout, with the Bible in place of the slides.
-    <div ref={appRef} className={`app mode-${layout} ${layout === 'show' && !showMediaBin ? 'no-media' : ''}`} style={sizes}>
+    // Text fields take Check Spelling While Typing from here.
+    <div
+      ref={appRef}
+      className={`app mode-${layout} ${layout === 'show' && !showMediaBin ? 'no-media' : ''}`}
+      style={sizes}
+      spellCheck={spellcheck}
+    >
       <Toolbar onSettings={() => setDialog('settings')} onScreens={openScreens} />
       {layout === 'show' && (
         <>

@@ -237,6 +237,12 @@ pub fn read_clipboard_text(app: AppHandle) -> Option<String> {
     app.clipboard().read_text().ok()
 }
 
+/// Puts text on the clipboard: Edit ▸ Cut and Copy in a text field.
+#[tauri::command]
+pub fn write_clipboard_text(app: AppHandle, text: String) -> Result<(), String> {
+    app.clipboard().write_text(text).map_err(|e| e.to_string())
+}
+
 #[cfg(test)]
 mod tests {
     use super::decode;

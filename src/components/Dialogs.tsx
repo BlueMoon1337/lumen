@@ -289,13 +289,37 @@ export function SettingsDialog({ onClose, onScreens }: { onClose: () => void; on
           </dt>
           <dd>Undo / redo</dd>
           <dt>
-            <kbd>{ALT}</kbd> <kbd>{MOD}</kbd> <kbd>C</kbd> / <kbd>V</kbd>
-          </dt>
-          <dd>Copy / paste text style (Edit mode)</dd>
-          <dt>
             <kbd>{MOD}</kbd> <kbd>X</kbd> <kbd>C</kbd> <kbd>V</kbd> <kbd>D</kbd>
           </dt>
-          <dd>Cut, copy, paste, duplicate the selected slide (Edit mode)</dd>
+          <dd>Cut, copy, paste, duplicate the selected slides</dd>
+          <dt>
+            <kbd>{ALT}</kbd> <kbd>{MOD}</kbd> <kbd>C</kbd> / <kbd>V</kbd>
+          </dt>
+          <dd>Copy / paste text style</dd>
+          <dt>
+            <kbd>{ALT}</kbd> <kbd>Shift</kbd> <kbd>{MOD}</kbd> <kbd>V</kbd>
+          </dt>
+          <dd>Paste and match style</dd>
+          <dt>
+            <kbd>{MOD}</kbd> <kbd>A</kbd> / <kbd>Shift</kbd> <kbd>{MOD}</kbd> <kbd>A</kbd>
+          </dt>
+          <dd>Select all / deselect all slides</dd>
+          <dt>
+            <kbd>{MOD}</kbd>-click / <kbd>Shift</kbd>-click
+          </dt>
+          <dd>Select more slides</dd>
+          <dt>
+            <kbd>Delete</kbd>
+          </dt>
+          <dd>Delete the selected slides, presentation, playlist item or library</dd>
+          <dt>
+            <kbd>{MOD}</kbd> <kbd>F</kbd>
+          </dt>
+          <dd>Search</dd>
+          <dt>
+            <kbd>{MOD}</kbd> <kbd>N</kbd> / <kbd>Shift</kbd> <kbd>{MOD}</kbd> <kbd>I</kbd>
+          </dt>
+          <dd>New presentation / import a file</dd>
           <dt>Right-click</dt>
           <dd>Slides, groups, library and playlist items, and media all have menus</dd>
         </dl>

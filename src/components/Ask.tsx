@@ -56,6 +56,9 @@ export function confirmThen(options: AskOptions, action: () => void) {
 /** Whether a question is open (keys belong to it, not to the slide shortcuts). */
 export const isAsking = () => !!useAsk.getState().pending;
 
+/** Calls back whenever a question opens or closes. */
+export const onAskChange = (cb: () => void) => useAsk.subscribe(cb);
+
 /** Renders the open question. Mount once, in the control window. */
 export function AskHost() {
   const pending = useAsk((s) => s.pending);

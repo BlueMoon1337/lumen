@@ -206,7 +206,8 @@ export function transitionState(
     const common = g?.slides.every((sl) => sameTransition(sl.transition, first)) ? first : undefined;
     return { value: common, inherited, inheritedLabel, title: `Transition · ${g?.name ?? 'Group'}` };
   }
-  const slide = p.groups.flatMap((g) => g.slides).find((sl) => sl.id === scope.slideId);
+  const slideId = 'slideId' in scope ? scope.slideId : scope.slideIds[0];
+  const slide = p.groups.flatMap((g) => g.slides).find((sl) => sl.id === slideId);
   return { value: slide?.transition, inherited, inheritedLabel, title: 'Slide Transition' };
 }
 
@@ -243,9 +244,10 @@ function contextFor(target: TransitionTarget): PanelContext {
   const { presentationId, scope } = target;
   if (scope === 'presentation') return { presentationId, initial: 'presentation' };
   if ('groupId' in scope) return { presentationId, groupId: scope.groupId, initial: 'group' };
+  const slideId = 'slideId' in scope ? scope.slideId : scope.slideIds[0];
   const p = useStore.getState().presentations[presentationId];
-  const groupId = p?.groups.find((g) => g.slides.some((sl) => sl.id === scope.slideId))?.id;
-  return { presentationId, slideId: scope.slideId, groupId, initial: 'slide' };
+  const groupId = p?.groups.find((g) => g.slides.some((sl) => sl.id === slideId))?.id;
+  return { presentationId, slideId, groupId, initial: 'slide' };
 }
 
 function targetFor(level: Level, ctx: PanelContext): TransitionTarget {

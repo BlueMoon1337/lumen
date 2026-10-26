@@ -5,14 +5,17 @@
 import type { ColorLabel, Group, Presentation, Slide, SlideTransition, TextStyle, Theme } from './types';
 import { uid } from './util';
 
-/** A slide, a group, or every slide of the presentation. */
-export type SlideScope = { slideId: string } | { groupId: string } | 'presentation';
+/** A slide, several slides, a group, or every slide of the presentation. */
+export type SlideScope = { slideId: string } | { slideIds: string[] } | { groupId: string } | 'presentation';
+
+/** Whether a slide is in a scope that names slides. */
+const named = (scope: SlideScope, id: string) =>
+  scope !== 'presentation' && (('slideId' in scope && scope.slideId === id) || ('slideIds' in scope && scope.slideIds.includes(id)));
 
 const mapSlides = (p: Presentation, scope: SlideScope, fn: (sl: Slide) => Slide): Group[] =>
   p.groups.map((g) => {
     if (scope === 'presentation' || ('groupId' in scope && scope.groupId === g.id)) return { ...g, slides: g.slides.map(fn) };
-    if ('slideId' in scope && g.slides.some((sl) => sl.id === scope.slideId))
-      return { ...g, slides: g.slides.map((sl) => (sl.id === scope.slideId ? fn(sl) : sl)) };
+    if (g.slides.some((sl) => named(scope, sl.id))) return { ...g, slides: g.slides.map((sl) => (named(scope, sl.id) ? fn(sl) : sl)) };
     return g;
   });
 
@@ -118,9 +121,12 @@ export function setLabel(p: Presentation, slideId: string, label: ColorLabel | u
   return { groups: mapSlides(p, { slideId }, (sl) => ({ ...sl, label })) };
 }
 
-/** The slides of a group, one slide, or every slide once (ignoring repeats in the arrangement). */
+/** The slides of a group, the slides named, or every slide once (ignoring repeats in the arrangement). */
 export function slidesIn(p: Presentation, scope: SlideScope): Slide[] {
   if (scope === 'presentation') return p.groups.flatMap((g) => g.slides);
   if ('groupId' in scope) return p.groups.find((g) => g.id === scope.groupId)?.slides ?? [];
-  return p.groups.flatMap((g) => g.slides.filter((sl) => sl.id === scope.slideId));
+  return p.groups.flatMap((g) => g.slides.filter((sl) => named(scope, sl.id)));
 }
+
+/** Slides without their own text formatting, so they take the presentation's: Paste and Match Style. */
+export const matchStyle = (slides: Slide[]): Slide[] => slides.map(({ style: _style, ...sl }) => sl);

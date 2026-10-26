@@ -1104,6 +1104,13 @@ body.resizing-y * {
   border-color: var(--orange);
 }
 
+/* Selected (for Edit's commands): a blue ring, outside the orange of the live slide. */
+.slide-thumb.selected,
+.slide-row.selected {
+  outline: 2px solid var(--blue);
+  outline-offset: 1px;
+}
+
 .slide-thumb-canvas {
   position: relative;
   aspect-ratio: 16 / 9;
@@ -1665,7 +1672,7 @@ body.resizing-y * {
   outline: 2px solid transparent;
 }
 
-.outline-slide.selected .outline-thumb {
+.outline-slide.editing .outline-thumb {
   outline: 3px solid var(--yellow);
 }
 
@@ -5076,4 +5083,18 @@ body.resizing-y * {
 .item-list:focus,
 .outline-list:focus {
   outline: none;
+}
+
+/* Slides are picked, not their words: ⇧-click selects slides, not text across them. */
+.slide-grid,
+.slide-list,
+.outline-list,
+.edit-area .scaled-canvas {
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+.edit-area [contenteditable] {
+  user-select: text;
+  -webkit-user-select: text;
 }

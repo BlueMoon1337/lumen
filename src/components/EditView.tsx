@@ -18,10 +18,10 @@ import { useMedia } from '../media';
 import { useStore } from '../store';
 import { applyStyles, inkFor, resolveTheme, slideTheme, toFrameBackground } from '../theme';
 import type { Category, Group, MediaItem, Presentation, Slide, TextStyle, Theme, ThemeBackground } from '../types';
-import { isTypingTarget } from '../util';
 import { BackgroundFill, CANVAS_H, CANVAS_W, MediaStill, slideBoxStyle, SlidePreview, SlideText, slideTextStyle } from './Canvas';
 import { NamePopup, openContextMenu, openPopupBelow } from './ContextMenu';
 import { deleteSlide } from './deleting';
+import { clickSlide, selectForMenu } from './editCommands';
 import { FontSelect } from './FontSelect';
 import { MenuSelect, type MenuEntry } from './MenuSelect';
 import { canvasMenu, groupMenu, slideMenu } from './menus';
@@ -83,6 +83,7 @@ export function EditView() {
 
 export function EditOutline({ presentation: p, showObjects }: { presentation: Presentation; showObjects?: boolean }) {
   const selectedId = useStore((s) => s.editSlideId);
+  const chosen = useStore((s) => s.selectedSlideIds);
   const mode = useStore((s) => s.mode);
   const textSelected = useStore((s) => s.editTextSelected);
   const base = useBaseTheme(p);
@@ -116,16 +117,8 @@ export function EditOutline({ presentation: p, showObjects }: { presentation: Pr
           }}
         />
       </div>
-      <div
-        className="outline-list"
-        tabIndex={-1}
-        onKeyDown={(e) => {
-          // Delete removes the selected slide, as in ProPresenter; Undo brings it back.
-          if ((e.key !== 'Delete' && e.key !== 'Backspace') || !selectedId || isTypingTarget(e.target)) return;
-          e.preventDefault();
-          deleteSlide(p.id, selectedId);
-        }}
-      >
+      {/* Edit's commands and the Delete key work on the selected slides (editCommands.ts). */}
+      <div className="outline-list" tabIndex={-1}>
         {p.groups.map((g) => {
           const start = counter;
           counter += g.slides.length;
@@ -148,11 +141,12 @@ export function EditOutline({ presentation: p, showObjects }: { presentation: Pr
                     presentationId={p.id}
                     slideId={sl.id}
                     ref={sl.id === selectedId ? selectedRef : undefined}
-                    className={`outline-slide ${sl.id === selectedId && mode === 'edit' ? 'selected' : ''}`}
-                    onClick={() => s.setUI({ mode: 'edit', editSlideId: sl.id, editTextSelected: false })}
+                    className={`outline-slide ${mode === 'edit' && (sl.id === selectedId || chosen.includes(sl.id)) ? 'selected' : ''} ${sl.id === selectedId && mode === 'edit' ? 'editing' : ''}`}
+                    onClick={(e) => clickSlide(e, p.id, sl.id) && s.setUI({ mode: 'edit', editSlideId: sl.id, editTextSelected: false })}
                     onContextMenu={(e) => {
                       // Right-clicking a slide selects it, as in ProPresenter.
-                      if (mode === 'edit') s.setUI({ editSlideId: sl.id, editTextSelected: false });
+                      selectForMenu(sl.id);
+                      if (mode === 'edit' && !chosen.includes(sl.id)) s.setUI({ editSlideId: sl.id, editTextSelected: false });
                       openContextMenu(e, slideMenu(p, sl, g, { inEdit: mode === 'edit' }));
                     }}
                   >

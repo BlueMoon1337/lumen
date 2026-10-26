@@ -5,6 +5,7 @@
 
 mod camera;
 mod displays;
+mod edit;
 mod files;
 mod icon;
 mod menu;
@@ -27,7 +28,8 @@ pub fn run() {
             outputs::set_outputs,
             outputs::open_outputs,
             menu::set_menu_state,
-            menu::set_undo_state,
+            edit::set_undo_state,
+            edit::set_edit_state,
             menu::set_file_state,
             files::open_files,
             files::read_opened_file,
@@ -35,6 +37,7 @@ pub fn run() {
             files::choose_export_folder,
             files::write_export_file,
             files::read_clipboard_text,
+            files::write_clipboard_text,
             icon::set_app_icon,
         ])
         .setup(|app| {
@@ -42,6 +45,8 @@ pub fn run() {
             icon::load(handle);
             let (menu, screens, edit, file) = menu::build(handle)?;
             app.set_menu(menu)?;
+            #[cfg(target_os = "macos")]
+            edit::attach_text_menus();
             app.manage(screens);
             app.manage(edit);
             app.manage(file);

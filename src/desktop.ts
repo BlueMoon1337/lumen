@@ -52,6 +52,8 @@ export function installDesktopBridge() {
     chooseExportFolder: () => invoke<string | null>('choose_export_folder'),
     writeExportFile: (name, data) => invoke('write_export_file', data, { headers: { 'x-file-name': encodeURIComponent(name) } }),
     readClipboardText: () => invoke<string | null>('read_clipboard_text'),
+    writeClipboardText: (text) => invoke('write_clipboard_text', { text }),
+    setEditState: (state) => void invoke('set_edit_state', { state }),
     openFiles: async (options) => {
       const opened = await invoke<{ folder: string | null; files: { name: string; path: string }[] }>('open_files', { options });
       const files = await Promise.all(
