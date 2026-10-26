@@ -120,7 +120,7 @@ export interface Message {
 }
 
 /** Lumen's app icon. */
-export type AppIconId = 'star' | 'camera';
+export type AppIconId = 'star' | 'camera' | 'film' | 'projector';
 
 export interface Settings {
   /** Chosen on first launch; unset until then. */

@@ -17,6 +17,8 @@ const DIST = path.join(__dirname, '..', 'dist');
 const ICONS = {
   star: path.join(__dirname, '..', 'build', 'icon.png'),
   camera: path.join(__dirname, '..', 'build', 'icon-camera.png'),
+  film: path.join(__dirname, '..', 'build', 'icon-film.png'),
+  projector: path.join(__dirname, '..', 'build', 'icon-projector.png'),
 };
 
 protocol.registerSchemesAsPrivileged([

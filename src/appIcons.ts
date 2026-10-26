@@ -4,6 +4,8 @@ import type { AppIconId } from './types';
 export const APP_ICONS: { id: AppIconId; name: string; preview: string }[] = [
   { id: 'star', name: 'Star', preview: './icons/star-256.png' },
   { id: 'camera', name: 'Camera', preview: './icons/camera-256.png' },
+  { id: 'film', name: 'Film Camera', preview: './icons/film-256.png' },
+  { id: 'projector', name: 'Projector', preview: './icons/projector-256.png' },
 ];
 
 /** Shows an icon in the browser tab and for "Add to Home Screen" (the links are in index.html). */

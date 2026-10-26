@@ -23,7 +23,7 @@ npm install
 npm run dev          # operator UI at http://localhost:5173
 ```
 
-The first time Lumen starts, it asks you to choose its icon: the blue **Star** or the yellow **Camera**. You can change it later in **Settings → App Icon**. The choice applies to the browser tab and, in the desktop app, to the Dock or taskbar.
+The first time Lumen starts, it asks you to choose its icon: the blue **Star**, the yellow **Camera**, the black-and-white **Film Camera** or the **Projector**. You can change it later in **Settings → App Icon**. The choice applies to the browser tab and, in the desktop app, to the Dock or taskbar.
 
 Click **Audience** or **Stage** in the toolbar to open the output windows. In Chrome or Edge, open **Screens → Configure Screens…** (More menu, or right-click Audience) and press **Detect Screens** once: the outputs then open fullscreen on your TV or projector by themselves. In other browsers, drag the window to the projector and double-click it for fullscreen.
 
@@ -217,7 +217,8 @@ src/
     StageView      stage display layout
     ThemeEditor, Dialogs
 electron/          desktop shell: display detection, one fullscreen window per output, Screens menu, app:// protocol
-build/             app icons, Star (icon.*) and Camera (icon-camera.*): .svg source, .png, .icns (macOS), .ico (Windows)
+build/             app icons, Star (icon.*), Camera, Film Camera and Projector (icon-camera.*, icon-film.*, icon-projector.*):
+                   .svg source, .png, .icns (macOS), .ico (Windows)
 public/icons/      browser tab, home-screen and picker images for each icon
 ```
 
