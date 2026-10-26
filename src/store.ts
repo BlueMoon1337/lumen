@@ -6,6 +6,7 @@ import { deleteMediaBlob, putMediaBlob } from './media';
 import { defaultThemes, seedMessages, seedPlaylist, seedPresentations } from './seed';
 import type {
   Category,
+  FontMeta,
   Group,
   LiveState,
   MediaItem,
@@ -31,6 +32,8 @@ export interface LibraryData {
   activePlaylistId: string;
   /** Imported Bibles; their text is stored in IndexedDB. */
   bibles: BibleMeta[];
+  /** Added font files; the files are stored in IndexedDB. */
+  fonts: FontMeta[];
 }
 
 export type Mode = 'show' | 'edit' | 'reflow';
@@ -92,6 +95,9 @@ interface Actions {
   addBible(meta: BibleMeta): void;
   deleteBible(id: string): void;
 
+  addFonts(fonts: FontMeta[]): void;
+  deleteFont(id: string): void;
+
   addMessage(text: string): void;
   updateMessage(id: string, text: string): void;
   deleteMessage(id: string): void;
@@ -146,6 +152,7 @@ function initialLibrary(): LibraryData {
     settings: defaultSettings,
     activePlaylistId: playlist.id,
     bibles: [],
+    fonts: [],
   };
 }
 
@@ -187,6 +194,9 @@ export function adjacentPlaylistItem(
   }
   return null;
 }
+
+/** Background cleanup of stored files; a failure only leaves an orphaned file behind. */
+const quietly = (p: Promise<unknown>) => void p.catch(() => {});
 
 /** Carries ids, colors and per-slide edits over to re-parsed groups that keep their names. */
 function mergeParsed(p: Presentation, parsed: Pick<Presentation, 'groups' | 'arrangement'>) {
@@ -418,7 +428,7 @@ export const useStore = create<AppState>()(
           if (added.length) set((s) => ({ media: [...s.media, ...added] }));
         },
         deleteMedia: (id) => {
-          void deleteMediaBlob(id);
+          quietly(deleteMediaBlob(id));
           set((s) => ({
             media: s.media.filter((m) => m.id !== id),
             live: s.live.mediaId === id ? { ...s.live, mediaId: null } : s.live,
@@ -433,15 +443,28 @@ export const useStore = create<AppState>()(
           set((s) => {
             // Re-importing the same translation replaces it.
             const replaced = s.bibles.filter((b) => b.abbreviation === meta.abbreviation && b.name === meta.name);
-            for (const b of replaced) void deleteBibleText(b.id);
+            for (const b of replaced) quietly(deleteBibleText(b.id));
             return { bibles: [...s.bibles.filter((b) => !replaced.includes(b)), meta], settings: { ...s.settings, lastBible: meta.id } };
           }),
         deleteBible: (id) => {
-          void deleteBibleText(id);
+          quietly(deleteBibleText(id));
           set((s) => ({
             bibles: s.bibles.filter((b) => b.id !== id),
             settings: s.settings.lastBible === id ? { ...s.settings, lastBible: undefined } : s.settings,
           }));
+        },
+
+        addFonts: (fonts) =>
+          set((s) => {
+            // Adding the same family/weight/style again replaces the earlier file.
+            const same = (a: FontMeta, b: FontMeta) => a.family === b.family && a.weight === b.weight && a.italic === b.italic;
+            const replaced = s.fonts.filter((f) => fonts.some((n) => same(f, n)));
+            for (const f of replaced) quietly(deleteMediaBlob(f.id));
+            return { fonts: [...s.fonts.filter((f) => !replaced.includes(f)), ...fonts] };
+          }),
+        deleteFont: (id) => {
+          quietly(deleteMediaBlob(id));
+          set((s) => ({ fonts: s.fonts.filter((f) => f.id !== id) }));
         },
 
         addMessage: (text) => set((s) => ({ messages: [...s.messages, { id: uid(), text }] })),
@@ -544,6 +567,7 @@ export const useStore = create<AppState>()(
           set({
             ...data,
             bibles: data.bibles ?? [],
+            fonts: data.fonts ?? [],
             selectedPresentationId: null,
             selectedPlaylistItemId: null,
             editingThemeId: null,
@@ -553,7 +577,16 @@ export const useStore = create<AppState>()(
     },
     {
       name: 'lumen-library',
-      version: 1,
+      version: 2,
+      migrate: (persisted, version) => {
+        const saved = persisted as Partial<LibraryData>;
+        // Version 2 added the Copperplate theme.
+        if (version < 2 && saved.themes && !saved.themes.some((t) => t.id === 'theme-copperplate')) {
+          const copperplate = defaultThemes.find((t) => t.id === 'theme-copperplate');
+          if (copperplate) saved.themes = [...saved.themes, copperplate];
+        }
+        return saved as LibraryData;
+      },
       // Saved settings from older versions may lack newer keys.
       merge: (persisted, current) => {
         const saved = (persisted ?? {}) as Partial<LibraryData>;
@@ -568,6 +601,7 @@ export const useStore = create<AppState>()(
         settings: s.settings,
         activePlaylistId: s.activePlaylistId,
         bibles: s.bibles,
+        fonts: s.fonts,
       }),
     },
   ),

@@ -1,8 +1,8 @@
 import type { ReactNode } from 'react';
 import { useStore } from '../store';
-import { FONT_CHOICES } from '../theme';
 import type { Theme } from '../types';
 import { SlidePreview } from './Canvas';
+import { FontSelect } from './FontSelect';
 import { Dialog } from './ui';
 
 const SAMPLE = 'Amazing grace, how sweet the sound\nThat saved a wretch like me';
@@ -60,17 +60,7 @@ export function ThemeEditorDialog() {
           <fieldset>
             <legend>Text</legend>
             <Row label="Font">
-              <select
-                value={FONT_CHOICES.some((f) => f.value === t.fontFamily) ? t.fontFamily : ''}
-                onChange={(e) => set({ fontFamily: e.target.value })}
-              >
-                {!FONT_CHOICES.some((f) => f.value === t.fontFamily) && <option value="">{t.fontFamily}</option>}
-                {FONT_CHOICES.map((f) => (
-                  <option key={f.value} value={f.value}>
-                    {f.label}
-                  </option>
-                ))}
-              </select>
+              <FontSelect value={t.fontFamily} onChange={(fontFamily) => set({ fontFamily })} />
             </Row>
             <Row label="Max size">
               <input

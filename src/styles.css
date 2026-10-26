@@ -2625,6 +2625,22 @@ kbd {
   margin-bottom: 4px;
 }
 
+.font-status {
+  padding: 8px 10px;
+  border-radius: 6px;
+  margin: 0;
+}
+
+.font-status.ok {
+  background: rgba(48, 209, 88, 0.12);
+  color: #b7f0c6;
+}
+
+.font-status.warn {
+  background: rgba(247, 148, 29, 0.14);
+  color: #ffd9a8;
+}
+
 .bible-row {
   display: flex;
   align-items: center;

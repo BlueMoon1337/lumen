@@ -1,6 +1,11 @@
 import { lazy, StrictMode, Suspense } from 'react';
 import { createRoot } from 'react-dom/client';
 import './styles.css';
+// Bundled open-licensed fonts (SIL OFL); Cinzel stands in for Copperplate where it isn't installed.
+import '@fontsource/cinzel/latin-400.css';
+import '@fontsource/cinzel/latin-ext-400.css';
+import '@fontsource/cinzel/latin-700.css';
+import '@fontsource/cinzel/latin-ext-700.css';
 
 // One bundle, three windows: the operator view plus the audience and stage outputs.
 const route = location.hash.replace(/^#\/?/, '');

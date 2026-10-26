@@ -1,5 +1,6 @@
 import { useEffect, useLayoutEffect, useRef, useState, type CSSProperties, type ReactNode } from 'react';
 import { timerRemaining, useNow } from '../clock';
+import { useFontsVersion } from '../fonts';
 import { useMedia } from '../media';
 import { toFrameBackground } from '../theme';
 import type { FrameBackground, OutputFrame, Theme, ThemeBackground } from '../types';
@@ -85,7 +86,9 @@ export function SlideText({ text, caption, theme }: { text: string; caption?: st
   const boxRef = useRef<HTMLDivElement>(null);
   const contentRef = useRef<HTMLDivElement>(null);
   const [box, setBox] = useState<{ w: number; h: number } | null>(null);
-  const key = box && `${fitKey(text, caption, theme)}|${box.w}x${box.h}`;
+  // Re-measure once fonts finish loading; until then the fallback font was measured.
+  const fontsVersion = useFontsVersion();
+  const key = box && `${fitKey(text, caption, theme)}|${box.w}x${box.h}|${fontsVersion}`;
   const [size, setSize] = useState(theme.fontSize);
 
   // The box is sized by the theme's insets on the fixed canvas, so it only

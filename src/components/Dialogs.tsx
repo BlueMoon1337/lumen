@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { bookLabel, lookupLocal, parseReference, type Passage, type Verse } from '../bible';
-import { importBibleFile, importFiles } from '../commands';
+import { addFontFiles, importBibleFile, importFiles } from '../commands';
+import { cssFamilyFor, faceName, FONT_ACCEPT, isFontInstalled } from '../fonts';
 import { notify } from '../notices';
 import { type DisplayInfo, type OutputKind } from '../outputs';
 import { exportLibrary, isLibraryData, useStore } from '../store';
@@ -286,7 +287,17 @@ export function SettingsDialog({ onClose }: { onClose: () => void }) {
   const themes = useStore((s) => s.themes);
   const media = useStore((s) => s.media);
   const bibles = useStore((s) => s.bibles);
+  const fonts = useStore((s) => s.fonts);
   const s = useStore.getState();
+  const [copperplate] = useState(() =>
+    fonts.some((f) => /^copperplate/i.test(f.family))
+      ? 'added'
+      : isFontInstalled('Copperplate')
+        ? 'installed'
+        : isFontInstalled('Copperplate Gothic Light')
+          ? 'gothic'
+          : 'missing',
+  );
   const [displays, setDisplays] = useState<DisplayInfo[]>([]);
 
   useEffect(() => {
@@ -414,6 +425,43 @@ export function SettingsDialog({ onClose }: { onClose: () => void }) {
             Import Bible (.rvbible)…
           </button>
         </div>
+      </section>
+      <section className="settings-section">
+        <h4>Fonts</h4>
+        <p className={`small-print font-status ${copperplate === 'missing' ? 'warn' : 'ok'}`}>
+          {
+            {
+              installed: 'Copperplate is installed on this computer, so slides set in Copperplate look as they do in ProPresenter.',
+              gothic: 'This computer has Copperplate Gothic, which Lumen uses for Copperplate.',
+              added: 'Copperplate comes from a font file added below.',
+              missing:
+                'Copperplate isn’t installed on this computer, so Lumen shows the free Cinzel font in its place. Every Mac has Copperplate; on Windows it comes with Microsoft Office as Copperplate Gothic.',
+            }[copperplate]
+          }
+        </p>
+        {fonts.map((f) => (
+          <div key={f.id} className="bible-row">
+            <span
+              className="list-label"
+              style={{ fontFamily: cssFamilyFor(f.family), fontWeight: f.weight, fontStyle: f.italic ? 'italic' : 'normal' }}
+            >
+              {f.family}
+            </span>
+            <span className="muted">{faceName(f)}</span>
+            <button className="btn small danger" onClick={() => confirm(`Remove ${f.family} ${faceName(f)}?`) && s.deleteFont(f.id)}>
+              Remove
+            </button>
+          </div>
+        ))}
+        <div className="button-row">
+          <button className="btn" onClick={() => pickFiles(FONT_ACCEPT).then((files) => addFontFiles(files))}>
+            Add font files…
+          </button>
+        </div>
+        <p className="muted small-print">
+          Add .ttf, .otf, .woff or .ttc files you’re licensed to use. Fonts installed on the computer can also be picked by name from any
+          font menu.
+        </p>
       </section>
       <section className="settings-section">
         <h4>Library</h4>

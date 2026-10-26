@@ -54,16 +54,3 @@ export function inkFor(hex: string): string {
   const [r, g, b] = m.slice(1).map((h) => parseInt(h, 16) / 255);
   return 0.2126 * r + 0.7152 * g + 0.0722 * b > 0.6 ? '#3a3a3a' : '#fff';
 }
-
-export const FONT_CHOICES = [
-  { label: 'Helvetica / Arial', value: '"Helvetica Neue", Helvetica, Arial, sans-serif' },
-  { label: 'System UI', value: 'system-ui, -apple-system, "Segoe UI", Roboto, sans-serif' },
-  { label: 'Georgia', value: 'Georgia, "Times New Roman", serif' },
-  { label: 'Times', value: '"Times New Roman", Times, serif' },
-  { label: 'Verdana', value: 'Verdana, Geneva, sans-serif' },
-  { label: 'Trebuchet', value: '"Trebuchet MS", sans-serif' },
-  { label: 'Impact', value: 'Impact, "Arial Black", sans-serif' },
-  { label: 'Courier', value: '"Courier New", Courier, monospace' },
-];
-
-export const fontLabel = (value: string) => FONT_CHOICES.find((f) => f.value === value)?.label ?? value.split(',')[0].replace(/"/g, '');

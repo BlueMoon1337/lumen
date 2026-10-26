@@ -4,7 +4,7 @@ import { defaultThemes } from '../seed';
 import type { OutputFrame, Theme } from '../types';
 import { formatClock, formatDuration } from '../util';
 import { ScaledCanvas, SlideText } from './Canvas';
-import { useOutputWindowChrome } from './OutputApp';
+import { useFrameFonts, useOutputWindowChrome } from './OutputApp';
 
 const stageText = (overrides: Partial<Theme>): Theme => ({
   ...defaultThemes[0],
@@ -51,6 +51,7 @@ export function StageView({ frame }: { frame: OutputFrame | null }) {
 
 export default function StageApp() {
   const frame = useRemoteFrame();
+  useFrameFonts(frame);
   const idle = useOutputWindowChrome('Lumen · Stage');
   return (
     <div className={`output-window ${idle ? 'idle' : ''}`}>

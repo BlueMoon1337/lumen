@@ -2,9 +2,10 @@ import { useCallback, useMemo, useState, type ReactNode } from 'react';
 import { IMPORT_ACCEPT, importFiles, newPresentation } from '../commands';
 import { closeOutput, openOutput, useOpenOutputs, type OutputKind } from '../outputs';
 import { useStore, type Mode } from '../store';
-import { applyStyles, FONT_CHOICES, resolveTheme } from '../theme';
+import { applyStyles, resolveTheme } from '../theme';
 import type { TextStyle, Theme } from '../types';
 import { SlidePreview } from './Canvas';
+import { FontSelect } from './FontSelect';
 import { Icon, IconButton, pickFiles, Popover, type IconName } from './ui';
 
 type PopoverName = 'search' | 'text' | 'theme' | 'more';
@@ -173,20 +174,12 @@ function TextPopover() {
 
   const eff = applyStyles(resolveTheme({ themes, settings }, p), p.style);
   const set = (patch: TextStyle) => useStore.getState().updatePresentation(p.id, { style: { ...p.style, ...patch } });
-  const fontKnown = FONT_CHOICES.some((f) => f.value === eff.fontFamily);
 
   return (
     <div className="text-pop-body">
       <div className="pop-title">Text · {p.title}</div>
       <div className="pop-row">
-        <select value={fontKnown ? eff.fontFamily : ''} onChange={(e) => set({ fontFamily: e.target.value })} aria-label="Font">
-          {!fontKnown && <option value="">{eff.fontFamily}</option>}
-          {FONT_CHOICES.map((f) => (
-            <option key={f.value} value={f.value}>
-              {f.label}
-            </option>
-          ))}
-        </select>
+        <FontSelect value={eff.fontFamily} onChange={(fontFamily) => set({ fontFamily })} />
         <input
           type="number"
           className="num"

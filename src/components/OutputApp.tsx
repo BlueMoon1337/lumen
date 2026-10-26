@@ -1,5 +1,7 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
+import { registerFonts } from '../fonts';
 import { useRemoteFrame } from '../sync';
+import type { FontMeta } from '../types';
 import { OutputView } from './Canvas';
 
 /** Shared behaviour for output windows: hide the cursor when idle, double-click for fullscreen. */
@@ -28,8 +30,20 @@ export function useOutputWindowChrome(title: string) {
   return idle;
 }
 
+/** Loads the fonts the operator added, so slides render in them here too. */
+export function useFrameFonts(frame: { fonts: FontMeta[] } | null) {
+  const latest = useRef(frame?.fonts);
+  latest.current = frame?.fonts;
+  // Frames arrive constantly; only react when the set of fonts changes.
+  const ids = frame?.fonts.map((f) => f.id).join(',');
+  useEffect(() => {
+    if (latest.current) void registerFonts(latest.current);
+  }, [ids]);
+}
+
 export default function OutputApp() {
   const frame = useRemoteFrame();
+  useFrameFonts(frame);
   const idle = useOutputWindowChrome('Lumen · Audience');
   return (
     <div className={`output-window ${idle ? 'idle' : ''}`}>

@@ -4,6 +4,7 @@ import { idbRequest } from './idb';
 const request = <T>(mode: IDBTransactionMode, run: (store: IDBObjectStore) => IDBRequest<T>) => idbRequest('blobs', mode, run);
 
 export const putMediaBlob = (id: string, blob: Blob) => request('readwrite', (s) => s.put(blob, id));
+export const getMediaBlob = (id: string) => request<Blob | undefined>('readonly', (s) => s.get(id));
 export const deleteMediaBlob = (id: string) => {
   const cached = loaded.get(id);
   if (cached) URL.revokeObjectURL(cached.url);

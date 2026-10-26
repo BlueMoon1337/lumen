@@ -50,6 +50,7 @@ export function buildFrame(s: AppState): OutputFrame {
     message: message ? { key: message.id, text: message.text } : null,
     logoMediaId: s.live.logo ? (s.settings.logoMediaId ?? null) : null,
     transitionMs: p?.transitionMs ?? s.settings.transitionMs,
+    fonts: s.fonts,
     timer: s.timer,
     stage: {
       title: p?.title ?? null,

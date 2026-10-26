@@ -90,6 +90,15 @@ export interface Theme {
   background: ThemeBackground;
 }
 
+/** A font file the user added; the file itself is stored in IndexedDB under `id`. */
+export interface FontMeta {
+  id: string;
+  family: string;
+  weight: number;
+  italic: boolean;
+  fileName: string;
+}
+
 export interface MediaItem {
   id: string;
   name: string;
@@ -170,6 +179,8 @@ export interface OutputFrame {
   message: { key: string; text: string } | null;
   logoMediaId: string | null;
   transitionMs: number;
+  /** Added fonts, so output windows can load the ones slides use. */
+  fonts: FontMeta[];
   timer: TimerState;
   stage: {
     title: string | null;

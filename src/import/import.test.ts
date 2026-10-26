@@ -131,6 +131,61 @@ describe('ProPresenter 7 import', () => {
   });
 });
 
+describe('ProPresenter fonts', () => {
+  const styledCue = (id: string, text: string, font: string, size: number) =>
+    msg(
+      13,
+      uuid(1, id),
+      msg(
+        10,
+        msg(
+          23,
+          msg(
+            2,
+            msg(
+              1,
+              msg(
+                1,
+                msg(
+                  1,
+                  msg(
+                    13,
+                    msg(
+                      3,
+                      msg(1, str(1, font), double(2, size), str(9, font.replace(/-.*$/, ''))),
+                      msg(3, float(1, 1), float(2, 1), float(3, 1), float(4, 1)),
+                      msg(6, num(1, 2)),
+                    ),
+                    str(5, rtf(text)),
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+
+  it('takes the font, size, color and alignment most slides use', () => {
+    const p = parseProPresenter7(
+      concat([
+        str(3, 'Con fuente'),
+        group('G1', 'Verse 1', [0, 0, 1], ['S1', 'S2', 'S3']),
+        styledCue('S1', 'uno', 'Copperplate-Light', 140),
+        styledCue('S2', 'dos', 'Copperplate-Light', 140),
+        styledCue('S3', 'tres', 'Helvetica-Bold', 90),
+      ]),
+    );
+    expect(p.style).toEqual({
+      fontFamily: 'Copperplate, "Copperplate Gothic Light", "Copperplate Gothic", Cinzel, serif',
+      fontWeight: 300,
+      fontSize: 140,
+      color: '#ffffff',
+      textAlign: 'center',
+    });
+  });
+});
+
 describe('RTF', () => {
   it('keeps text and line breaks, drops tables and formatting', () => {
     const text = rtfToText(

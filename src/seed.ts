@@ -1,3 +1,4 @@
+import { COPPERPLATE } from './fonts';
 import { parseLyrics } from './lyrics';
 import type { Category, Message, Playlist, Presentation, Theme } from './types';
 import { uid } from './util';
@@ -48,6 +49,18 @@ export const defaultThemes: Theme[] = [
     inset: { top: 10, right: 10, bottom: 12, left: 10 },
     captionScale: 0.6,
     background: { type: 'gradient', color: '#1c1917', color2: '#44403c' },
+  },
+  {
+    ...baseTheme,
+    id: 'theme-copperplate',
+    name: 'Copperplate',
+    fontFamily: COPPERPLATE,
+    fontSize: 140,
+    fontWeight: 300,
+    shadow: false,
+    lineHeight: 1.25,
+    inset: { top: 8, right: 5, bottom: 8, left: 5 },
+    background: { type: 'none', color: '#000000', color2: '#000000' },
   },
   {
     ...baseTheme,

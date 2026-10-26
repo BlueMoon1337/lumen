@@ -10,9 +10,10 @@ import {
 } from 'react';
 import { useMedia } from '../media';
 import { useStore } from '../store';
-import { applyStyles, FONT_CHOICES, inkFor, resolveTheme, slideTheme, toFrameBackground } from '../theme';
+import { applyStyles, inkFor, resolveTheme, slideTheme, toFrameBackground } from '../theme';
 import type { Category, Group, MediaItem, Presentation, Slide, TextStyle, Theme, ThemeBackground } from '../types';
 import { BackgroundFill, CANVAS_H, CANVAS_W, slideBoxStyle, SlidePreview, SlideText, slideTextStyle } from './Canvas';
+import { FontSelect } from './FontSelect';
 import { LIBRARIES } from './Sidebar';
 import { AlignButtons } from './Toolbar';
 import { Icon, IconButton, Popover } from './ui';
@@ -775,7 +776,6 @@ function TextTab({ presentation: p, slide }: { presentation: Presentation; slide
   const s = useStore.getState();
   const eff = applyStyles(base, p.style, slide.style);
   const set = (patch: TextStyle) => s.updateSlide(p.id, slide.id, { style: { ...slide.style, ...patch } });
-  const fontKnown = FONT_CHOICES.some((f) => f.value === eff.fontFamily);
   const { inset } = eff;
   const px = {
     x: Math.round((inset.left / 100) * CANVAS_W),
@@ -801,14 +801,7 @@ function TextTab({ presentation: p, slide }: { presentation: Presentation; slide
     <>
       <section className="insp-section">
         <div className="insp-heading">Font</div>
-        <select className="insp-wide" value={fontKnown ? eff.fontFamily : ''} onChange={(e) => set({ fontFamily: e.target.value })}>
-          {!fontKnown && <option value="">{eff.fontFamily}</option>}
-          {FONT_CHOICES.map((f) => (
-            <option key={f.value} value={f.value}>
-              {f.label}
-            </option>
-          ))}
-        </select>
+        <FontSelect className="insp-wide" value={eff.fontFamily} onChange={(fontFamily) => set({ fontFamily })} />
         <Field label="Max size">
           <input type="number" min={12} max={300} value={eff.fontSize} onChange={(e) => set({ fontSize: Number(e.target.value) || 12 })} />
         </Field>

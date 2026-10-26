@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { registerFonts } from '../fonts';
 import { startFrameSync } from '../liveFrame';
 import { dismiss, useNotices } from '../notices';
 import { useStore } from '../store';
@@ -70,7 +71,12 @@ export default function ControlApp() {
   const showMediaBin = useStore((s) => s.showMediaBin);
   const editingTheme = useStore((s) => s.editingThemeId);
 
+  const fonts = useStore((s) => s.fonts);
+
   useEffect(() => startFrameSync(), []);
+  useEffect(() => {
+    void registerFonts(fonts);
+  }, [fonts]);
   useShortcuts(dialog === null && !editingTheme);
 
   return (
