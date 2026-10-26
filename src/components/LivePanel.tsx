@@ -2,40 +2,103 @@ import { useRef, useState, type CSSProperties } from 'react';
 import { timerRemaining, useNow } from '../clock';
 import { useLiveFrame } from '../liveFrame';
 import { useStore, type LiveTab } from '../store';
+import { ALL_LAYERS, isLayerLive, LAYERS } from '../layers';
 import { formatDuration, parseDuration } from '../util';
+import { AudioTab } from './AudioTab';
+import { seekAudio, useAudioStatus } from './AudioPlayer';
 import { OutputView } from './Canvas';
+import { ClearGroupsRow } from './ClearGroups';
 import { setPaneSize, Splitter } from './Splitter';
 import { StageView } from './StageView';
 import { TransitionButton } from './TransitionPicker';
 import { Icon, IconButton, SectionHeader, type IconName } from './ui';
 
-function ClearButton({
-  icon,
-  label,
-  hotkey,
-  active,
-  onClick,
-}: {
-  icon: IconName;
-  label: string;
-  hotkey: string;
-  active: boolean;
-  onClick: () => void;
-}) {
+/** ProPresenter's clear column: one button per layer, lit while that layer has something on it. */
+function ClearColumn() {
+  const live = useStore((s) => s.live);
+  const s = useStore.getState();
   return (
-    <button
-      className={`clear-btn ${active ? 'active' : ''}`}
-      onClick={onClick}
-      disabled={!active}
-      title={`Clear ${label} (${hotkey})`}
-      aria-label={`Clear ${label}`}
-    >
-      <Icon name={icon} size={18} />
-    </button>
+    <div className="clear-strip">
+      {LAYERS.map((l) => {
+        const active = isLayerLive(live, l.id);
+        return (
+          <button
+            key={l.id}
+            className={`clear-btn ${active ? 'active' : ''}`}
+            onClick={() => s.clearLayers([l.id])}
+            disabled={!active}
+            title={`Clear ${l.label}${l.hotkey ? ` (${l.hotkey})` : ''}`}
+            aria-label={`Clear ${l.label}`}
+          >
+            <Icon name={l.icon} size={16} />
+          </button>
+        );
+      })}
+    </div>
+  );
+}
+
+const time = (seconds: number) => formatDuration(Math.round(seconds) * 1000);
+
+/** What's playing: the media bin's video, and audio from the Audio tab, each with its controls. */
+function NowPlaying() {
+  const live = useStore((s) => s.live);
+  const video = useStore((s) => s.media.find((m) => m.id === s.live.mediaId && m.kind === 'video'));
+  const audio = useStore((s) => s.media.find((m) => m.id === s.live.audioId));
+  const status = useAudioStatus();
+  const s = useStore.getState();
+  if (!video && !audio && !live.videoInput) return <div className="transport-name">Nothing playing</div>;
+  return (
+    <div className="now-playing">
+      {live.videoInput && (
+        <div className="np-row">
+          <Icon name="video" size={14} />
+          <span className="np-name">{live.videoInput.label}</span>
+        </div>
+      )}
+      {video && (
+        <div className="np-row">
+          <Icon name="image" size={14} />
+          <span className="np-name">{video.name}</span>
+          <IconButton icon="reset" title="Restart video" onClick={s.restartMedia} />
+          <IconButton
+            icon={live.mediaPaused ? 'play' : 'pause'}
+            title={live.mediaPaused ? 'Play' : 'Pause'}
+            onClick={() => s.setMediaPaused(!live.mediaPaused)}
+          />
+        </div>
+      )}
+      {audio && (
+        <div className="np-row">
+          <Icon name="music" size={14} />
+          <span className="np-name">{audio.name}</span>
+          <span className="np-time">
+            {time(status.time)} / {time(status.duration)}
+          </span>
+          <IconButton icon="reset" title="Play from the start" onClick={s.restartAudio} />
+          <IconButton
+            icon={live.audioPaused ? 'play' : 'pause'}
+            title={live.audioPaused ? 'Play' : 'Pause'}
+            onClick={() => s.setAudioPaused(!live.audioPaused)}
+          />
+          <input
+            className="np-seek pink-range"
+            type="range"
+            min={0}
+            max={status.duration || 1}
+            step={0.1}
+            value={Math.min(status.time, status.duration || 1)}
+            onChange={(e) => seekAudio(Number(e.target.value))}
+            aria-label="Position"
+          />
+        </div>
+      )}
+    </div>
   );
 }
 
 const TABS: { id: LiveTab; icon: IconName; label: string }[] = [
+  { id: 'audio', icon: 'music', label: 'Audio' },
   { id: 'stage', icon: 'person', label: 'Stage' },
   { id: 'timers', icon: 'clock', label: 'Timers' },
   { id: 'messages', icon: 'send', label: 'Messages' },
@@ -47,10 +110,9 @@ export function LivePanel() {
   const frame = useLiveFrame((s) => s.frame);
   const live = useStore((s) => s.live);
   const tab = useStore((s) => s.liveTab);
-  const liveMedia = useStore((s) => s.media.find((m) => m.id === s.live.mediaId));
   const s = useStore.getState();
   const [screen, setScreen] = useState<'audience' | 'stage'>('audience');
-  const anything = !!(live.slide || live.mediaId || live.messageId || live.logo);
+  const anything = ALL_LAYERS.some((l) => isLayerLive(live, l));
   // Height of the preview and transport above the tabs; unset, the preview is as tall as its width allows.
   const topHeight = useStore((s) => s.settings.panes?.liveTop);
   const side = useRef<HTMLElement>(null);
@@ -68,12 +130,7 @@ export function LivePanel() {
           <button className="clear-all" onClick={s.clearAll} disabled={!anything} title="Clear All (F1)" aria-label="Clear all">
             <Icon name="close" size={14} />
           </button>
-          <div className="clear-strip">
-            <ClearButton icon="send" label="Messages" hotkey="F4" active={!!live.messageId} onClick={() => s.showMessage(null)} />
-            <ClearButton icon="layers" label="Logo" hotkey="F6" active={live.logo} onClick={s.toggleLogo} />
-            <ClearButton icon="lines" label="Slide" hotkey="F2" active={!!live.slide} onClick={s.clearSlide} />
-            <ClearButton icon="image" label="Media" hotkey="F3" active={!!live.mediaId} onClick={s.clearMedia} />
-          </div>
+          <ClearColumn />
         </div>
         <div className="screen-row">
           <select value={screen} onChange={(e) => setScreen(e.target.value as 'audience' | 'stage')} aria-label="Preview screen">
@@ -83,28 +140,9 @@ export function LivePanel() {
           <span className="screen-label">{frame.stage.currentLabel ?? ''}</span>
           <TransitionButton target="global" className="live-transition" prefix="Global" />
         </div>
+        <ClearGroupsRow />
         <div className="transport">
-          <div className="layer-lights">
-            <span className={live.slide ? 'on' : ''} title="Slide">
-              <Icon name="lines" size={14} />
-            </span>
-            <span className={live.mediaId ? 'on' : ''} title="Media">
-              <Icon name="image" size={14} />
-            </span>
-            <span className={live.messageId ? 'on' : ''} title="Message">
-              <Icon name="send" size={14} />
-            </span>
-          </div>
-          <div className="transport-name">{liveMedia ? liveMedia.name : 'No media playing'}</div>
-          <div className="transport-buttons">
-            <IconButton icon="reset" title="Restart video" disabled={liveMedia?.kind !== 'video'} onClick={s.restartMedia} />
-            <IconButton
-              icon={live.mediaPaused ? 'play' : 'pause'}
-              title={live.mediaPaused ? 'Play' : 'Pause'}
-              disabled={liveMedia?.kind !== 'video'}
-              onClick={() => s.setMediaPaused(!live.mediaPaused)}
-            />
-          </div>
+          <NowPlaying />
         </div>
       </div>
       <Splitter
@@ -135,6 +173,7 @@ export function LivePanel() {
         ))}
       </nav>
       <div className="live-tab-body">
+        {tab === 'audio' && <AudioTab />}
         {tab === 'stage' && <StageTab />}
         {tab === 'timers' && <TimersTab />}
         {tab === 'messages' && <MessagesTab />}

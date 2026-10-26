@@ -8,7 +8,9 @@ import { dismiss, useNotices } from '../notices';
 import { setScreensEnabled, startScreenManager } from '../outputs';
 import { useStore } from '../store';
 import { isTypingTarget } from '../util';
+import { AudioPlayer } from './AudioPlayer';
 import { BibleView } from './BibleView';
+import { ClearGroupsDialog } from './ClearGroups';
 import { ContextMenuHost } from './ContextMenu';
 import { LabelsDialog, SettingsDialog } from './Dialogs';
 import { EditView, findSlide } from './EditView';
@@ -70,6 +72,7 @@ function useShortcuts(enabled: boolean) {
         F2: s.clearSlide,
         F3: s.clearMedia,
         F4: () => s.showMessage(null),
+        F5: () => s.clearLayers(['audio']),
         F6: s.toggleLogo,
       };
       const navigation: Record<string, () => void> = {
@@ -143,6 +146,29 @@ function useEditShortcuts(enabled: boolean) {
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
   }, [enabled]);
+}
+
+/**
+ * Presentations set to advance by themselves (an announcement loop, say) move on after their
+ * time, on whichever layer they're showing. Changing slide by hand starts the time again.
+ */
+function useAutoAdvance() {
+  const slide = useStore((s) => s.live.slide);
+  const announcement = useStore((s) => s.live.announcement);
+  const slideSeconds = useStore((s) => (s.live.slide ? s.presentations[s.live.slide.presentationId]?.autoAdvance?.seconds : undefined));
+  const announcementSeconds = useStore((s) =>
+    s.live.announcement ? s.presentations[s.live.announcement.presentationId]?.autoAdvance?.seconds : undefined,
+  );
+  useEffect(() => {
+    if (!slide || !slideSeconds) return;
+    const t = setTimeout(() => useStore.getState().advanceLayer('slide'), slideSeconds * 1000);
+    return () => clearTimeout(t);
+  }, [slide, slideSeconds]);
+  useEffect(() => {
+    if (!announcement || !announcementSeconds) return;
+    const t = setTimeout(() => useStore.getState().advanceLayer('announcement'), announcementSeconds * 1000);
+    return () => clearTimeout(t);
+  }, [announcement, announcementSeconds]);
 }
 
 const toggleScreens = (kind: 'audience' | 'stage') => {
@@ -306,6 +332,7 @@ export default function ControlApp() {
     void deleteUnusedBlobs(new Set([...media.map((m) => m.id), ...fonts.map((f) => f.id)])).catch(() => {});
   }, []);
   useUndoKeys();
+  useAutoAdvance();
   useEffect(() => startScreenManager(), []);
   const openScreens = useCallback(() => setDialog('screens'), [setDialog]);
   useScreenCommands(openScreens);
@@ -360,10 +387,12 @@ export default function ControlApp() {
       {dialog === 'settings' && <SettingsDialog onClose={() => setDialog(null)} onScreens={openScreens} />}
       {dialog === 'screens' && <ScreenConfigDialog onClose={() => setDialog(null)} />}
       {dialog === 'labels' && <LabelsDialog onClose={() => setDialog(null)} />}
+      {dialog === 'clearGroups' && <ClearGroupsDialog onClose={() => setDialog(null)} />}
       {editingTheme && <ThemeEditorDialog />}
       {!appIcon && <WelcomeDialog />}
       <Notices />
       <ContextMenuHost />
+      <AudioPlayer />
     </div>
   );
 }

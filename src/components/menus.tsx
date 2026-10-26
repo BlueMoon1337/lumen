@@ -294,6 +294,36 @@ export function presentationMenu(p: Presentation, playlistItemId?: string): Cont
       ],
     },
     { label: 'Transition', submenu: () => transitionEntries({ presentationId: p.id, scope: 'presentation' }) },
+    {
+      label: 'Plays On',
+      submenu: [
+        { label: 'Slides', checked: !p.destination, action: () => s.updatePresentation(p.id, { destination: undefined }) },
+        {
+          label: 'Announcements',
+          checked: p.destination === 'announcements',
+          action: () => s.updatePresentation(p.id, { destination: 'announcements' }),
+        },
+      ],
+    },
+    {
+      label: 'Auto-Advance',
+      submenu: [
+        { label: 'Off', checked: !p.autoAdvance, action: () => s.updatePresentation(p.id, { autoAdvance: undefined }) },
+        '-',
+        ...[5, 8, 10, 15, 30, 60].map((seconds) => ({
+          label: `Every ${seconds}s`,
+          checked: p.autoAdvance?.seconds === seconds,
+          action: () => s.updatePresentation(p.id, { autoAdvance: { loop: p.autoAdvance?.loop ?? true, seconds } }),
+        })),
+        '-',
+        {
+          label: 'Loop',
+          checked: !!p.autoAdvance?.loop,
+          disabled: !p.autoAdvance,
+          action: () => p.autoAdvance && s.updatePresentation(p.id, { autoAdvance: { ...p.autoAdvance, loop: !p.autoAdvance.loop } }),
+        },
+      ],
+    },
     { label: 'Paste Text Style to All Slides', disabled: !s.styleClipboard, action: () => s.pasteTextStyle(p.id, 'presentation') },
     '-',
     {

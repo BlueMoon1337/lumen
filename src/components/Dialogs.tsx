@@ -242,6 +242,10 @@ export function SettingsDialog({ onClose, onScreens }: { onClose: () => void; on
           </dt>
           <dd>Clear slide / media / message</dd>
           <dt>
+            <kbd>F5</kbd>
+          </dt>
+          <dd>Clear audio</dd>
+          <dt>
             <kbd>F6</kbd>
           </dt>
           <dd>Toggle logo</dd>

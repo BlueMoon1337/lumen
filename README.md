@@ -44,7 +44,7 @@ npm run desktop:build  # build the finished, installable app
 
 `desktop:build` puts the app in `src-tauri/target/release/bundle/`. On a Mac that's `macos/Lumen.app` (drag it into Applications) and a `.dmg` disk image; on Windows, an `.msi` installer and a setup `.exe`. The first build downloads and compiles the Rust libraries and takes several minutes; later builds are much quicker.
 
-An app you build runs on your own computer. Before it can be handed to other Macs without the "unidentified developer" warning, it has to be signed and notarized with an Apple Developer account. Until then, right-click the app and choose **Open** the first time.
+An app you build runs on your own computer. Before it can be handed to other Macs without the "unidentified developer" warning, it has to be signed and notarized with an Apple Developer account. Until then, right-click the app and choose **Open** the first time. A signed build also needs the camera entitlement (`com.apple.security.device.camera`) for Video Input; `src-tauri/Info.plist` already has the message macOS shows when it asks.
 
 ### Other scripts
 
@@ -66,9 +66,9 @@ npm run format       # Prettier
 | Dividers between the panes (library, slides, media bin, live panel, and above the live panel’s tabs)                                 | Same: drag to resize, double-click to reset. Edit mode’s slide list and inspector resize too. Sizes are kept.                                                                                                                                      |
 | Library and Playlist at the top left, items below with a Filter                                                                      | Same. Libraries are Songs, Scripture, Announcements and Other. Drag a presentation onto a playlist name to add it.                                                                                                                                 |
 | Slide grid with numbered, colored group labels                                                                                       | Same. Click a slide to go live (orange border), double-click to edit it.                                                                                                                                                                           |
-| Media bin along the bottom                                                                                                           | Same, with All Media / Images / Videos on the left. Click an item to play it behind the slides.                                                                                                                                                    |
-| Preview with clear buttons on its right edge, ✕ for Clear All                                                                        | Same: Messages, Logo, Slide and Media clear buttons light up while their layer is live.                                                                                                                                                            |
-| Screen picker, transport, and Stage / Timers / Messages / Props tabs                                                                 | Same.                                                                                                                                                                                                                                              |
+| Media bin along the bottom                                                                                                           | Same, with All Media / Images / Videos and Video Inputs on the left. Click an item to play it behind the slides, or a camera to show it underneath.                                                                                                |
+| Preview with clear buttons on its right edge, ✕ for Clear All, Clear Groups underneath                                               | Same column in the same order: Audio, Messages, Logo (where ProPresenter has Props), Announcements, Slide, Media, Video Input. Each lights up while its layer is live. Clear Groups clear several layers at once.                                  |
+| Screen picker, transport, and Audio / Stage / Timers / Messages / Props tabs                                                         | Same. The Audio tab is the audio bin.                                                                                                                                                                                                              |
 | Edit: slide list with group headers, Objects, canvas with rulers, Presentation / Slide inspector                                     | Same. Drag or resize the text box, double-click to type on the slide. The Text tab formats one slide.                                                                                                                                              |
 | Reflow                                                                                                                               | Type the whole song as text with `[Verse 1]` headers.                                                                                                                                                                                              |
 | Right-click menus                                                                                                                    | Same: slides, group headers, the Edit canvas, library and playlist items, playlists, headers and media each have one. See Slides, groups and labels below.                                                                                         |
@@ -90,7 +90,10 @@ npm run format       # Prettier
 - **Undo and redo** for every change to the library, slides, playlists, themes and messages (see Undo below).
 - **Right-click menus** everywhere, **Copy / Paste Text Style**, **group presets** and **slide labels** (see Slides, groups and labels below).
 - **Media bin** for images and looping videos as backgrounds, stored locally in IndexedDB, with pause and restart.
-- **Layers** as in ProPresenter: background, slide, message and logo, each cleared on its own.
+- **Layers** as in ProPresenter: Video Input, Media, Slide, Announcements, Logo, Messages and Audio, each cleared on its own or with a **Clear Group** (see Layers below).
+- **Audio bin** in the live panel: music and sound effects that play from this computer, loop if you like, and fade out when cleared.
+- **Announcements**: a presentation can play on its own layer over the slides, and any presentation can advance by itself (an announcement loop).
+- **Video Input**: webcams, capture cards and virtual cameras (OBS, NDI) as a live layer under everything.
 - **Countdown timer**, either a duration or a time of day, shown on the stage display and usable in messages.
 - **Messages** on the audience screen, with `{countdown}` and `{clock}` tokens.
 - **Stage display** showing the current and next slide, notes, clock, timer, and a flashing message to the stage.
@@ -151,6 +154,28 @@ A slide comes on screen with its own transition, else its presentation's, else t
 - In a text field, ⌘Z undoes the typing, as usual; click outside it to undo whole steps.
 - Showing slides, clearing the screen, Bible mode's passage, screen setup, pane sizes and other preferences aren't edits and stay as they are.
 - Up to 200 steps, until Lumen is closed. A deleted media file is kept until the next launch, so undoing brings it back.
+
+## Layers
+
+The column on the right of the preview clears one layer each, top to bottom as in ProPresenter (there's no Props layer; Lumen's logo sits in its place). A layer's button lights up while it has something on it, and **✕** clears them all (F1).
+
+| Layer         | What's on it                                                                                      | Clear |
+| ------------- | ------------------------------------------------------------------------------------------------- | ----- |
+| Audio         | A track from the **Audio** tab, playing from this computer. Clearing fades it out.                | F5    |
+| Messages      | A message from the Messages tab                                                                   | F4    |
+| Logo          | The logo (Props tab, or a media item's right-click menu)                                          | F6    |
+| Announcements | A slide from a presentation that plays on Announcements, with its own background, over the slides |       |
+| Slide         | The slide, and the background that goes with it                                                   | F2    |
+| Media         | An image or video from the media bin, in place of slide backgrounds                               | F3    |
+| Video Input   | A camera or capture card, underneath everything                                                   |       |
+
+**Clear Groups** sit under the preview: each clears several layers at once, and lights up while any of them is live. Lumen starts with **Clear Text** (slide, announcements and messages, so the background and music keep going), **Clear All but Audio**, and **Clear Media & Audio**. The gear button, or a right-click there, opens **Clear Groups** to add your own with a name, icon and color, and pick its layers.
+
+**Audio.** The **Audio** tab (music note) holds songs and sound effects. Drop files there or press +, then click one to play it and again to stop. The ↻ button or right-click → **Loop** repeats it. While it plays, the transport under the preview shows the time, a position slider, pause and play from the start. Audio plays from the operator computer's speakers or sound card, as in ProPresenter. A video's own sound plays from the first audience output.
+
+**Announcements.** Right-click a presentation → **Plays On ▸ Announcements**, or set **Plays On** in the Presentation inspector. Its slides then go on the Announcements layer, over whatever slides are up, with their own theme background. Clicking its slides and pressing the arrow keys while it's selected steps the announcements; the lyrics stay where they are. **Auto-Advance** (right-click, or the inspector) moves any presentation to its next slide every so many seconds, and **Loop** starts it again after the last. Choosing a slide by hand restarts the time.
+
+**Video Input.** In the media bin's sidebar, **Video Inputs ▸ Cameras & Capture** lists webcams, capture cards and virtual cameras (OBS, NDI) once you press **Find Cameras** and allow camera access. Click one to put it live under everything; it replaces slide backgrounds, so slides with transparent themes sit on top of the picture, and media from the media bin covers it. Click it again, or its clear button, to take it down. Each output window opens the camera itself. In the desktop app on a Mac, macOS asks once for camera access.
 
 ## Screens
 
@@ -257,7 +282,7 @@ Was blind, but now I see.
 | `←` `↑` `PgUp`                 | Previous slide                                                                  |
 | `C`, `V`, `B`, …               | Jump to the next group starting with that letter                                |
 | `F1`                           | Clear all                                                                       |
-| `F2` / `F3` / `F4`             | Clear slide / media / message                                                   |
+| `F2` / `F3` / `F4` / `F5`      | Clear slide / media / message / audio                                           |
 | `F6`                           | Toggle logo                                                                     |
 | `⌘1` / `⌘2` (Ctrl on Windows)  | Audience / Stage screens on or off (browsers may keep these for switching tabs) |
 | `⌥⌘1` (Ctrl+Alt+1)             | Configure Screens                                                               |
@@ -278,6 +303,7 @@ src/
   slideOps.ts      slide and group edits shared by menus, inspector and keys: assign a group, paste a text style, transitions
   transitions.ts   transition kinds, which one a slide uses, labels, mapping ProPresenter's effects
   labels.ts        group presets and slide labels
+  layers.ts        the layers in clear-column order, clearing them, and the default Clear Groups
   theme.ts         theme → presentation → slide formatting, backgrounds, copyright line
   fonts.ts         font menus, Copperplate fallback chain, reading font files, loading added fonts
   bible.ts         imported and online Bibles: storage, reference parsing (local + English book names), lookups
@@ -299,7 +325,9 @@ src/
     Sidebar        Library and Playlist collections with their items
     ShowView       slide grid and list
     MediaBin       media sidebar and bin
-    LivePanel      preview, clear buttons, transport, Stage / Timers / Messages / Props
+    LivePanel      preview, clear column, transport, Audio / Stage / Timers / Messages / Props
+    ClearGroups    the Clear Groups row and its window
+    AudioTab, AudioPlayer  the audio bin, and the player for the Audio layer (with its fade-out)
     EditView       slide outline, canvas editor with rulers, inspector
     ReflowView     lyrics text editor
     Canvas         1920×1080 canvas, auto-fitting text, layered output, transitions
@@ -318,6 +346,7 @@ src/
 src-tauri/          the desktop app (Tauri, Rust)
   src/displays.rs  display list with real names (macOS: from AppKit), hot-plug watcher
   src/outputs.rs   output windows: one fullscreen per display, or a window per output without one
+  src/camera.rs    lets the web views open cameras (Video Input)
   src/menu.rs      menu bar with the Screens menu, and Edit's Undo and Redo named after the next step
   src/icon.rs      app icon choice: Dock on macOS, window icons elsewhere, remembered on disk
   icons/           the packaged app's icon (Projector) and the four choices

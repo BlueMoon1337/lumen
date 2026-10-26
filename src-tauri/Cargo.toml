@@ -28,3 +28,7 @@ strip = true
 objc2 = "0.6"
 objc2-foundation = { version = "0.3", features = ["NSArray", "NSData", "NSDictionary", "NSString", "NSValue"] }
 objc2-app-kit = { version = "0.3", features = ["NSApplication", "NSResponder", "NSGraphics", "NSImage", "NSScreen", "objc2-core-foundation"] }
+
+# Linux: lets the web view open cameras (the Video Input layer). Same version wry uses.
+[target.'cfg(target_os = "linux")'.dependencies]
+webkit2gtk = "2.0"

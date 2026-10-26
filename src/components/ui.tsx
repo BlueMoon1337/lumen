@@ -46,6 +46,9 @@ const paths = {
   alignMiddle: 'M4 12h4M16 12h4M8 7h8v10H8z',
   alignBottom: 'M4 20h16M8 8h8v8H8z',
   text: 'M5 5h14M12 5v14M9 19h6',
+  megaphone: 'M4 10h3l9-5v14l-9-5H4zM7 14l1.5 5H11l-1.2-4.2M19 9.5a3 3 0 0 1 0 5',
+  repeat: 'M17 2l3 3-3 3M20 5H8a4 4 0 0 0-4 4v1M7 22l-3-3 3-3M4 19h12a4 4 0 0 0 4-4v-1',
+  stop: 'M6 6h12v12H6z',
 } as const;
 
 export type IconName = keyof typeof paths;

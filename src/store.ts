@@ -10,8 +10,10 @@ import * as ops from './slideOps';
 import type { SlideScope } from './slideOps';
 import { applyStyles, resolveTheme } from './theme';
 import { DEFAULT_TRANSITION, fromMs } from './transitions';
+import { ALL_LAYERS, clearLive } from './layers';
 import type {
   Category,
+  ClearLayer,
   ColorLabel,
   FontMeta,
   Group,
@@ -53,7 +55,7 @@ export interface LibraryData {
 }
 
 export type Mode = 'show' | 'edit' | 'reflow' | 'bible';
-export type LiveTab = 'stage' | 'timers' | 'messages' | 'props';
+export type LiveTab = 'audio' | 'stage' | 'timers' | 'messages' | 'props';
 
 interface UIState {
   selectedPresentationId: string | null;
@@ -68,14 +70,15 @@ interface UIState {
   editTextSelected: boolean;
   editingThemeId: string | null;
   showMediaBin: boolean;
-  mediaFilter: 'all' | 'image' | 'video';
+  /** What the media bin shows: its images and videos, or the cameras for the Video Input layer. */
+  mediaFilter: 'all' | 'image' | 'video' | 'inputs';
   liveTab: LiveTab;
   /** Copy Text Style's formatting, for Paste Text Style. */
   styleClipboard: TextStyle | null;
   /** Copied slides, for Paste. */
   slideClipboard: Slide[] | null;
-  /** The open window: Settings, Screen Configuration, or Groups & Labels. */
-  dialog: 'settings' | 'screens' | 'labels' | null;
+  /** The open window: Settings, Screen Configuration, Groups & Labels, or Clear Groups. */
+  dialog: 'settings' | 'screens' | 'labels' | 'clearGroups' | null;
 }
 
 interface Actions {
@@ -133,7 +136,7 @@ interface Actions {
 
   addMediaFiles(files: File[]): Promise<void>;
   deleteMedia(id: string): void;
-  updateMedia(id: string, patch: Partial<Pick<MediaItem, 'name'>>): void;
+  updateMedia(id: string, patch: Partial<Pick<MediaItem, 'name' | 'loop'>>): void;
 
   addBible(meta: BibleMeta): void;
   deleteBible(id: string): void;
@@ -156,7 +159,15 @@ interface Actions {
 
   updateSettings(patch: Partial<Settings>): void;
 
+  /** Shows a slide, on the slide layer or (for an announcements presentation) the Announcements layer. */
   goLive(presentationId: string, index: number, playlistItemId?: string | null): void;
+  /** Auto-advance: the next slide on a layer, back to the first after the last if the presentation loops. */
+  advanceLayer(layer: 'slide' | 'announcement'): void;
+  playAudio(mediaId: string): void;
+  setAudioPaused(paused: boolean): void;
+  restartAudio(): void;
+  setVideoInput(input: LiveState['videoInput']): void;
+  clearLayers(layers: ClearLayer[]): void;
   /** Bible mode: replace the working passage's slides. */
   setBibleDraft(draft: Pick<Presentation, 'title' | 'themeId' | 'groups' | 'arrangement'>): void;
   /** Bible mode: put a slide of the working passage on screen (a copy, so editing the passage doesn't change the screen). */
@@ -228,7 +239,15 @@ const emptyLive: LiveState = {
   stageMessage: null,
   mediaPaused: false,
   mediaRestart: 0,
+  audioId: null,
+  audioPaused: false,
+  audioRestart: 0,
+  announcement: null,
+  videoInput: null,
 };
+
+/** Which live layer a presentation's slides go to: the slide layer, or Announcements. */
+export const layerOf = (p: Presentation | undefined) => (p?.destination === 'announcements' ? 'announcement' : 'slide');
 
 const initialTimer: TimerState = {
   mode: 'duration',
@@ -572,7 +591,13 @@ export const useStore = create<AppState>()(
         addMediaFiles: async (files) => {
           const added: MediaItem[] = [];
           for (const file of files) {
-            const kind = file.type.startsWith('video/') ? 'video' : file.type.startsWith('image/') ? 'image' : null;
+            const kind = file.type.startsWith('video/')
+              ? 'video'
+              : file.type.startsWith('image/')
+                ? 'image'
+                : file.type.startsWith('audio/')
+                  ? 'audio'
+                  : null;
             if (!kind) continue;
             const item: MediaItem = { id: uid(), name: file.name.replace(/\.[^.]+$/, ''), kind, mime: file.type };
             await putMediaBlob(item.id, file);
@@ -584,7 +609,10 @@ export const useStore = create<AppState>()(
         deleteMedia: (id) =>
           set((s) => ({
             media: s.media.filter((m) => m.id !== id),
-            live: s.live.mediaId === id ? { ...s.live, mediaId: null } : s.live,
+            live: clearLive(s.live, [
+              ...(s.live.mediaId === id ? (['media'] as const) : []),
+              ...(s.live.audioId === id ? (['audio'] as const) : []),
+            ]),
             settings: s.settings.logoMediaId === id ? { ...s.settings, logoMediaId: undefined } : s.settings,
             themes: s.themes.map((t) =>
               t.background.mediaId === id ? { ...t, background: { ...t.background, type: 'color', mediaId: undefined } } : t,
@@ -666,7 +694,27 @@ export const useStore = create<AppState>()(
         updateSettings: (patch) => set((s) => ({ settings: { ...s.settings, ...patch } })),
 
         goLive: (presentationId, index, playlistItemId = null) =>
-          set((s) => ({ live: { ...s.live, logo: false, slide: { presentationId, index, playlistItemId: playlistItemId ?? undefined } } })),
+          set((s) => {
+            const ref = { presentationId, index, playlistItemId: playlistItemId ?? undefined };
+            return layerOf(s.presentations[presentationId]) === 'announcement'
+              ? { live: { ...s.live, announcement: ref } }
+              : { live: { ...s.live, logo: false, slide: ref } };
+          }),
+        advanceLayer: (layer) => {
+          const s = get();
+          const ref = s.live[layer];
+          const p = ref && s.presentations[ref.presentationId];
+          if (!ref || !p?.autoAdvance) return;
+          const length = getSequence(p).length;
+          if (ref.index + 1 < length) s.goLive(p.id, ref.index + 1, ref.playlistItemId);
+          else if (p.autoAdvance.loop && length) s.goLive(p.id, 0, ref.playlistItemId);
+        },
+        playAudio: (mediaId) =>
+          set((s) => ({ live: { ...s.live, audioId: mediaId, audioPaused: false, audioRestart: s.live.audioRestart + 1 } })),
+        setAudioPaused: (paused) => set((s) => ({ live: { ...s.live, audioPaused: paused } })),
+        restartAudio: () => set((s) => ({ live: { ...s.live, audioPaused: false, audioRestart: s.live.audioRestart + 1 } })),
+        setVideoInput: (input) => set((s) => ({ live: { ...s.live, videoInput: input } })),
+        clearLayers: (layers) => set((s) => ({ live: clearLive(s.live, layers) })),
 
         setBibleDraft: (draft) =>
           set((s) => ({
@@ -711,8 +759,9 @@ export const useStore = create<AppState>()(
         },
         next: () => {
           const s = get();
-          const ref = s.live.slide;
           const selected = s.selectedPresentationId;
+          // An announcements presentation steps the Announcements layer.
+          const ref = s.live[layerOf(selected ? s.presentations[selected] : undefined)];
           // Arrow keys drive the presentation on screen in the operator view,
           // starting it from the top if it is not the one that is live.
           if (selected && ref?.presentationId !== selected) {
@@ -734,7 +783,8 @@ export const useStore = create<AppState>()(
         },
         prev: () => {
           const s = get();
-          const ref = s.live.slide;
+          const selected = s.selectedPresentationId;
+          const ref = s.live[layerOf(selected ? s.presentations[selected] : undefined)];
           if (!ref || (s.selectedPresentationId && ref.presentationId !== s.selectedPresentationId)) return;
           if (ref.index > 0) {
             s.goLive(ref.presentationId, ref.index - 1, ref.playlistItemId);
@@ -755,7 +805,8 @@ export const useStore = create<AppState>()(
           const p = pid ? s.presentations[pid] : undefined;
           if (!p) return;
           const seq = getSequence(p);
-          const from = s.live.slide?.presentationId === pid ? s.live.slide.index : -1;
+          const live = s.live[layerOf(p)];
+          const from = live?.presentationId === pid ? live.index : -1;
           const matches = (i: number) => seq[i].indexInGroup === 0 && seq[i].group.name.toLowerCase().startsWith(letter.toLowerCase());
           for (let step = 1; step <= seq.length; step++) {
             const i = (from + step) % seq.length;
@@ -764,9 +815,9 @@ export const useStore = create<AppState>()(
         },
         setLiveMedia: (id) => set((s) => ({ live: { ...s.live, mediaId: id, mediaPaused: false } })),
         toggleLogo: () => set((s) => ({ live: { ...s.live, logo: !s.live.logo } })),
-        clearAll: () => set((s) => ({ live: { ...emptyLive, stageMessage: s.live.stageMessage, mediaRestart: s.live.mediaRestart } })),
-        clearSlide: () => set((s) => ({ live: { ...s.live, slide: null } })),
-        clearMedia: () => set((s) => ({ live: { ...s.live, mediaId: null, mediaPaused: false } })),
+        clearAll: () => get().clearLayers(ALL_LAYERS),
+        clearSlide: () => get().clearLayers(['slide']),
+        clearMedia: () => get().clearLayers(['media']),
         setMediaPaused: (paused) => set((s) => ({ live: { ...s.live, mediaPaused: paused } })),
         restartMedia: () => set((s) => ({ live: { ...s.live, mediaPaused: false, mediaRestart: s.live.mediaRestart + 1 } })),
         setStageMessage: (text) => set((s) => ({ live: { ...s.live, stageMessage: text } })),

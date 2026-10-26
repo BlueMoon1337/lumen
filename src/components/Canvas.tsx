@@ -198,6 +198,31 @@ function MediaFill({ mediaId, muted, paused = false }: { mediaId: string; muted:
   );
 }
 
+/**
+ * A camera or capture card, live. Each window opens it for itself (a stream can't be sent
+ * between windows); it's closed again when the layer goes.
+ */
+export function CameraFill({ deviceId }: { deviceId: string }) {
+  const ref = useRef<HTMLVideoElement>(null);
+  useEffect(() => {
+    let stream: MediaStream | null = null;
+    let alive = true;
+    navigator.mediaDevices
+      ?.getUserMedia({ video: { deviceId: { exact: deviceId }, width: { ideal: 1920 }, height: { ideal: 1080 } }, audio: false })
+      .then((s) => {
+        if (!alive) return s.getTracks().forEach((t) => t.stop());
+        stream = s;
+        if (ref.current) ref.current.srcObject = s;
+      })
+      .catch(() => {});
+    return () => {
+      alive = false;
+      stream?.getTracks().forEach((t) => t.stop());
+    };
+  }, [deviceId]);
+  return <video ref={ref} className="media-fill" autoPlay muted playsInline />;
+}
+
 export function BackgroundFill({ bg, muted = true }: { bg: FrameBackground; muted?: boolean }) {
   switch (bg.kind) {
     case 'color':
@@ -333,13 +358,16 @@ export function OutputView({
   // the logo fade.
   const slideFx = frame?.transition ?? DEFAULT_TRANSITION;
   const mediaFx = frame?.mediaTransition ?? DEFAULT_TRANSITION;
+  const announcementFx = frame?.announcementTransition ?? DEFAULT_TRANSITION;
   const d = frame?.fadeMs ?? 400;
   const background = frame?.background ?? null;
+  const camera = frame?.videoInput?.deviceId ?? null;
   const isLive = (bg: FrameBackground | null) => bg?.kind === 'media' && !!bg.live;
-  const lastBackground = useRef(background);
-  const backgroundFx = isLive(background) || isLive(lastBackground.current) ? mediaFx : slideFx;
+  const last = useRef({ background, camera });
+  // A background that changes because media or a camera came or went uses the media transition.
+  const backgroundFx = isLive(background) || isLive(last.current.background) || camera !== last.current.camera ? mediaFx : slideFx;
   useEffect(() => {
-    lastBackground.current = background;
+    last.current = { background, camera };
   });
   const foreground = (
     <>
@@ -348,6 +376,14 @@ export function OutputView({
           <>
             <SlideText text={frame.slide.text} caption={frame.slide.caption} theme={frame.slide.theme} />
             {frame.slide.footer && <div className="slide-footer">{frame.slide.footer}</div>}
+          </>
+        )}
+      </Transition>
+      <Transition itemKey={frame?.announcement?.key ?? null} duration={announcementFx.ms} effect={announcementFx}>
+        {frame?.announcement && (
+          <>
+            {alphaKey === 'off' && frame.announcement.background && <BackgroundFill bg={frame.announcement.background} />}
+            <SlideText text={frame.announcement.text} caption={frame.announcement.caption} theme={frame.announcement.theme} />
           </>
         )}
       </Transition>
@@ -367,9 +403,14 @@ export function OutputView({
     <ScaledCanvas className="output-view">
       <div className="fill" style={{ background: alphaKey === 'off' ? (screenColor ?? '#000') : '#000' }} />
       {alphaKey === 'off' && (
-        <Transition itemKey={background?.key ?? null} duration={backgroundFx.ms} effect={backgroundFx} mode="over">
-          {background && <BackgroundFill bg={background} muted={muted} />}
-        </Transition>
+        <>
+          <Transition itemKey={camera} duration={mediaFx.ms} effect={mediaFx} mode="over">
+            {camera && <CameraFill deviceId={camera} />}
+          </Transition>
+          <Transition itemKey={background?.key ?? null} duration={backgroundFx.ms} effect={backgroundFx} mode="over">
+            {background && <BackgroundFill bg={background} muted={muted} />}
+          </Transition>
+        </>
       )}
       {alphaKey === 'key' ? <div className="fill key-matte">{foreground}</div> : foreground}
     </ScaledCanvas>

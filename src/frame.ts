@@ -40,19 +40,39 @@ export function buildFrame(s: AppState): OutputFrame {
           theme,
         }
       : null;
+  // Media from the media bin replaces slide backgrounds; so does a camera, which shows underneath.
   const background: FrameBackground | null = s.live.mediaId
     ? { key: `m:${s.live.mediaId}:${s.live.mediaRestart}`, kind: 'media', mediaId: s.live.mediaId, paused: s.live.mediaPaused, live: true }
-    : slide && entry
+    : slide && entry && !s.live.videoInput
       ? toFrameBackground(entry.slide.background ?? theme.background)
+      : null;
+
+  // The Announcements layer: its own slide, theme and background, over the slides.
+  const aRef = s.live.announcement;
+  const ap = aRef ? s.presentations[aRef.presentationId] : undefined;
+  const aEntry = ap && aRef ? getSequence(ap)[aRef.index] : undefined;
+  const aTheme = ap && aEntry ? slideTheme(resolveTheme(s, ap), ap, aEntry.slide) : undefined;
+  const announcement =
+    ap && aEntry && aTheme && aRef
+      ? {
+          key: `${ap.id}:${aRef.index}`,
+          text: aEntry.slide.text,
+          caption: aEntry.slide.caption,
+          theme: aTheme,
+          background: toFrameBackground(aEntry.slide.background ?? aTheme.background),
+        }
       : null;
 
   return {
     slide,
     background,
     message: message ? { key: message.id, text: message.text } : null,
+    announcement,
+    videoInput: s.live.videoInput ? { deviceId: s.live.videoInput.deviceId } : null,
     logoMediaId: s.live.logo ? (s.settings.logoMediaId ?? null) : null,
     transition: effectiveTransition(s.settings, p, entry?.slide),
     mediaTransition: mediaTransitionOf(s.settings),
+    announcementTransition: effectiveTransition(s.settings, ap, aEntry?.slide),
     fadeMs: transitionDuration(s.settings.transition),
     fonts: s.fonts,
     appIcon: s.settings.appIcon ?? DEFAULT_APP_ICON,

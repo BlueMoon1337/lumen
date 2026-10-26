@@ -8,6 +8,7 @@ import {
   type PointerEvent as ReactPointerEvent,
   type ReactNode,
 } from 'react';
+import { useShallow } from 'zustand/react/shallow';
 import { undoBatch } from '../history';
 import { groupPresets, LABEL_SWATCHES, labelPresets } from '../labels';
 import { colorForGroup } from '../lyrics';
@@ -301,7 +302,7 @@ function BackgroundPicker({
   slide: Slide;
   onDone: () => void;
 }) {
-  const media = useStore((s) => s.media.filter((m) => m.kind === kind));
+  const media = useStore(useShallow((s) => s.media.filter((m) => m.kind === kind)));
   const s = useStore.getState();
   const set = (background: ThemeBackground | undefined) => {
     s.updateSlide(presentationId, slide.id, { background });
@@ -629,6 +630,55 @@ function PresentationTab({ presentation: p }: { presentation: Presentation }) {
         </Field>
         <Field label="Size">
           <input value="1920 × 1080" disabled />
+        </Field>
+      </section>
+      <section className="insp-section">
+        <div className="insp-heading">Plays On</div>
+        <Field label="Layer">
+          <select value={p.destination ?? ''} onChange={(e) => update({ destination: e.target.value ? 'announcements' : undefined })}>
+            <option value="">Slides</option>
+            <option value="announcements">Announcements</option>
+          </select>
+        </Field>
+        <p className="small-print muted">
+          {p.destination
+            ? 'Its slides show on the Announcements layer, over whatever slides are up, with their own backgrounds.'
+            : 'Its slides show on the slide layer.'}
+        </p>
+        <Field label="Advance">
+          <span className="pair">
+            <label className="check-row inline">
+              <input
+                type="checkbox"
+                checked={!!p.autoAdvance}
+                onChange={(e) => update({ autoAdvance: e.target.checked ? { seconds: 8, loop: true } : undefined })}
+              />
+              Every
+            </label>
+            <input
+              type="number"
+              className="num-small"
+              min={1}
+              max={600}
+              disabled={!p.autoAdvance}
+              value={p.autoAdvance?.seconds ?? 8}
+              onChange={(e) =>
+                p.autoAdvance &&
+                update({ autoAdvance: { ...p.autoAdvance, seconds: Math.max(1, Math.min(600, Number(e.target.value) || 1)) } })
+              }
+              aria-label="Seconds per slide"
+            />
+            <span className="muted">s</span>
+            <label className="check-row inline">
+              <input
+                type="checkbox"
+                disabled={!p.autoAdvance}
+                checked={!!p.autoAdvance?.loop}
+                onChange={(e) => p.autoAdvance && update({ autoAdvance: { ...p.autoAdvance, loop: e.target.checked } })}
+              />
+              Loop
+            </label>
+          </span>
         </Field>
       </section>
       <section className="insp-section">

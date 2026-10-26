@@ -86,6 +86,17 @@ export interface Presentation {
   updatedAt: number;
   /** Bible mode's working passage: kept out of the library. */
   hidden?: boolean;
+  /** "announcements" shows its slides on the Announcements layer, over the slides, instead of the slide layer. */
+  destination?: 'announcements';
+  /** Moves on to the next slide by itself, e.g. an announcement loop. */
+  autoAdvance?: AutoAdvance;
+}
+
+export interface AutoAdvance {
+  /** Seconds each slide stays up. */
+  seconds: number;
+  /** After the last slide, start again from the first. */
+  loop: boolean;
 }
 
 export type BackgroundType = 'none' | 'color' | 'gradient' | 'media';
@@ -155,8 +166,11 @@ export interface FontMeta {
 export interface MediaItem {
   id: string;
   name: string;
-  kind: 'image' | 'video';
+  /** Images and videos go in the media bin; audio in the Audio tab. */
+  kind: 'image' | 'video' | 'audio';
   mime: string;
+  /** Audio: start again when it ends. */
+  loop?: boolean;
 }
 
 export type PlaylistItem = { id: string; type: 'presentation'; presentationId: string } | { id: string; type: 'header'; label: string };
@@ -197,8 +211,23 @@ export interface Settings {
   lastBible?: string;
   /** Bible mode's choices (see bibleSettings in src/bibleSlides.ts for the defaults). */
   bible?: Partial<BibleSettings>;
+  /** Buttons under the preview that clear several layers at once; unset uses DEFAULT_CLEAR_GROUPS (src/layers.ts). */
+  clearGroups?: ClearGroup[];
   /** Sizes the operator dragged the panes to; unset ones use the defaults (DEFAULT_PANES in Splitter.tsx). */
   panes?: Partial<PaneSizes>;
+}
+
+/** A layer of what's on screen (or, for audio, playing), each cleared on its own. */
+export type ClearLayer = 'audio' | 'messages' | 'logo' | 'announcements' | 'slide' | 'media' | 'videoInput';
+
+/** ProPresenter's Clear Groups: one button that clears several layers. */
+export interface ClearGroup {
+  id: string;
+  name: string;
+  /** An icon name from src/components/ui.tsx. */
+  icon: string;
+  color: string;
+  layers: ClearLayer[];
 }
 
 /** Pane sizes in px. */
@@ -375,6 +404,14 @@ export interface LiveState {
   mediaPaused: boolean;
   /** Bumped to restart the live video from the beginning. */
   mediaRestart: number;
+  /** Audio playing from the Audio tab (on this computer, not the screens). */
+  audioId: string | null;
+  audioPaused: boolean;
+  audioRestart: number;
+  /** A slide on the Announcements layer, over the slide layer. */
+  announcement: LiveSlideRef | null;
+  /** A camera or capture card on the Video Input layer, under everything. */
+  videoInput: { deviceId: string; label: string } | null;
 }
 
 /** One slide of a presentation in performance order. */
@@ -389,11 +426,17 @@ export interface OutputFrame {
   slide: { key: string; text: string; caption?: string; footer?: string; theme: Theme } | null;
   background: FrameBackground | null;
   message: { key: string; text: string } | null;
+  /** The Announcements layer: a slide over the slides, with its own background. */
+  announcement: { key: string; text: string; caption?: string; theme: Theme; background: FrameBackground | null } | null;
+  /** The Video Input layer: a camera, opened by each window that shows it. */
+  videoInput: { deviceId: string } | null;
   logoMediaId: string | null;
   /** How the slide layer (and its background) changes: the incoming slide's transition. */
   transition: SlideTransition;
   /** How a background from the media bin comes and goes. */
   mediaTransition: SlideTransition;
+  /** How the Announcements layer changes. */
+  announcementTransition: SlideTransition;
   /** Fade length for messages and the logo. */
   fadeMs: number;
   /** Added fonts, so output windows can load the ones slides use. */

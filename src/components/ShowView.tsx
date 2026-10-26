@@ -1,6 +1,6 @@
 import { memo, useEffect, useMemo, useRef, type MouseEvent as ReactMouseEvent, type Ref } from 'react';
 import { getSequence } from '../lyrics';
-import { useStore } from '../store';
+import { layerOf, useStore } from '../store';
 import { inkFor, resolveTheme, slideTheme } from '../theme';
 import type { ColorLabel, Presentation, SequenceEntry, Slide, Theme } from '../types';
 import { SlidePreview } from './Canvas';
@@ -55,9 +55,22 @@ export function ShowView() {
       <div className="pres-bar">
         {p ? (
           <>
-            <Icon name={p.category === 'scripture' ? 'bible' : 'slides'} size={16} />
+            <Icon name={p.destination === 'announcements' ? 'megaphone' : p.category === 'scripture' ? 'bible' : 'slides'} size={16} />
             <span className="pres-title">{p.title}</span>
             <span className="pres-bar-spacer" />
+            {p.destination === 'announcements' && (
+              <span className="pres-chip" title="Its slides show on the Announcements layer, over the slides">
+                <Icon name="megaphone" size={13} /> Announcements
+              </span>
+            )}
+            {p.autoAdvance && (
+              <span
+                className="pres-chip"
+                title={`Moves to the next slide every ${p.autoAdvance.seconds} seconds${p.autoAdvance.loop ? ', and starts again after the last' : ''}`}
+              >
+                <Icon name={p.autoAdvance.loop ? 'repeat' : 'clock'} size={13} /> {p.autoAdvance.seconds}s
+              </span>
+            )}
             <span className="pres-theme" title="Theme">
               <Icon name="theme" size={13} /> {themeName}
             </span>
@@ -117,7 +130,8 @@ export function ShowView() {
 function useSlides(p: Presentation) {
   const themes = useStore((s) => s.themes);
   const settings = useStore((s) => s.settings);
-  const live = useStore((s) => s.live.slide);
+  // An announcements presentation is live on the Announcements layer.
+  const live = useStore((s) => s.live[layerOf(p)]);
   const base = resolveTheme({ themes, settings }, p);
   const seq = useMemo(() => getSequence(p), [p]);
   const liveIndex = live?.presentationId === p.id ? live.index : -1;

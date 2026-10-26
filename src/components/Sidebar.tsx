@@ -190,10 +190,10 @@ function PlaylistRow({
   );
 }
 
-function ItemIcon({ category }: { category?: Category }) {
+function ItemIcon({ category, announcements }: { category?: Category; announcements?: boolean }) {
   return (
     <span className="item-icon">
-      <Icon name={category === 'scripture' ? 'bible' : 'slides'} size={14} />
+      <Icon name={announcements ? 'megaphone' : category === 'scripture' ? 'bible' : 'slides'} size={14} />
     </span>
   );
 }
@@ -204,6 +204,7 @@ function LibraryItems() {
   const selectedId = useStore((s) => s.selectedPresentationId);
   const selectedItem = useStore((s) => s.selectedPlaylistItemId);
   const liveId = useStore((s) => s.live.slide?.presentationId);
+  const announcementId = useStore((s) => s.live.announcement?.presentationId);
   const s = useStore.getState();
   const [filter, setFilter] = useState('');
   const [dropping, setDropping] = useState(false);
@@ -249,9 +250,9 @@ function LibraryItems() {
             onClick={() => s.select(p.id)}
             onContextMenu={(e) => openContextMenu(e, presentationMenu(p))}
           >
-            <ItemIcon category={p.category} />
+            <ItemIcon category={p.category} announcements={p.destination === 'announcements'} />
             <span className="list-label">{p.title}</span>
-            {liveId === p.id && <span className="live-dot" title="Live" />}
+            {(liveId === p.id || announcementId === p.id) && <span className="live-dot" title="Live" />}
             <span className="row-actions">
               <IconButton icon="plus" title="Add to playlist" onClick={() => s.addToPlaylist(p.id)} />
               <IconButton icon="copy" title="Duplicate" onClick={() => s.duplicatePresentation(p.id)} />
@@ -278,6 +279,7 @@ function PlaylistItems() {
   const presentations = useStore((s) => s.presentations);
   const selectedItem = useStore((s) => s.selectedPlaylistItemId);
   const liveItem = useStore((s) => s.live.slide?.playlistItemId);
+  const announcementItem = useStore((s) => s.live.announcement?.playlistItemId);
   const s = useStore.getState();
   const [filter, setFilter] = useState('');
   const [dropIndex, setDropIndex] = useState<number | null>(null);
@@ -374,9 +376,9 @@ function PlaylistItems() {
                   : openContextMenu(e, [{ label: 'Remove from Playlist', action: () => s.removePlaylistItem(item.id) }])
               }
             >
-              <ItemIcon category={p?.category} />
+              <ItemIcon category={p?.category} announcements={p?.destination === 'announcements'} />
               <span className="list-label">{p?.title ?? 'Missing presentation'}</span>
-              {liveItem === item.id && <span className="live-dot" title="Live" />}
+              {(liveItem === item.id || announcementItem === item.id) && <span className="live-dot" title="Live" />}
               <span className="row-actions">
                 <IconButton icon="close" title="Remove from playlist" onClick={() => s.removePlaylistItem(item.id)} />
               </span>

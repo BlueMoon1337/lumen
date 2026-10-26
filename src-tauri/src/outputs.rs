@@ -143,6 +143,7 @@ fn build(
         None => builder.inner_size(960.0, 540.0),
     };
     let win = builder.build()?;
+    crate::camera::enable(&win);
     // Windows and Linux give every window the app menu; outputs shouldn't have one.
     #[cfg(not(target_os = "macos"))]
     let _ = win.remove_menu();

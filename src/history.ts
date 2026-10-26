@@ -17,6 +17,7 @@ import { isTypingTarget } from './util';
 const SETTING_KEYS = [
   'transition',
   'mediaTransition',
+  'clearGroups',
   'groupPresets',
   'labelPresets',
   'defaultThemeId',
@@ -111,6 +112,8 @@ function restore(doc: Doc) {
         slide: s.live.slide && presentations[s.live.slide.presentationId] ? s.live.slide : null,
         mediaId: s.live.mediaId && doc.media.some((m) => m.id === s.live.mediaId) ? s.live.mediaId : null,
         messageId: s.live.messageId && doc.messages.some((m) => m.id === s.live.messageId) ? s.live.messageId : null,
+        audioId: s.live.audioId && doc.media.some((m) => m.id === s.live.audioId) ? s.live.audioId : null,
+        announcement: s.live.announcement && presentations[s.live.announcement.presentationId] ? s.live.announcement : null,
       },
     });
   } finally {
@@ -207,41 +210,54 @@ function end(outer: boolean) {
 
 const keysOf = (x: unknown) => (x && typeof x === 'object' && !Array.isArray(x) ? Object.keys(x) : []);
 const has = (patch: unknown, ...keys: string[]) => keys.some((k) => keysOf(patch).includes(k));
+/** The label for the first of these fields the patch changes. */
+const firstOf = (patch: unknown, labels: [string, string][], otherwise: string) =>
+  labels.find(([key]) => has(patch, key))?.[1] ?? otherwise;
 
 const LABELS: Record<string, string | ((args: unknown[]) => string)> = {
   createPresentation: 'New Presentation',
   updatePresentation: ([, patch]) =>
-    has(patch, 'title')
-      ? 'Rename'
-      : has(patch, 'themeId')
-        ? 'Theme'
-        : has(patch, 'category')
-          ? 'Move to Library'
-          : has(patch, 'style')
-            ? 'Text Style'
-            : has(patch, 'transition')
-              ? 'Transition'
-              : has(patch, 'groups', 'arrangement')
-                ? 'Edit Slides'
-                : 'Edit Presentation',
+    firstOf(
+      patch,
+      [
+        ['title', 'Rename'],
+        ['themeId', 'Theme'],
+        ['category', 'Move to Library'],
+        ['style', 'Text Style'],
+        ['transition', 'Transition'],
+        ['destination', 'Destination'],
+        ['autoAdvance', 'Auto-Advance'],
+        ['groups', 'Edit Slides'],
+        ['arrangement', 'Edit Slides'],
+      ],
+      'Edit Presentation',
+    ),
   setPresentationText: 'Reflow',
   duplicatePresentation: 'Duplicate Presentation',
   deletePresentation: 'Delete Presentation',
   updateSlide: ([, , patch]) =>
-    has(patch, 'text')
-      ? 'Edit Text'
-      : has(patch, 'style')
-        ? keysOf((patch as { style?: object }).style).every((k) => k === 'inset')
-          ? 'Move Text Box'
-          : 'Text Style'
-        : has(patch, 'background')
-          ? 'Slide Background'
-          : has(patch, 'caption')
-            ? 'Caption'
-            : has(patch, 'notes')
-              ? 'Stage Notes'
-              : 'Edit Slide',
-  updateGroup: ([, , patch]) => (has(patch, 'name') ? 'Rename Group' : has(patch, 'color') ? 'Group Color' : 'Edit Group'),
+    keysOf((patch as { style?: object }).style).every((k) => k === 'inset') && has(patch, 'style')
+      ? 'Move Text Box'
+      : firstOf(
+          patch,
+          [
+            ['text', 'Edit Text'],
+            ['style', 'Text Style'],
+            ['background', 'Slide Background'],
+            ['caption', 'Caption'],
+            ['notes', 'Stage Notes'],
+          ],
+          'Edit Slide',
+        ),
+  updateGroup: ([, , patch]) =>
+    firstOf(
+      patch,
+      [
+        ['name', 'Rename Group'],
+        ['color', 'Group Color'],
+      ],
+      'Edit Group',
+    ),
   addSlide: 'New Slide',
   duplicateSlide: 'Duplicate Slide',
   deleteSlide: 'Delete Slide',
@@ -270,22 +286,23 @@ const LABELS: Record<string, string | ((args: unknown[]) => string)> = {
   deleteTheme: 'Delete Theme',
   addMediaFiles: 'Import Media',
   deleteMedia: 'Delete Media',
-  updateMedia: 'Rename Media',
+  updateMedia: ([, patch]) => firstOf(patch, [['loop', 'Loop']], 'Rename Media'),
   addMessage: 'New Message',
   updateMessage: 'Edit Message',
   deleteMessage: 'Delete Message',
   updateSettings: ([patch]) =>
-    has(patch, 'transition')
-      ? 'Global Transition'
-      : has(patch, 'mediaTransition')
-        ? 'Media Transition'
-        : has(patch, 'groupPresets')
-          ? 'Edit Groups'
-          : has(patch, 'labelPresets')
-            ? 'Edit Labels'
-            : has(patch, 'logoMediaId')
-              ? 'Logo'
-              : 'Settings',
+    firstOf(
+      patch,
+      [
+        ['transition', 'Global Transition'],
+        ['mediaTransition', 'Media Transition'],
+        ['groupPresets', 'Edit Groups'],
+        ['labelPresets', 'Edit Labels'],
+        ['logoMediaId', 'Logo'],
+        ['clearGroups', 'Edit Clear Groups'],
+      ],
+      'Settings',
+    ),
   saveBible: 'Save Passage',
   copyBibleTo: 'Copy Passage',
   importLibrary: 'Import Library',

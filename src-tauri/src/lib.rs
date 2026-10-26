@@ -3,6 +3,7 @@
 //! the display list, output windows, the Screens menu and the app icon (see the
 //! `DesktopBridge` in src/outputs.ts and src/desktop.ts).
 
+mod camera;
 mod displays;
 mod icon;
 mod menu;
@@ -15,6 +16,7 @@ use tauri::{Manager, WebviewUrl, WebviewWindowBuilder};
 pub fn run() {
     tauri::Builder::default()
         .manage(outputs::Outputs::default())
+        .on_permission_request(camera::on_permission_request)
         .invoke_handler(tauri::generate_handler![
             displays::get_displays,
             outputs::set_outputs,
@@ -45,7 +47,7 @@ pub fn run() {
                 .title_bar_style(tauri::TitleBarStyle::Overlay)
                 .hidden_title(true)
                 .traffic_light_position(tauri::LogicalPosition::new(18.0, 24.0));
-            main.build()?;
+            camera::enable(&main.build()?);
 
             displays::watch(handle.clone());
             Ok(())
