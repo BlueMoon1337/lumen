@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { DEFAULT_APP_ICON } from '../appIcons';
 import { bookLabel, lookupLocal, parseReference, type Passage, type Verse } from '../bible';
 import { addFontFiles, importBibleFile, importFiles } from '../commands';
 import { cssFamilyFor, faceName, FONT_ACCEPT, isFontInstalled } from '../fonts';
@@ -379,7 +380,7 @@ export function SettingsDialog({ onClose, onScreens }: { onClose: () => void; on
       </section>
       <section className="settings-section">
         <h4>App Icon</h4>
-        <IconPicker value={settings.appIcon ?? 'star'} onChange={(appIcon) => s.updateSettings({ appIcon })} />
+        <IconPicker value={settings.appIcon ?? DEFAULT_APP_ICON} onChange={(appIcon) => s.updateSettings({ appIcon })} />
         {window.lumenDesktop?.platform === 'darwin' && (
           <p className="muted small-print">The Dock shows the new icon while Lumen runs; Finder keeps the one Lumen was installed with.</p>
         )}

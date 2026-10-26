@@ -1,3 +1,4 @@
+import { DEFAULT_APP_ICON } from './appIcons';
 import { getSequence } from './lyrics';
 import { adjacentPlaylistItem, type AppState } from './store';
 import { copyrightLine, resolveTheme, slideTheme, toFrameBackground } from './theme';
@@ -51,7 +52,7 @@ export function buildFrame(s: AppState): OutputFrame {
     logoMediaId: s.live.logo ? (s.settings.logoMediaId ?? null) : null,
     transitionMs: p?.transitionMs ?? s.settings.transitionMs,
     fonts: s.fonts,
-    appIcon: s.settings.appIcon ?? 'star',
+    appIcon: s.settings.appIcon ?? DEFAULT_APP_ICON,
     screens: s.screens,
     screenTools: s.screenTools,
     timer: s.timer,

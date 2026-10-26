@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { APP_ICONS, applyAppIcon } from '../appIcons';
+import { APP_ICONS, applyAppIcon, DEFAULT_APP_ICON } from '../appIcons';
 import { useStore } from '../store';
 import type { AppIconId } from '../types';
 import { Dialog } from './ui';
@@ -36,7 +36,7 @@ export function IconPicker({
 
 /** Shown the very first time Lumen starts: pick the app icon. */
 export function WelcomeDialog() {
-  const [choice, setChoice] = useState<AppIconId>('star');
+  const [choice, setChoice] = useState<AppIconId>(DEFAULT_APP_ICON);
   // Preview the choice in the tab (and the Dock) while deciding.
   useEffect(() => applyAppIcon(choice), [choice]);
   const done = () => useStore.getState().updateSettings({ appIcon: choice });

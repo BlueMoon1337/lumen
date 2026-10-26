@@ -1,11 +1,14 @@
 import type { AppIconId } from './types';
 
-/** Lumen's icons. Each has a tile for pickers and a tab icon and home-screen icon in public/icons/. */
+/** Used until one is chosen, and pre-selected in the first-launch welcome. */
+export const DEFAULT_APP_ICON: AppIconId = 'projector';
+
+/** Lumen's icons, the default first. Each has a tile for pickers and a tab icon and home-screen icon in public/icons/. */
 export const APP_ICONS: { id: AppIconId; name: string; preview: string }[] = [
+  { id: 'projector', name: 'Projector', preview: './icons/projector-256.png' },
   { id: 'star', name: 'Star', preview: './icons/star-256.png' },
   { id: 'camera', name: 'Camera', preview: './icons/camera-256.png' },
   { id: 'film', name: 'Film Camera', preview: './icons/film-256.png' },
-  { id: 'projector', name: 'Projector', preview: './icons/projector-256.png' },
 ];
 
 /** Shows an icon in the browser tab and for "Add to Home Screen" (the links are in index.html). */

@@ -13,12 +13,14 @@ const isDev = process.argv.includes('--dev');
 const isMac = process.platform === 'darwin';
 const DEV_URL = 'http://localhost:5173/';
 const DIST = path.join(__dirname, '..', 'dist');
-// App icons the operator can choose between (build/icon.icns and build/icon.ico are the packaged-app versions).
+// App icons the operator can choose between. The default, the projector, is build/icon.*,
+// which is also what a packaged app is built with (icon.icns on macOS, icon.ico on Windows).
+const DEFAULT_ICON = 'projector';
 const ICONS = {
-  star: path.join(__dirname, '..', 'build', 'icon.png'),
+  projector: path.join(__dirname, '..', 'build', 'icon.png'),
+  star: path.join(__dirname, '..', 'build', 'icon-star.png'),
   camera: path.join(__dirname, '..', 'build', 'icon-camera.png'),
   film: path.join(__dirname, '..', 'build', 'icon-film.png'),
-  projector: path.join(__dirname, '..', 'build', 'icon-projector.png'),
 };
 
 protocol.registerSchemesAsPrivileged([
@@ -45,8 +47,8 @@ function readPrefs() {
   }
 }
 
-let appIcon = 'star';
-const iconPath = () => ICONS[appIcon] ?? ICONS.star;
+let appIcon = DEFAULT_ICON;
+const iconPath = () => ICONS[appIcon] ?? ICONS[DEFAULT_ICON];
 
 function setAppIcon(id) {
   if (!ICONS[id] || id === appIcon) return;
@@ -248,7 +250,7 @@ app.whenReady().then(() => {
   });
   // Windows and Linux take the icon per window; on a Mac the Dock shows it (a packaged app uses build/icon.icns).
   const saved = readPrefs().appIcon;
-  appIcon = ICONS[saved] ? saved : 'star';
+  appIcon = ICONS[saved] ? saved : DEFAULT_ICON;
   if (isMac) app.dock?.setIcon(iconPath());
   buildMenu();
   createControlWindow();
