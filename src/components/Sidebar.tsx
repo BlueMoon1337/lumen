@@ -2,6 +2,8 @@ import { useMemo, useState, type DragEvent } from 'react';
 import { IMPORT_ACCEPT, importFiles, newPresentation } from '../commands';
 import { useStore } from '../store';
 import type { Category, Playlist } from '../types';
+import { openContextMenu } from './ContextMenu';
+import { playlistHeaderMenu, playlistMenu, presentationMenu } from './menus';
 import { DRAG_PLAYLIST_ITEM, DRAG_PRESENTATION, FilterField, Icon, IconButton, pickFiles, SectionHeader } from './ui';
 
 export const LIBRARIES: { category: Category; label: string }[] = [
@@ -133,6 +135,12 @@ function PlaylistRow({
         s.setUI({ sidebar: 'playlist' });
       }}
       onDoubleClick={() => setRenaming(true)}
+      onContextMenu={(e) =>
+        openContextMenu(
+          e,
+          playlistMenu(playlist, () => setRenaming(true)),
+        )
+      }
       onDragOver={(e) => {
         if (hasDrag(e, DRAG_PRESENTATION)) {
           e.preventDefault();
@@ -239,6 +247,7 @@ function LibraryItems() {
             draggable
             onDragStart={(e) => e.dataTransfer.setData(DRAG_PRESENTATION, p.id)}
             onClick={() => s.select(p.id)}
+            onContextMenu={(e) => openContextMenu(e, presentationMenu(p))}
           >
             <ItemIcon category={p.category} />
             <span className="list-label">{p.title}</span>
@@ -321,7 +330,18 @@ function PlaylistItems() {
           };
           if (item.type === 'header') {
             return (
-              <li key={item.id} className={`item-row playlist-header ${drop}`} {...common} onDoubleClick={() => setEditingHeader(item.id)}>
+              <li
+                key={item.id}
+                className={`item-row playlist-header ${drop}`}
+                {...common}
+                onDoubleClick={() => setEditingHeader(item.id)}
+                onContextMenu={(e) =>
+                  openContextMenu(
+                    e,
+                    playlistHeaderMenu(item, () => setEditingHeader(item.id)),
+                  )
+                }
+              >
                 {editingHeader === item.id ? (
                   <input
                     autoFocus
@@ -348,6 +368,11 @@ function PlaylistItems() {
               className={`item-row ${selectedItem === item.id ? 'selected' : ''} ${drop}`}
               {...common}
               onClick={() => s.select(item.presentationId, item.id)}
+              onContextMenu={(e) =>
+                p
+                  ? openContextMenu(e, presentationMenu(p, item.id))
+                  : openContextMenu(e, [{ label: 'Remove from Playlist', action: () => s.removePlaylistItem(item.id) }])
+              }
             >
               <ItemIcon category={p?.category} />
               <span className="list-label">{p?.title ?? 'Missing presentation'}</span>

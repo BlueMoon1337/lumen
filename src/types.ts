@@ -21,6 +21,30 @@ export interface Slide {
   style?: TextStyle;
   /** Replaces the theme background for this slide. */
   background?: ThemeBackground;
+  /** A colored tag on the slide's thumbnail ("Prayer", "Key Change"), as in ProPresenter. */
+  label?: ColorLabel;
+  /** How this slide comes on screen; unset uses the presentation's, then the global one. */
+  transition?: SlideTransition;
+}
+
+/** A name with a color: a group preset or a slide label. */
+export interface ColorLabel {
+  name: string;
+  color: string;
+}
+
+/** How one slide replaces the one before it. */
+export type TransitionKind = 'cut' | 'dissolve' | 'fade' | 'push' | 'wipe' | 'zoom' | 'blur';
+
+/** Which way a push or wipe moves. */
+export type TransitionDirection = 'left' | 'right' | 'up' | 'down';
+
+export interface SlideTransition {
+  kind: TransitionKind;
+  /** Length in ms; a cut ignores it. */
+  ms: number;
+  /** For push and wipe; left when unset. */
+  direction?: TransitionDirection;
 }
 
 export interface Group {
@@ -48,8 +72,8 @@ export interface Presentation {
   themeId?: string;
   /** Formatting applied to every slide, under any per-slide formatting. */
   style?: TextStyle;
-  /** Overrides the global transition length; 0 is a cut. */
-  transitionMs?: number;
+  /** Overrides the global transition; a slide's own transition overrides this. */
+  transition?: SlideTransition;
   groups: Group[];
   /** Group ids in the order they are performed. Groups may repeat. */
   arrangement: string[];
@@ -148,7 +172,12 @@ export type AppIconId = 'star' | 'camera' | 'film' | 'projector';
 export interface Settings {
   /** Chosen on first launch; unset until then. */
   appIcon?: AppIconId;
-  transitionMs: number;
+  /** The slide transition used unless a presentation or slide sets its own. */
+  transition: SlideTransition;
+  /** The groups offered when assigning slides; unset uses DEFAULT_GROUPS (src/labels.ts). */
+  groupPresets?: ColorLabel[];
+  /** The slide labels offered; unset uses DEFAULT_LABELS (src/labels.ts). */
+  labelPresets?: ColorLabel[];
   /** Advancing past the last slide moves on to the next playlist item. */
   advanceAcrossItems: boolean;
   logoMediaId?: string;
@@ -353,7 +382,10 @@ export interface OutputFrame {
   background: FrameBackground | null;
   message: { key: string; text: string } | null;
   logoMediaId: string | null;
-  transitionMs: number;
+  /** How the slide layer (and its background) changes: the incoming slide's transition. */
+  transition: SlideTransition;
+  /** Fade length for messages and the logo. */
+  fadeMs: number;
   /** Added fonts, so output windows can load the ones slides use. */
   fonts: FontMeta[];
   /** For the output windows' own icon. */

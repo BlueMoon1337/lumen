@@ -63,7 +63,7 @@ describe('output frame', () => {
   it('applies presentation then slide formatting, and slide backgrounds', () => {
     const get = make('[V]\na\n\nb');
     const s = useStore.getState();
-    s.updatePresentation(get().id, { style: { color: '#111111', fontSize: 50 }, transitionMs: 0 });
+    s.updatePresentation(get().id, { style: { color: '#111111', fontSize: 50 }, transition: { kind: 'cut', ms: 0 } });
     s.updateSlide(get().id, get().groups[0].slides[1].id, {
       style: { color: '#222222' },
       background: { type: 'color', color: '#333333', color2: '#333333' },
@@ -72,7 +72,7 @@ describe('output frame', () => {
     const frame = buildFrame(useStore.getState());
     expect(frame.slide?.theme).toMatchObject({ color: '#222222', fontSize: 50 });
     expect(frame.background).toMatchObject({ kind: 'color', color: '#333333' });
-    expect(frame.transitionMs).toBe(0);
+    expect(frame.transition).toEqual({ kind: 'cut', ms: 0 });
   });
 
   it('shows the copyright line on the first and last slides only', () => {
@@ -121,7 +121,14 @@ describe('helpers', () => {
         arrangement: [],
         updatedAt: 0,
       },
-      { transitionMs: 0, advanceAcrossItems: true, defaultThemeId: '', gridSize: 0, slideView: 'grid', ccliLicense: '42' },
+      {
+        transition: { kind: 'cut', ms: 0 },
+        advanceAcrossItems: true,
+        defaultThemeId: '',
+        gridSize: 0,
+        slideView: 'grid',
+        ccliLicense: '42',
+      },
     );
     expect(line).toBe('Song — A · © 2020 Pub · CCLI Song # 9 · CCLI License # 42');
   });

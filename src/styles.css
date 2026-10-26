@@ -2452,23 +2452,239 @@ body.resizing-y * {
   object-fit: contain;
 }
 
-.layer.fade-in {
-  animation: fade-in both ease-out;
+/* Slide transitions. Each layer gets "tr-in" or "tr-out", the kind, and a direction (the way it moves). */
+.layer.tr-in,
+.layer.tr-out {
+  animation-fill-mode: both;
+  animation-timing-function: ease-in-out;
 }
 
-.layer.fade-out {
-  animation: fade-out both ease-in;
+.layer.tr-in.tr-dissolve {
+  animation-name: tr-opacity-in;
+  animation-timing-function: ease-out;
 }
 
-@keyframes fade-in {
+.layer.tr-out.tr-dissolve {
+  animation-name: tr-opacity-out;
+  animation-timing-function: ease-in;
+}
+
+.layer.tr-in.tr-fade {
+  animation-name: tr-fade-in;
+}
+
+.layer.tr-out.tr-fade {
+  animation-name: tr-fade-out;
+}
+
+.layer.tr-in.tr-zoom {
+  animation-name: tr-zoom-in;
+  animation-timing-function: ease-out;
+}
+
+.layer.tr-out.tr-zoom {
+  animation-name: tr-zoom-out;
+}
+
+.layer.tr-in.tr-blur {
+  animation-name: tr-blur-in;
+}
+
+.layer.tr-out.tr-blur {
+  animation-name: tr-blur-out;
+}
+
+.layer.dir-left {
+  --tr-x: -1;
+  --tr-y: 0;
+}
+
+.layer.dir-right {
+  --tr-x: 1;
+  --tr-y: 0;
+}
+
+.layer.dir-up {
+  --tr-x: 0;
+  --tr-y: -1;
+}
+
+.layer.dir-down {
+  --tr-x: 0;
+  --tr-y: 1;
+}
+
+.layer.tr-in.tr-push {
+  animation-name: tr-push-in;
+}
+
+.layer.tr-out.tr-push {
+  animation-name: tr-push-out;
+}
+
+.layer.tr-wipe {
+  animation-timing-function: linear;
+}
+
+.layer.tr-in.tr-wipe.dir-left {
+  animation-name: tr-wipe-in-left;
+}
+.layer.tr-out.tr-wipe.dir-left {
+  animation-name: tr-wipe-out-left;
+}
+.layer.tr-in.tr-wipe.dir-right {
+  animation-name: tr-wipe-in-right;
+}
+.layer.tr-out.tr-wipe.dir-right {
+  animation-name: tr-wipe-out-right;
+}
+.layer.tr-in.tr-wipe.dir-up {
+  animation-name: tr-wipe-in-up;
+}
+.layer.tr-out.tr-wipe.dir-up {
+  animation-name: tr-wipe-out-up;
+}
+.layer.tr-in.tr-wipe.dir-down {
+  animation-name: tr-wipe-in-down;
+}
+.layer.tr-out.tr-wipe.dir-down {
+  animation-name: tr-wipe-out-down;
+}
+
+@keyframes tr-opacity-in {
   from {
     opacity: 0;
   }
 }
 
-@keyframes fade-out {
+@keyframes tr-opacity-out {
   to {
     opacity: 0;
+  }
+}
+
+/* Out, then in: the first half is the old slide leaving, the second the new one arriving. */
+@keyframes tr-fade-in {
+  0%,
+  50% {
+    opacity: 0;
+  }
+}
+
+@keyframes tr-fade-out {
+  50%,
+  100% {
+    opacity: 0;
+  }
+}
+
+@keyframes tr-zoom-in {
+  from {
+    opacity: 0;
+    transform: scale(0.8);
+  }
+}
+
+@keyframes tr-zoom-out {
+  to {
+    opacity: 0;
+    transform: scale(1.2);
+  }
+}
+
+@keyframes tr-blur-in {
+  0%,
+  35% {
+    opacity: 0;
+    filter: blur(40px);
+  }
+}
+
+@keyframes tr-blur-out {
+  65%,
+  100% {
+    opacity: 0;
+    filter: blur(40px);
+  }
+}
+
+/* Moving left, the new slide comes in from the right and pushes the old one off to the left. */
+@keyframes tr-push-in {
+  from {
+    transform: translate(calc(var(--tr-x) * -100%), calc(var(--tr-y) * -100%));
+  }
+}
+
+@keyframes tr-push-out {
+  to {
+    transform: translate(calc(var(--tr-x) * 100%), calc(var(--tr-y) * 100%));
+  }
+}
+
+/* A wipe's edge sweeps the way it moves: ahead of it the old slide, behind it the new.
+   Both ends are spelled out, as a clip can't blend from "none". */
+@keyframes tr-wipe-in-left {
+  from {
+    clip-path: inset(0 0 0 100%);
+  }
+  to {
+    clip-path: inset(0 0 0 0);
+  }
+}
+@keyframes tr-wipe-out-left {
+  from {
+    clip-path: inset(0 0 0 0);
+  }
+  to {
+    clip-path: inset(0 100% 0 0);
+  }
+}
+@keyframes tr-wipe-in-right {
+  from {
+    clip-path: inset(0 100% 0 0);
+  }
+  to {
+    clip-path: inset(0 0 0 0);
+  }
+}
+@keyframes tr-wipe-out-right {
+  from {
+    clip-path: inset(0 0 0 0);
+  }
+  to {
+    clip-path: inset(0 0 0 100%);
+  }
+}
+@keyframes tr-wipe-in-up {
+  from {
+    clip-path: inset(100% 0 0 0);
+  }
+  to {
+    clip-path: inset(0 0 0 0);
+  }
+}
+@keyframes tr-wipe-out-up {
+  from {
+    clip-path: inset(0 0 0 0);
+  }
+  to {
+    clip-path: inset(0 0 100% 0);
+  }
+}
+@keyframes tr-wipe-in-down {
+  from {
+    clip-path: inset(0 0 100% 0);
+  }
+  to {
+    clip-path: inset(0 0 0 0);
+  }
+}
+@keyframes tr-wipe-out-down {
+  from {
+    clip-path: inset(0 0 0 0);
+  }
+  to {
+    clip-path: inset(100% 0 0 0);
   }
 }
 
@@ -3896,4 +4112,334 @@ body.resizing-y * {
   .toolbar {
     gap: 10px;
   }
+}
+
+/* ---- Right-click menus ----------------------------------------------------- */
+
+.context-menu {
+  position: fixed;
+  top: 0;
+  left: 0;
+  z-index: 270;
+}
+
+.context-menu .menu-select-list {
+  z-index: 270;
+  min-width: 200px;
+}
+
+.context-target {
+  outline: 2px solid #5b9bea !important;
+  outline-offset: -2px;
+}
+
+.msl-swatch {
+  width: 11px;
+  height: 11px;
+  flex: none;
+  margin: 0 6px 0 1px;
+  border-radius: 3px;
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.25);
+}
+
+.msl-shortcut {
+  padding-left: 28px;
+  color: var(--text-2);
+  font-size: 13px;
+  font-variant-numeric: tabular-nums;
+}
+
+.msl-item:hover .msl-shortcut,
+.msl-item:focus-visible .msl-shortcut {
+  color: rgba(255, 255, 255, 0.85);
+}
+
+.msl-item.danger:not(:disabled) {
+  color: #ff8a8a;
+}
+
+.msl-item.danger:hover:not(:disabled),
+.msl-item.danger:focus-visible {
+  background: #b33a3a;
+  color: #fff;
+}
+
+/* A panel opened from a menu or a button: a transition picker, a name field. */
+.floating-popup {
+  position: fixed;
+  z-index: 260;
+  max-width: calc(100vw - 16px);
+  max-height: calc(100vh - 16px);
+  overflow: auto;
+  padding: 10px;
+  background: #2b2b2b;
+  border: 1px solid #4d4d4d;
+  border-radius: 10px;
+  box-shadow: 0 16px 44px rgba(0, 0, 0, 0.6);
+}
+
+.name-popup {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  width: 340px;
+}
+
+.name-popup > input {
+  width: 100%;
+}
+
+.name-popup .button-row {
+  justify-content: flex-end;
+  padding: 0;
+}
+
+.insp-section .button-row,
+.preset-list .button-row {
+  padding: 0;
+}
+
+.preset-list .button-row {
+  margin-top: 6px;
+}
+
+/* ---- Transitions ------------------------------------------------------------- */
+
+.tp-panel {
+  width: 330px;
+}
+
+.tp {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.tp-preview {
+  position: relative;
+  aspect-ratio: 16 / 9;
+  overflow: hidden;
+  border-radius: 6px;
+  background: #000;
+}
+
+.tp-mock {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  color: #fff;
+  font-size: 20px;
+  font-weight: 600;
+  text-shadow: 0 1px 4px rgba(0, 0, 0, 0.6);
+}
+
+.tp-mock-1 {
+  background: linear-gradient(135deg, #1f3b73, #2d6aa6);
+}
+
+.tp-mock-2 {
+  background: linear-gradient(135deg, #6b1f4a, #c2533c);
+}
+
+.tp-current {
+  margin-top: -4px;
+  color: var(--text-2);
+  font-size: 12.5px;
+  text-align: center;
+}
+
+.tp-inherit {
+  margin: 0;
+}
+
+.tp-kinds {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 6px;
+}
+
+.tp-kind {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 3px;
+  padding: 7px 2px 5px;
+  border: 1px solid #474747;
+  border-radius: 7px;
+  background: #353535;
+  color: var(--text);
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.tp-kind:hover {
+  background: #404040;
+}
+
+.tp-kind.on {
+  border-color: var(--pink);
+  box-shadow: inset 0 0 0 1px var(--pink);
+}
+
+.tp-kind.on.inherited {
+  border-color: #777;
+  box-shadow: none;
+}
+
+.tp-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.tp-row-label {
+  width: 64px;
+  color: var(--text-2);
+  font-size: 13px;
+}
+
+.tp-row input[type='range'] {
+  flex: 1;
+}
+
+.tp-seconds {
+  width: 42px;
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+.transition-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: flex-start;
+  gap: 7px;
+}
+
+.transition-btn.inherited span {
+  color: var(--text-2);
+}
+
+.footer-transition {
+  height: 24px;
+  margin-left: 6px;
+  padding: 0 9px;
+  font-size: 12.5px;
+}
+
+/* Marks a slide with its own transition. */
+.slide-transition-badge {
+  position: absolute;
+  top: 4px;
+  right: 4px;
+  z-index: 2;
+  display: grid;
+  place-items: center;
+  width: 22px;
+  height: 22px;
+  padding: 0;
+  border: 0;
+  border-radius: 5px;
+  background: rgba(0, 0, 0, 0.7);
+  color: #fff;
+  cursor: pointer;
+}
+
+.slide-transition-badge:hover {
+  background: var(--pink);
+}
+
+.slide-row-tags .slide-transition-badge {
+  position: static;
+}
+
+/* ---- Labels ------------------------------------------------------------------- */
+
+.slide-label-tag {
+  flex: none;
+  margin-left: auto;
+  max-width: 60%;
+  padding: 0 6px;
+  overflow: hidden;
+  border-radius: 4px;
+  box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.25);
+  font-size: 11.5px;
+  font-weight: 600;
+  line-height: 16px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.slide-thumb-label .slide-group {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.outline-num {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.slide-row-text {
+  position: relative;
+}
+
+.slide-row-tags {
+  float: right;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin-left: 8px;
+}
+
+.color-chip {
+  display: inline-block;
+  width: 10px;
+  height: 10px;
+  border-radius: 2px;
+  vertical-align: -1px;
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.3);
+}
+
+.dialog.labels-dialog {
+  width: min(620px, calc(100vw - 32px));
+}
+
+.labels-tabs {
+  align-self: flex-start;
+}
+
+.labels-tabs button {
+  padding: 0 16px;
+  font-size: 13px;
+}
+
+.preset-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.preset-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.preset-row input[type='color'] {
+  width: 30px;
+  height: 26px;
+  flex: none;
+}
+
+.preset-row > input:not([type]) {
+  flex: 1;
+  min-width: 0;
+}
+
+.swatches.mini .swatch {
+  width: 14px;
+  height: 14px;
 }

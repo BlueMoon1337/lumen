@@ -2,10 +2,13 @@ import { useState } from 'react';
 import { DEFAULT_APP_ICON } from '../appIcons';
 import { addFontFiles, importFiles } from '../commands';
 import { cssFamilyFor, faceName, FONT_ACCEPT, isFontInstalled } from '../fonts';
+import { DEFAULT_GROUPS, DEFAULT_LABELS, groupPresets, LABEL_SWATCHES, labelPresets } from '../labels';
 import { useDisplays } from '../outputs';
 import { exportLibrary, isLibraryData, useStore } from '../store';
+import type { ColorLabel } from '../types';
 import { IconPicker } from './IconChooser';
-import { Dialog, downloadFile, pickFiles } from './ui';
+import { TransitionButton } from './TransitionPicker';
+import { Dialog, downloadFile, IconButton, pickFiles } from './ui';
 
 const IS_MAC = /Mac|iPhone|iPad/.test(navigator.platform);
 const MOD = IS_MAC ? '⌘' : 'Ctrl';
@@ -49,20 +52,10 @@ export function SettingsDialog({ onClose, onScreens }: { onClose: () => void; on
     <Dialog title="Settings" onClose={onClose}>
       <section className="settings-section">
         <h4>Presenting</h4>
-        <label className="field-row">
+        <div className="field-row">
           <span>Transition</span>
-          <span className="pair">
-            <input
-              type="range"
-              min={0}
-              max={2000}
-              step={50}
-              value={settings.transitionMs}
-              onChange={(e) => s.updateSettings({ transitionMs: Number(e.target.value) })}
-            />
-            <span className="muted">{(settings.transitionMs / 1000).toFixed(2)}s</span>
-          </span>
-        </label>
+          <TransitionButton target="global" />
+        </div>
         <label className="field-row">
           <span>Default theme</span>
           <select value={settings.defaultThemeId} onChange={(e) => s.updateSettings({ defaultThemeId: e.target.value })}>
@@ -100,6 +93,18 @@ export function SettingsDialog({ onClose, onScreens }: { onClose: () => void; on
           />
           After the last slide, continue to the next playlist item
         </label>
+      </section>
+      <section className="settings-section">
+        <h4>Groups & Labels</h4>
+        <p className="muted small-print">
+          {groupPresets(settings).length} groups and {labelPresets(settings).length} slide labels to choose from when you right-click a
+          slide.
+        </p>
+        <div className="button-row">
+          <button className="btn" onClick={() => s.setUI({ dialog: 'labels' })}>
+            Edit Groups & Labels…
+          </button>
+        </div>
       </section>
       <section className="settings-section">
         <h4>App Icon</h4>
@@ -244,8 +249,123 @@ export function SettingsDialog({ onClose, onScreens }: { onClose: () => void; on
             <kbd>{ALT}</kbd> <kbd>{MOD}</kbd> <kbd>1</kbd>
           </dt>
           <dd>Configure Screens</dd>
+          <dt>
+            <kbd>{ALT}</kbd> <kbd>{MOD}</kbd> <kbd>C</kbd> / <kbd>V</kbd>
+          </dt>
+          <dd>Copy / paste text style (Edit mode)</dd>
+          <dt>
+            <kbd>{MOD}</kbd> <kbd>X</kbd> <kbd>C</kbd> <kbd>V</kbd> <kbd>D</kbd>
+          </dt>
+          <dd>Cut, copy, paste, duplicate the selected slide (Edit mode)</dd>
+          <dt>Right-click</dt>
+          <dd>Slides, groups, library and playlist items, and media all have menus</dd>
         </dl>
       </section>
+    </Dialog>
+  );
+}
+
+/** One editable list of names and colors: the group presets or the slide labels. */
+function PresetList({
+  items,
+  defaults,
+  noun,
+  onChange,
+}: {
+  items: ColorLabel[];
+  defaults: ColorLabel[];
+  noun: string;
+  onChange: (items: ColorLabel[] | undefined) => void;
+}) {
+  const update = (i: number, patch: Partial<ColorLabel>) => onChange(items.map((it, j) => (j === i ? { ...it, ...patch } : it)));
+  const move = (i: number, d: -1 | 1) => {
+    const next = [...items];
+    [next[i], next[i + d]] = [next[i + d], next[i]];
+    onChange(next);
+  };
+  return (
+    <div className="preset-list">
+      {items.map((it, i) => (
+        <div key={i} className="preset-row">
+          <input type="color" value={it.color} onChange={(e) => update(i, { color: e.target.value })} aria-label={`${it.name} color`} />
+          <input value={it.name} onChange={(e) => update(i, { name: e.target.value })} aria-label={`${noun} name`} />
+          <span className="swatches mini">
+            {LABEL_SWATCHES.slice(0, 8).map((c) => (
+              <button
+                key={c.color}
+                className={`swatch ${it.color === c.color ? 'on' : ''}`}
+                style={{ background: c.color }}
+                onClick={() => update(i, { color: c.color })}
+                title={c.name}
+                aria-label={c.name}
+              />
+            ))}
+          </span>
+          <IconButton icon="chevronUp" title="Move up" disabled={i === 0} onClick={() => move(i, -1)} />
+          <IconButton icon="chevronDown" title="Move down" disabled={i === items.length - 1} onClick={() => move(i, 1)} />
+          <IconButton icon="trash" title={`Remove ${noun}`} danger onClick={() => onChange(items.filter((_, j) => j !== i))} />
+        </div>
+      ))}
+      <div className="button-row">
+        <button
+          className="btn"
+          onClick={() => onChange([...items, { name: `New ${noun}`, color: LABEL_SWATCHES[items.length % 8].color }])}
+        >
+          Add {noun}
+        </button>
+        <button
+          className="btn"
+          disabled={items === defaults}
+          onClick={() => confirm(`Put back the standard ${noun.toLowerCase()}s?`) && onChange(undefined)}
+        >
+          Restore Defaults
+        </button>
+      </div>
+    </div>
+  );
+}
+
+/**
+ * The groups and slide labels offered in the right-click menus and the inspector. Changing a
+ * preset doesn't change slides that already use it.
+ */
+export function LabelsDialog({ onClose }: { onClose: () => void }) {
+  const settings = useStore((s) => s.settings);
+  const s = useStore.getState();
+  const [tab, setTab] = useState<'groups' | 'labels'>('groups');
+  return (
+    <Dialog title="Groups & Labels" onClose={onClose} className="labels-dialog">
+      <div className="seg labels-tabs">
+        <button className={tab === 'groups' ? 'on' : ''} onClick={() => setTab('groups')}>
+          Groups
+        </button>
+        <button className={tab === 'labels' ? 'on' : ''} onClick={() => setTab('labels')}>
+          Labels
+        </button>
+      </div>
+      {tab === 'groups' ? (
+        <>
+          <p className="muted small-print">
+            Sections of a song. Right-click a slide and choose Group to start one there; the slides after it in its old group come along.
+          </p>
+          <PresetList
+            items={groupPresets(settings)}
+            defaults={DEFAULT_GROUPS}
+            noun="Group"
+            onChange={(groupPresets) => s.updateSettings({ groupPresets })}
+          />
+        </>
+      ) : (
+        <>
+          <p className="muted small-print">Cues for whoever is running slides, shown on the slide thumbnails. A slide has one label.</p>
+          <PresetList
+            items={labelPresets(settings)}
+            defaults={DEFAULT_LABELS}
+            noun="Label"
+            onChange={(labelPresets) => s.updateSettings({ labelPresets })}
+          />
+        </>
+      )}
     </Dialog>
   );
 }

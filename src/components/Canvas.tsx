@@ -3,7 +3,7 @@ import { timerRemaining, useNow } from '../clock';
 import { useFontsVersion } from '../fonts';
 import { useMedia } from '../media';
 import { toFrameBackground } from '../theme';
-import type { FrameBackground, OutputFrame, Theme, ThemeBackground, ThemeTextBox } from '../types';
+import type { FrameBackground, OutputFrame, SlideTransition, Theme, ThemeBackground, ThemeTextBox } from '../types';
 import { formatClock, formatDuration } from '../util';
 
 export const CANVAS_W = 1920;
@@ -213,36 +213,52 @@ interface Layer {
   key: string | null;
   node: ReactNode;
   leaving: boolean;
+  /** The animation classes and length, fixed when the layer arrives or starts leaving so later changes don't restart it. */
+  effect: string;
+  duration: number;
 }
 
 let layerSeq = 0;
 
+/** A layer's classes for a transition: "tr-in tr-push dir-left", and so on. */
+function effectClass(t: Pick<SlideTransition, 'kind' | 'direction'>, phase: 'in' | 'out') {
+  return `tr-${phase} tr-${t.kind} dir-${t.direction ?? 'left'}`;
+}
+
 /**
- * Transitions between children whenever `itemKey` changes. "cross" fades the
- * old content out while the new fades in; "over" fades the new content in on
- * top of the old, which avoids a dip to black between backgrounds.
+ * Transitions between children whenever `itemKey` changes, with the effect the incoming
+ * item brings (a dissolve, a push, a wipe…). "over" keeps the old content still underneath
+ * while the new arrives, which avoids a dip to black between backgrounds.
  */
 export function Transition({
   itemKey,
   duration,
+  effect = DISSOLVE,
   mode = 'cross',
   children,
 }: {
   itemKey: string | null;
   duration: number;
+  effect?: Pick<SlideTransition, 'kind' | 'direction'>;
   mode?: 'cross' | 'over';
   children: ReactNode;
 }) {
-  const [layers, setLayers] = useState<Layer[]>(() => [{ id: layerSeq++, key: itemKey, node: children, leaving: false }]);
+  const ms = effect.kind === 'cut' ? 0 : duration;
+  const [layers, setLayers] = useState<Layer[]>(() => [
+    { id: layerSeq++, key: itemKey, node: children, leaving: false, effect: effectClass(effect, 'in'), duration: ms },
+  ]);
   const [shownKey, setShownKey] = useState(itemKey);
   const lastChildren = useRef(children);
 
   if (itemKey !== shownKey) {
     const outgoing = lastChildren.current;
+    const out = mode === 'over' && effect.kind === 'dissolve' ? 'tr-hold' : effectClass(effect, 'out');
     setShownKey(itemKey);
     setLayers((prev) => [
-      ...prev.filter((l) => l.key !== itemKey).map((l) => (l.leaving ? l : { ...l, node: outgoing, leaving: true })),
-      { id: layerSeq++, key: itemKey, node: null, leaving: false },
+      ...prev
+        .filter((l) => l.key !== itemKey)
+        .map((l) => (l.leaving ? l : { ...l, node: outgoing, leaving: true, effect: out, duration: ms })),
+      { id: layerSeq++, key: itemKey, node: null, leaving: false, effect: effectClass(effect, 'in'), duration: ms },
     ]);
   }
 
@@ -250,27 +266,26 @@ export function Transition({
     lastChildren.current = children;
   });
 
-  const hasLeaving = layers.some((l) => l.leaving);
+  const leaving = layers.filter((l) => l.leaving);
+  const longest = Math.max(0, ...leaving.map((l) => l.duration));
   useEffect(() => {
-    if (!hasLeaving) return;
-    const t = setTimeout(() => setLayers((prev) => prev.filter((l) => !l.leaving)), duration + 50);
+    if (!leaving.length) return;
+    const t = setTimeout(() => setLayers((prev) => prev.filter((l) => !l.leaving)), longest + 50);
     return () => clearTimeout(t);
-  }, [hasLeaving, layers, duration]);
+  }, [leaving.length, layers, longest]);
 
   return (
     <>
       {layers.map((l) => (
-        <div
-          key={l.id}
-          className={`layer ${l.leaving ? (mode === 'cross' ? 'fade-out' : '') : 'fade-in'}`}
-          style={{ animationDuration: `${duration}ms` }}
-        >
+        <div key={l.id} className={`layer ${l.effect}`} style={{ animationDuration: `${l.duration}ms` }}>
           {l.leaving ? l.node : children}
         </div>
       ))}
     </>
   );
 }
+
+const DISSOLVE = { kind: 'dissolve' } as const;
 
 export function resolveTokens(text: string, timer: OutputFrame['timer'], now: number) {
   return text
@@ -283,7 +298,6 @@ function MessageBanner({ text, timer }: { text: string; timer: OutputFrame['time
   return <div className="message-banner">{resolveTokens(text, timer, now)}</div>;
 }
 
-/** The audience picture, layer by layer. Used by the output window and the operator's monitor. */
 /**
  * The audience picture, layer by layer. Used by output windows and the operator's monitor.
  * `alphaKey` "fill" drops the background layers; "key" also draws what's left as a
@@ -300,10 +314,12 @@ export function OutputView({
   screenColor?: string;
   alphaKey?: 'off' | 'fill' | 'key';
 }) {
-  const d = frame?.transitionMs ?? 400;
+  // The slide layer changes the way the incoming slide says; messages and the logo fade.
+  const slideFx = frame?.transition ?? { kind: 'dissolve', ms: 400 };
+  const d = frame?.fadeMs ?? 400;
   const foreground = (
     <>
-      <Transition itemKey={frame?.slide?.key ?? null} duration={d}>
+      <Transition itemKey={frame?.slide?.key ?? null} duration={slideFx.ms} effect={slideFx}>
         {frame?.slide && (
           <>
             <SlideText text={frame.slide.text} caption={frame.slide.caption} theme={frame.slide.theme} />
@@ -327,7 +343,12 @@ export function OutputView({
     <ScaledCanvas className="output-view">
       <div className="fill" style={{ background: alphaKey === 'off' ? (screenColor ?? '#000') : '#000' }} />
       {alphaKey === 'off' && (
-        <Transition itemKey={frame?.background?.key ?? null} duration={d} mode="over">
+        <Transition
+          itemKey={frame?.background?.key ?? null}
+          duration={slideFx.ms}
+          effect={slideFx.kind === 'cut' ? slideFx : DISSOLVE}
+          mode="over"
+        >
           {frame?.background && <BackgroundFill bg={frame.background} muted={muted} />}
         </Transition>
       )}

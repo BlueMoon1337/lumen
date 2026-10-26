@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState, type CSSProperties, type RefObject } from 'react';
+import { useCallback, useEffect, useRef, type CSSProperties, type RefObject } from 'react';
 import { applyAppIcon } from '../appIcons';
 import { registerFonts } from '../fonts';
 import { startFrameSync } from '../liveFrame';
@@ -7,8 +7,9 @@ import { setScreensEnabled, startScreenManager } from '../outputs';
 import { useStore } from '../store';
 import { isTypingTarget } from '../util';
 import { BibleView } from './BibleView';
-import { SettingsDialog } from './Dialogs';
-import { EditView } from './EditView';
+import { ContextMenuHost } from './ContextMenu';
+import { LabelsDialog, SettingsDialog } from './Dialogs';
+import { EditView, findSlide } from './EditView';
 import { WelcomeDialog } from './IconChooser';
 import { LivePanel } from './LivePanel';
 import { MediaContent, MediaSidebar } from './MediaBin';
@@ -61,6 +62,50 @@ function useShortcuts(enabled: boolean) {
       } else if (s.mode === 'show' && /^[a-z]$/i.test(e.key) && !e.shiftKey) {
         s.jumpToGroup(e.key);
       }
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [enabled]);
+}
+
+/**
+ * Edit mode's slide shortcuts, as in ProPresenter: ⌥⌘C / ⌥⌘V copy and paste the selected
+ * slide's text style; ⌘X, ⌘C, ⌘V and ⌘D cut, copy, paste and duplicate the slide.
+ */
+function useEditShortcuts(enabled: boolean) {
+  useEffect(() => {
+    if (!enabled) return;
+    const onKey = (e: KeyboardEvent) => {
+      const s = useStore.getState();
+      if (s.mode !== 'edit' || !(e.metaKey || e.ctrlKey) || e.shiftKey || isTypingTarget(e.target)) return;
+      // Leave ⌘C alone when there's text selected to copy.
+      if (!window.getSelection()?.isCollapsed) return;
+      const p = s.selectedPresentationId ? s.presentations[s.selectedPresentationId] : undefined;
+      const found = p && findSlide(p, s.editSlideId);
+      if (!p || !found) return;
+      const id = found.slide.id;
+      // e.code, because ⌥C types "ç" on a Mac.
+      const actions: Record<string, () => void> = e.altKey
+        ? { KeyC: () => s.copyTextStyle(p.id, id), KeyV: () => s.pasteTextStyle(p.id, { slideId: id }) }
+        : {
+            KeyC: () => s.copySlides(p.id, [id]),
+            KeyX: () => {
+              s.copySlides(p.id, [id]);
+              s.deleteSlide(p.id, id);
+            },
+            KeyV: () => {
+              const pasted = s.pasteSlides(p.id, id);
+              if (pasted) s.openEditor(pasted);
+            },
+            KeyD: () => {
+              const copy = s.duplicateSlide(p.id, id);
+              if (copy) s.openEditor(copy);
+            },
+          };
+      const action = actions[e.code];
+      if (!action) return;
+      e.preventDefault();
+      action();
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
@@ -210,7 +255,8 @@ function PaneSplitters({
 }
 
 export default function ControlApp() {
-  const [dialog, setDialog] = useState<'settings' | 'screens' | null>(null);
+  const dialog = useStore((s) => s.dialog);
+  const setDialog = useCallback((d: typeof dialog) => useStore.getState().setUI({ dialog: d }), []);
   const mode = useStore((s) => s.mode);
   const layout = mode === 'bible' ? 'show' : mode;
   const showMediaBin = useStore((s) => s.showMediaBin);
@@ -222,7 +268,7 @@ export default function ControlApp() {
 
   useEffect(() => startFrameSync(), []);
   useEffect(() => startScreenManager(), []);
-  const openScreens = useCallback(() => setDialog('screens'), []);
+  const openScreens = useCallback(() => setDialog('screens'), [setDialog]);
   useScreenCommands(openScreens);
   useEffect(() => {
     void registerFonts(fonts);
@@ -231,6 +277,15 @@ export default function ControlApp() {
     if (appIcon) applyAppIcon(appIcon);
   }, [appIcon]);
   useShortcuts(dialog === null && !editingTheme && !!appIcon);
+  useEditShortcuts(dialog === null && !editingTheme && !!appIcon);
+  useEffect(() => {
+    // The desktop app's web view has its own right-click menu (Reload, Inspect…); Lumen's
+    // menus replace it, and text fields keep theirs for copy and paste.
+    if (!window.lumenDesktop) return;
+    const onMenu = (e: MouseEvent) => !isTypingTarget(e.target) && e.preventDefault();
+    window.addEventListener('contextmenu', onMenu);
+    return () => window.removeEventListener('contextmenu', onMenu);
+  }, []);
 
   const appRef = useRef<HTMLDivElement>(null);
   const savedPanes = useStore((s) => s.settings.panes);
@@ -265,9 +320,11 @@ export default function ControlApp() {
       <PaneSplitters app={appRef} layout={layout} media={showMediaBin} />
       {dialog === 'settings' && <SettingsDialog onClose={() => setDialog(null)} onScreens={openScreens} />}
       {dialog === 'screens' && <ScreenConfigDialog onClose={() => setDialog(null)} />}
+      {dialog === 'labels' && <LabelsDialog onClose={() => setDialog(null)} />}
       {editingTheme && <ThemeEditorDialog />}
       {!appIcon && <WelcomeDialog />}
       <Notices />
+      <ContextMenuHost />
     </div>
   );
 }

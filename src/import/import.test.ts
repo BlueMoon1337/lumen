@@ -121,8 +121,19 @@ describe('ProPresenter 7 import', () => {
       year: '2019',
       ccli: '1234567',
       showCopyright: true,
-      transitionMs: 500,
+      transition: { kind: 'dissolve', ms: 500 },
     });
+  });
+
+  it('reads the transition effect and its direction', () => {
+    // As ProPresenter saves a 0.78s Wipe moving down: effect name (3), and a Direction variable (7) with direction 8.
+    const wipe = msg(18, double(1, 0.78), msg(3, str(3, 'Wipe'), msg(7, str(1, 'Direction'), msg(6, num(1, 8), num(2, 2), num(3, 495)))));
+    const withWipe = parseProPresenter7(concat([str(3, 'Song'), group('G1', 'Verse 1', [0, 0, 1], ['C1']), cue('C1', ['a']), wipe]));
+    expect(withWipe.transition).toEqual({ kind: 'wipe', ms: 780, direction: 'down' });
+    const cut = parseProPresenter7(
+      concat([str(3, 'Song'), group('G1', 'Verse 1', [0, 0, 1], ['C1']), cue('C1', ['a']), msg(18, double(1, 0))]),
+    );
+    expect(cut.transition).toEqual({ kind: 'cut', ms: 0 });
   });
 
   it('rejects other files with a clear message', () => {

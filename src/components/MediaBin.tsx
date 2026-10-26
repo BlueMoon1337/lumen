@@ -2,6 +2,8 @@ import { useMemo, useState } from 'react';
 import { useMedia } from '../media';
 import { useStore } from '../store';
 import type { MediaItem } from '../types';
+import { openContextMenu } from './ContextMenu';
+import { mediaMenu } from './menus';
 import { FilterField, Icon, IconButton, pickFiles, SectionHeader } from './ui';
 
 const FILTERS = [
@@ -100,6 +102,7 @@ export function MediaContent() {
               key={m.id}
               className={`media-tile ${liveMedia === m.id ? 'live' : ''}`}
               onClick={() => s.setLiveMedia(liveMedia === m.id ? null : m.id)}
+              onContextMenu={(e) => openContextMenu(e, mediaMenu(m))}
               title="Click to show behind your slides, click again to clear"
             >
               <div className="media-tile-frame">

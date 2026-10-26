@@ -21,6 +21,7 @@ import { useStore } from '../store';
 import { defaultThemes } from '../seed';
 import type { BibleReferences, BibleSettings, BibleSlot, BibleTranslation, Category, Theme } from '../types';
 import { SlidePreview } from './Canvas';
+import { openContextMenu, type ContextEntries } from './ContextMenu';
 import { MenuSelect, type MenuEntry } from './MenuSelect';
 import { LIBRARIES } from './Sidebar';
 import { Dialog, IconButton, pickFiles, Popover } from './ui';
@@ -128,6 +129,25 @@ function SlotThumb({ theme, slot }: { theme: Theme; slot: 'text' | 'caption' }) 
 
 let lastDraftKey = '';
 
+/** A verse slide's right-click menu: show it, or copy it (or the whole passage) to paste into a presentation. */
+function bibleSlideMenu(index: number, slideId: string): ContextEntries {
+  const s = useStore.getState();
+  const draft = s.presentations[BIBLE_DRAFT_ID];
+  return [
+    { label: 'Show Slide', action: () => s.showBibleSlide(index) },
+    '-',
+    { label: 'Copy Slide', action: () => s.copySlides(BIBLE_DRAFT_ID, [slideId]) },
+    {
+      label: 'Copy All Slides',
+      action: () =>
+        draft &&
+        s.copySlides(
+          BIBLE_DRAFT_ID,
+          getSequence(draft).map((e) => e.slide.id),
+        ),
+    },
+  ];
+}
 export function BibleView() {
   const settings = useStore((s) => s.settings);
   const bibles = useStore((s) => s.bibles);
@@ -439,6 +459,7 @@ export function BibleView() {
                 tabIndex={-1}
                 className={`slide-row ${i === liveIndex ? 'live' : ''}`}
                 onClick={() => s.showBibleSlide(i)}
+                onContextMenu={(e) => openContextMenu(e, bibleSlideMenu(i, slide.id))}
               >
                 <span className="slide-row-label bible-label">{group.name}</span>
                 <span className="slide-row-text">{slide.text}</span>
@@ -455,6 +476,7 @@ export function BibleView() {
                 tabIndex={-1}
                 className={`slide-thumb ${i === liveIndex ? 'live' : ''}`}
                 onClick={() => s.showBibleSlide(i)}
+                onContextMenu={(e) => openContextMenu(e, bibleSlideMenu(i, slide.id))}
                 title="Click to show"
               >
                 <div className="slide-thumb-canvas">

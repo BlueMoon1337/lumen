@@ -50,7 +50,7 @@ export function createFromImport(data: ImportedPresentation, category: Category)
     year: data.year,
     ccli: data.ccli,
     showCopyright: data.showCopyright,
-    transitionMs: data.transitionMs,
+    transition: data.transition,
     style: data.style,
     themeId: themeFor(data),
   });

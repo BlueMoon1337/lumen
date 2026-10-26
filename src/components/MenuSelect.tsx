@@ -4,15 +4,35 @@ import { useEffect, useLayoutEffect, useRef, useState, type CSSProperties, type 
 export type MenuEntry =
   | { type: 'header'; label: string }
   | { type: 'separator' }
-  | { type: 'item'; value: string; label: ReactNode; detail?: ReactNode; thumbnail?: ReactNode; disabled?: boolean; title?: string }
+  | {
+      type: 'item';
+      value: string;
+      label: ReactNode;
+      detail?: ReactNode;
+      thumbnail?: ReactNode;
+      disabled?: boolean;
+      title?: string;
+      /** Overrides "checked when it's the current value", for menus with several checkmarks. */
+      checked?: boolean;
+      /** A keyboard shortcut shown on the right, e.g. "⌥⌘C". */
+      shortcut?: string;
+      /** A color dot before the label (groups and labels). */
+      swatch?: string;
+      danger?: boolean;
+    }
   /** `entries` may be a function, so big menus (every verse of the Bible) are only built when opened. */
-  | { type: 'submenu'; label: string; entries: MenuEntry[] | (() => MenuEntry[]); disabled?: boolean }
+  | { type: 'submenu'; label: string; entries: MenuEntry[] | (() => MenuEntry[]); disabled?: boolean; swatch?: string }
   | { type: 'note'; text: ReactNode };
 
 const MARGIN = 8;
 
-/** Places a fixed-position menu next to an anchor rectangle, flipping and clamping so it stays on screen. */
-function usePlacement(open: boolean, anchor: () => DOMRect | undefined, side: 'below' | 'right') {
+type Side = 'below' | 'right' | 'point';
+
+/**
+ * Places a fixed-position menu next to an anchor rectangle, flipping and clamping so it stays on screen.
+ * "point" opens at a spot (a right-click), down and to the right where there's room.
+ */
+function usePlacement(open: boolean, anchor: () => DOMRect | undefined, side: Side) {
   const ref = useRef<HTMLDivElement>(null);
   const [style, setStyle] = useState<CSSProperties>({ visibility: 'hidden' });
   useLayoutEffect(() => {
@@ -22,10 +42,12 @@ function usePlacement(open: boolean, anchor: () => DOMRect | undefined, side: 'b
     const { innerWidth: W, innerHeight: H } = window;
     const w = Math.max(el.offsetWidth, side === 'below' ? a.width : 0);
     const h = Math.min(el.scrollHeight, H - MARGIN * 2);
-    let left = side === 'below' ? a.left : a.right - 4;
-    let top = side === 'below' ? a.bottom + 4 : a.top - 6;
+    let left = side === 'right' ? a.right - 4 : a.left;
+    let top = side === 'below' ? a.bottom + 4 : side === 'point' ? a.top : a.top - 6;
     if (side === 'right' && left + w > W - MARGIN) left = a.left - w + 4;
+    if (side === 'point' && left + w > W - MARGIN) left = a.left - w;
     if (side === 'below' && top + h > H - MARGIN) top = a.top - h - 4 >= MARGIN ? a.top - h - 4 : H - MARGIN - h;
+    if (side === 'point' && top + h > H - MARGIN) top = a.top - h >= MARGIN ? a.top - h : H - MARGIN - h;
     left = Math.max(MARGIN, Math.min(left, W - MARGIN - w));
     top = Math.max(MARGIN, Math.min(top, H - MARGIN - h));
     setStyle({ left, top, minWidth: side === 'below' ? a.width : undefined, maxHeight: H - MARGIN * 2 });
@@ -34,7 +56,7 @@ function usePlacement(open: boolean, anchor: () => DOMRect | undefined, side: 'b
   return { ref, style };
 }
 
-function MenuList({
+export function MenuList({
   entries,
   value,
   onPick,
@@ -47,7 +69,7 @@ function MenuList({
   value: string;
   onPick: (v: string) => void;
   anchor: () => DOMRect | undefined;
-  side: 'below' | 'right';
+  side: Side;
   onClose: () => void;
   className?: string;
 }) {
@@ -110,18 +132,19 @@ function MenuList({
               onClick={(e) => setSub(sub?.index === i ? null : { index: i, rect: e.currentTarget.getBoundingClientRect() })}
             >
               <span className="msl-check" />
+              {entry.swatch && <span className="msl-swatch" style={{ background: entry.swatch }} />}
               <span className="msl-label">{entry.label}</span>
               <span className="msl-arrow">›</span>
             </button>
           );
-        const checked = entry.value === value;
+        const checked = entry.checked ?? entry.value === value;
         return (
           <button
             key={i}
             type="button"
             role="menuitemradio"
             aria-checked={checked}
-            className={`msl-item ${checked ? 'checked' : ''} ${entry.thumbnail ? 'with-thumb' : ''}`}
+            className={`msl-item ${checked ? 'checked' : ''} ${entry.thumbnail ? 'with-thumb' : ''} ${entry.danger ? 'danger' : ''}`}
             disabled={entry.disabled}
             title={entry.title}
             onMouseEnter={() => setSub(null)}
@@ -129,10 +152,12 @@ function MenuList({
           >
             <span className="msl-check">{checked ? '✓' : ''}</span>
             {entry.thumbnail && <span className="msl-thumb">{entry.thumbnail}</span>}
+            {entry.swatch && <span className="msl-swatch" style={{ background: entry.swatch }} />}
             <span className="msl-label">
               {entry.label}
               {entry.detail && <span className="msl-detail">{entry.detail}</span>}
             </span>
+            {entry.shortcut && <span className="msl-shortcut">{entry.shortcut}</span>}
           </button>
         );
       })}

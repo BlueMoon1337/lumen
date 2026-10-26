@@ -2,6 +2,7 @@ import { DEFAULT_APP_ICON } from './appIcons';
 import { getSequence } from './lyrics';
 import { adjacentPlaylistItem, type AppState } from './store';
 import { copyrightLine, resolveTheme, slideTheme, toFrameBackground } from './theme';
+import { effectiveTransition, transitionDuration } from './transitions';
 import type { FrameBackground, OutputFrame, Presentation } from './types';
 
 const label = (p: Presentation, groupName: string) => `${p.title} · ${groupName}`;
@@ -50,7 +51,8 @@ export function buildFrame(s: AppState): OutputFrame {
     background,
     message: message ? { key: message.id, text: message.text } : null,
     logoMediaId: s.live.logo ? (s.settings.logoMediaId ?? null) : null,
-    transitionMs: p?.transitionMs ?? s.settings.transitionMs,
+    transition: effectiveTransition(s.settings, p, entry?.slide),
+    fadeMs: transitionDuration(s.settings.transition),
     fonts: s.fonts,
     appIcon: s.settings.appIcon ?? DEFAULT_APP_ICON,
     screens: s.screens,

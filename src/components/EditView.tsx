@@ -8,14 +8,21 @@ import {
   type PointerEvent as ReactPointerEvent,
   type ReactNode,
 } from 'react';
+import { groupPresets, LABEL_SWATCHES, labelPresets } from '../labels';
+import { colorForGroup } from '../lyrics';
 import { useMedia } from '../media';
 import { useStore } from '../store';
 import { applyStyles, inkFor, resolveTheme, slideTheme, toFrameBackground } from '../theme';
 import type { Category, Group, MediaItem, Presentation, Slide, TextStyle, Theme, ThemeBackground } from '../types';
 import { BackgroundFill, CANVAS_H, CANVAS_W, slideBoxStyle, SlidePreview, SlideText, slideTextStyle } from './Canvas';
+import { NamePopup, openContextMenu, openPopupBelow } from './ContextMenu';
 import { FontSelect } from './FontSelect';
+import { MenuSelect, type MenuEntry } from './MenuSelect';
+import { canvasMenu, groupMenu, shortcut, slideMenu } from './menus';
+import { LabelTag, TransitionBadge } from './ShowView';
 import { LIBRARIES } from './Sidebar';
 import { AlignButtons } from './Toolbar';
+import { TransitionButton } from './TransitionPicker';
 import { Icon, IconButton, Popover } from './ui';
 
 export function findSlide(p: Presentation, id: string | null): { group: Group; slide: Slide } | null {
@@ -110,7 +117,12 @@ export function EditOutline({ presentation: p, showObjects }: { presentation: Pr
           const open = !collapsed.has(g.id);
           return (
             <section key={g.id} className="outline-group" style={{ '--group': g.color, '--ink': inkFor(g.color) } as CSSProperties}>
-              <button className="outline-group-header" onClick={() => toggle(g.id)}>
+              <button
+                className="outline-group-header"
+                onClick={() => toggle(g.id)}
+                onContextMenu={(e) => openContextMenu(e, groupMenu(p, g))}
+                title="Right-click to rename, recolor and more"
+              >
                 <Icon name={open ? 'chevronDown' : 'chevronRight'} size={12} />
                 <span className="list-label">{g.name}</span>
               </button>
@@ -121,11 +133,19 @@ export function EditOutline({ presentation: p, showObjects }: { presentation: Pr
                     ref={sl.id === selectedId ? selectedRef : undefined}
                     className={`outline-slide ${sl.id === selectedId && mode === 'edit' ? 'selected' : ''}`}
                     onClick={() => s.setUI({ mode: 'edit', editSlideId: sl.id, editTextSelected: false })}
+                    onContextMenu={(e) => {
+                      // Right-clicking a slide selects it, as in ProPresenter.
+                      if (mode === 'edit') s.setUI({ editSlideId: sl.id, editTextSelected: false });
+                      openContextMenu(e, slideMenu(p, sl, g, { inEdit: mode === 'edit' }));
+                    }}
                   >
                     <div className="outline-thumb">
                       <SlidePreview text={sl.text} caption={sl.caption} theme={slideTheme(base, p, sl)} background={sl.background} />
+                      <TransitionBadge presentationId={p.id} slide={sl} />
                     </div>
-                    <span className="outline-num">{start + i + 1}.</span>
+                    <span className="outline-num">
+                      {start + i + 1}.{sl.label && <LabelTag label={sl.label} />}
+                    </span>
                   </div>
                 ))}
             </section>
@@ -317,6 +337,7 @@ function BackgroundPicker({
 }
 
 export function EditCanvas({ presentation: p, slide }: { presentation: Presentation; slide: Slide | null }) {
+  const group = slide ? findSlide(p, slide.id)?.group : undefined;
   const areaRef = useRef<HTMLDivElement>(null);
   const slideRef = useRef<HTMLDivElement>(null);
   const [area, setArea] = useState({ w: 0, h: 0 });
@@ -480,7 +501,11 @@ export function EditCanvas({ presentation: p, slide }: { presentation: Presentat
               style={box}
               onPointerDown={(e) => startDrag(e, 'move')}
               onDoubleClick={startEditing}
-              title="Drag to move · Double-click to edit text"
+              onContextMenu={(e) => {
+                s.setUI({ editTextSelected: true });
+                if (group) openContextMenu(e, canvasMenu(p, slide, group, startEditing));
+              }}
+              title="Drag to move · Double-click to edit text · Right-click for more"
             >
               {!slide.text && <span className="element-placeholder">Double-click to add text</span>}
               {selected && HANDLES.map((h) => <span key={h} className={`handle ${h}`} onPointerDown={(e) => startDrag(e, h)} />)}
@@ -567,15 +592,6 @@ function Switch({ checked, onChange, label }: { checked: boolean; onChange: (v: 
   );
 }
 
-const TRANSITIONS = [
-  { value: '', label: 'Default (Settings)' },
-  { value: '0', label: 'Cut' },
-  { value: '250', label: 'Fade · 0.25s' },
-  { value: '500', label: 'Fade · 0.5s' },
-  { value: '1000', label: 'Fade · 1s' },
-  { value: '2000', label: 'Fade · 2s' },
-];
-
 function PresentationTab({ presentation: p }: { presentation: Presentation }) {
   const themes = useStore((s) => s.themes);
   const s = useStore.getState();
@@ -616,17 +632,8 @@ function PresentationTab({ presentation: p }: { presentation: Presentation }) {
       </section>
       <section className="insp-section">
         <div className="insp-heading">Transition</div>
-        <select
-          className="insp-wide"
-          value={p.transitionMs == null ? '' : String(p.transitionMs)}
-          onChange={(e) => update({ transitionMs: e.target.value === '' ? undefined : Number(e.target.value) })}
-        >
-          {TRANSITIONS.map((t) => (
-            <option key={t.value} value={t.value}>
-              {t.label}
-            </option>
-          ))}
-        </select>
+        <TransitionButton target={{ presentationId: p.id, scope: 'presentation' }} className="insp-wide" />
+        <p className="small-print muted">For every slide that doesn't have its own. Right-click a slide to give it one.</p>
       </section>
       <section className="insp-section">
         <div className="insp-heading">
@@ -650,7 +657,121 @@ function PresentationTab({ presentation: p }: { presentation: Presentation }) {
   );
 }
 
-const GROUP_SWATCHES = ['#3b82f6', '#d9485f', '#d4a72c', '#9b5de5', '#14b8a6', '#6b7280', '#1a1a1a', '#e5e5e5'];
+const labelKey = (l?: { name: string; color: string }) => (l ? `${l.name}\u0000${l.color}` : '');
+
+function ColorSwatches({ value, onChange }: { value: string; onChange: (color: string) => void }) {
+  return (
+    <span className="swatches">
+      {LABEL_SWATCHES.map((c) => (
+        <button
+          key={c.color}
+          className={`swatch ${value === c.color ? 'on' : ''}`}
+          style={{ background: c.color }}
+          onClick={() => onChange(c.color)}
+          title={c.name}
+          aria-label={c.name}
+        />
+      ))}
+      <input type="color" value={value} onChange={(e) => onChange(e.target.value)} aria-label="Custom color" />
+    </span>
+  );
+}
+
+/** The slide's group (choosing one starts that group at this slide) and the group's name and color. */
+function GroupSection({ presentation: p, slide, group }: { presentation: Presentation; slide: Slide; group: Group }) {
+  const presets = useStore((s) => groupPresets(s.settings));
+  const s = useStore.getState();
+  const first = group.slides[0]?.id === slide.id;
+  const known = presets.some((g) => g.name === group.name);
+  const entries: MenuEntry[] = [
+    ...(known ? [] : [{ type: 'item' as const, value: '', label: group.name, swatch: group.color }, { type: 'separator' as const }]),
+    ...presets.map((g) => ({ type: 'item' as const, value: g.name, label: g.name, swatch: g.color })),
+    { type: 'separator' },
+    { type: 'item', value: '\u0000new', label: 'New Group…' },
+    { type: 'item', value: '\u0000edit', label: 'Edit Groups…' },
+  ];
+  const pick = (v: string) => {
+    if (v === '\u0000edit') return s.setUI({ dialog: 'labels' });
+    if (v === '\u0000new') {
+      const anchor = document.activeElement;
+      if (anchor)
+        openPopupBelow(
+          anchor,
+          <NamePopup
+            title="New Group"
+            initial={{ name: '', color: colorForGroup('') }}
+            action="Create"
+            suggestColor={colorForGroup}
+            onSave={(g) => s.assignGroup(p.id, slide.id, g)}
+          />,
+        );
+      return;
+    }
+    const preset = presets.find((g) => g.name === v);
+    if (preset) s.assignGroup(p.id, slide.id, preset);
+  };
+  return (
+    <section className="insp-section">
+      <div className="insp-heading">Group</div>
+      <Field label="Slide's group">
+        <MenuSelect label="Slide's group" value={known ? group.name : ''} entries={entries} onChange={pick} />
+      </Field>
+      {!first && (
+        <p className="small-print muted">Choosing a group starts it at this slide; the slides after it in “{group.name}” move with it.</p>
+      )}
+      <Field label="Name">
+        <input value={group.name} onChange={(e) => s.updateGroup(p.id, group.id, { name: e.target.value })} />
+      </Field>
+      <Field label="Color">
+        <ColorSwatches value={group.color} onChange={(color) => s.updateGroup(p.id, group.id, { color })} />
+      </Field>
+    </section>
+  );
+}
+
+/** A colored label on the slide's thumbnail, from the presets or made up. */
+function LabelSection({ presentation: p, slide }: { presentation: Presentation; slide: Slide }) {
+  const presets = useStore((s) => labelPresets(s.settings));
+  const s = useStore.getState();
+  const set = (label: Slide['label']) => s.setSlideLabel(p.id, slide.id, label);
+  const custom = slide.label && !presets.some((l) => labelKey(l) === labelKey(slide.label));
+  const entries: MenuEntry[] = [
+    { type: 'item', value: '', label: 'None' },
+    { type: 'separator' },
+    ...presets.map((l) => ({ type: 'item' as const, value: labelKey(l), label: l.name, swatch: l.color })),
+    ...(custom && slide.label
+      ? [{ type: 'item' as const, value: labelKey(slide.label), label: slide.label.name, swatch: slide.label.color }]
+      : []),
+    { type: 'separator' },
+    { type: 'item', value: '\u0000edit', label: 'Edit Labels…' },
+  ];
+  return (
+    <section className="insp-section">
+      <div className="insp-heading">Label</div>
+      <Field label="Label">
+        <MenuSelect
+          label="Slide label"
+          value={labelKey(slide.label)}
+          entries={entries}
+          onChange={(v) => {
+            if (v === '\u0000edit') s.setUI({ dialog: 'labels' });
+            else set(presets.find((l) => labelKey(l) === v) ?? (v ? slide.label : undefined));
+          }}
+        />
+      </Field>
+      {slide.label && (
+        <>
+          <Field label="Text">
+            <input value={slide.label.name} onChange={(e) => set({ ...slide.label!, name: e.target.value })} />
+          </Field>
+          <Field label="Color">
+            <ColorSwatches value={slide.label.color} onChange={(color) => set({ ...slide.label!, color })} />
+          </Field>
+        </>
+      )}
+    </section>
+  );
+}
 
 function SlideTab({ presentation: p, slide, group }: { presentation: Presentation; slide: Slide; group: Group }) {
   const media = useStore((s) => s.media);
@@ -662,30 +783,12 @@ function SlideTab({ presentation: p, slide, group }: { presentation: Presentatio
 
   return (
     <>
+      <GroupSection presentation={p} slide={slide} group={group} />
+      <LabelSection presentation={p} slide={slide} />
       <section className="insp-section">
-        <div className="insp-heading">Group</div>
-        <Field label="Name">
-          <input value={group.name} onChange={(e) => s.updateGroup(p.id, group.id, { name: e.target.value })} />
-        </Field>
-        <Field label="Color">
-          <span className="swatches">
-            {GROUP_SWATCHES.map((c) => (
-              <button
-                key={c}
-                className={`swatch ${group.color === c ? 'on' : ''}`}
-                style={{ background: c }}
-                onClick={() => s.updateGroup(p.id, group.id, { color: c })}
-                title={c}
-              />
-            ))}
-            <input
-              type="color"
-              value={group.color}
-              onChange={(e) => s.updateGroup(p.id, group.id, { color: e.target.value })}
-              aria-label="Custom color"
-            />
-          </span>
-        </Field>
+        <div className="insp-heading">Transition</div>
+        <TransitionButton target={{ presentationId: p.id, scope: { slideId: slide.id } }} className="insp-wide" />
+        <p className="small-print muted">How this slide comes on screen.</p>
       </section>
       <section className="insp-section">
         <div className="insp-heading">
@@ -773,6 +876,7 @@ function SlideTab({ presentation: p, slide, group }: { presentation: Presentatio
 
 function TextTab({ presentation: p, slide }: { presentation: Presentation; slide: Slide }) {
   const base = useBaseTheme(p);
+  const clipboard = useStore((s) => s.styleClipboard);
   const s = useStore.getState();
   const eff = applyStyles(base, p.style, slide.style);
   const set = (patch: TextStyle) => s.updateSlide(p.id, slide.id, { style: { ...slide.style, ...patch } });
@@ -838,6 +942,37 @@ function TextTab({ presentation: p, slide }: { presentation: Presentation; slide
           {num('h', 'Height')}
         </div>
         <p className="small-print muted">Drag the text box on the canvas, or nudge it with the arrow keys (Shift for 10px).</p>
+      </section>
+      <section className="insp-section">
+        <div className="insp-heading">Text Style</div>
+        <div className="button-row">
+          <button
+            className="btn"
+            onClick={() => s.copyTextStyle(p.id, slide.id)}
+            title={`Copy this slide's text style (${shortcut('C', true)})`}
+          >
+            Copy Style
+          </button>
+          <button
+            className="btn"
+            disabled={!clipboard}
+            onClick={() => s.pasteTextStyle(p.id, { slideId: slide.id })}
+            title={`Paste the copied text style onto this slide (${shortcut('V', true)})`}
+          >
+            Paste Style
+          </button>
+        </div>
+        <p className="small-print muted">
+          {clipboard ? (
+            <>
+              Copied: {clipboard.fontFamily?.split(',')[0].replace(/["']/g, '')} · {clipboard.fontSize}px ·{' '}
+              <span className="color-chip" style={{ background: clipboard.color }} /> {clipboard.color}. Right-click a slide or group to
+              paste it there or on every slide.
+            </>
+          ) : (
+            'Copies the font, size, color and alignment, to paste onto other slides, groups or presentations.'
+          )}
+        </p>
       </section>
       <div className="button-row">
         <button

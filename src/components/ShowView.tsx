@@ -1,10 +1,47 @@
-import { memo, useEffect, useMemo, useRef, type Ref } from 'react';
+import { memo, useEffect, useMemo, useRef, type MouseEvent as ReactMouseEvent, type Ref } from 'react';
 import { getSequence } from '../lyrics';
 import { useStore } from '../store';
 import { inkFor, resolveTheme, slideTheme } from '../theme';
-import type { Presentation, SequenceEntry, Theme } from '../types';
+import type { ColorLabel, Presentation, SequenceEntry, Slide, Theme } from '../types';
 import { SlidePreview } from './Canvas';
+import { openContextMenu, openPopupBelow } from './ContextMenu';
+import { slideMenu } from './menus';
+import { TargetTransitionPicker, TransitionButton, TransitionGlyph } from './TransitionPicker';
 import { Icon, IconButton } from './ui';
+
+/** A slide label's tag on a thumbnail or row. */
+export function LabelTag({ label }: { label: ColorLabel }) {
+  return (
+    <span className="slide-label-tag" style={{ background: label.color, color: inkFor(label.color) }} title={`Label: ${label.name}`}>
+      {label.name}
+    </span>
+  );
+}
+
+/** Marks a slide with its own transition; click it to change the transition. */
+export function TransitionBadge({ presentationId, slide }: { presentationId: string; slide: Slide }) {
+  if (!slide.transition) return null;
+  return (
+    <button
+      type="button"
+      className="slide-transition-badge"
+      title="This slide has its own transition. Click to change it."
+      onClick={(e) => {
+        e.stopPropagation();
+        openPopupBelow(e.currentTarget, <TargetTransitionPicker target={{ presentationId, scope: { slideId: slide.id } }} />);
+      }}
+      onDoubleClick={(e) => e.stopPropagation()}
+    >
+      <TransitionGlyph kind={slide.transition.kind} size={14} />
+    </button>
+  );
+}
+
+/** Opens a slide's right-click menu (Show mode). */
+function slideContextMenu(e: ReactMouseEvent, presentationId: string, entry: SequenceEntry, index: number, playlistItemId: string | null) {
+  const p = useStore.getState().presentations[presentationId];
+  if (p) openContextMenu(e, slideMenu(p, entry.slide, entry.group, { index, playlistItemId }));
+}
 
 export function ShowView() {
   const p = useStore((s) => (s.selectedPresentationId ? s.presentations[s.selectedPresentationId] : undefined));
@@ -57,6 +94,7 @@ export function ShowView() {
             s.openEditor(id);
           }}
         />
+        {p && <TransitionButton target={{ presentationId: p.id, scope: 'presentation' }} className="footer-transition" />}
         <span className="pane-footer-spacer" />
         <IconButton icon="grid" title="Grid view" active={view === 'grid'} onClick={() => s.updateSettings({ slideView: 'grid' })} />
         <IconButton icon="list" title="List view" active={view === 'list'} onClick={() => s.updateSettings({ slideView: 'list' })} />
@@ -153,14 +191,17 @@ const SlideThumb = memo(function SlideThumb({
       className={`slide-thumb ${live ? 'live' : ''}`}
       onClick={() => useStore.getState().goLive(presentationId, index, playlistItemId)}
       onDoubleClick={() => useStore.getState().openEditor(slide.id)}
-      title="Click to show · Double-click to edit"
+      onContextMenu={(e) => slideContextMenu(e, presentationId, entry, index, playlistItemId)}
+      title="Click to show · Double-click to edit · Right-click for more"
     >
       <div className="slide-thumb-canvas">
         <SlidePreview text={slide.text} caption={slide.caption} theme={theme} background={slide.background} />
+        <TransitionBadge presentationId={presentationId} slide={slide} />
       </div>
       <div className="slide-thumb-label" style={{ background: group.color, color: inkFor(group.color) }}>
         <span className="slide-number">{index + 1}</span>
         <span className="slide-group">{entry.indexInGroup === 0 ? group.name : ''}</span>
+        {slide.label && <LabelTag label={slide.label} />}
       </div>
     </div>
   );
@@ -172,22 +213,32 @@ function SlideList({ presentation: p }: { presentation: Presentation }) {
   if (seq.length === 0) return <NoSlides />;
   return (
     <div className="slide-list">
-      {seq.map(({ group, slide, indexInGroup }, i) => (
-        <div
-          key={`${group.id}:${slide.id}:${i}`}
-          role="button"
-          tabIndex={-1}
-          className={`slide-row ${i === liveIndex ? 'live' : ''}`}
-          onClick={() => useStore.getState().goLive(p.id, i, playlistItemId)}
-          onDoubleClick={() => useStore.getState().openEditor(slide.id)}
-        >
-          <span className="slide-row-label" style={{ background: group.color, color: inkFor(group.color) }}>
-            <span className="slide-number">{i + 1}</span>
-            {indexInGroup === 0 ? group.name : ''}
-          </span>
-          <span className="slide-row-text">{slide.text || <span className="muted">(blank)</span>}</span>
-        </div>
-      ))}
+      {seq.map((entry, i) => {
+        const { group, slide, indexInGroup } = entry;
+        return (
+          <div
+            key={`${group.id}:${slide.id}:${i}`}
+            role="button"
+            tabIndex={-1}
+            className={`slide-row ${i === liveIndex ? 'live' : ''}`}
+            onClick={() => useStore.getState().goLive(p.id, i, playlistItemId)}
+            onDoubleClick={() => useStore.getState().openEditor(slide.id)}
+            onContextMenu={(e) => slideContextMenu(e, p.id, entry, i, playlistItemId)}
+          >
+            <span className="slide-row-label" style={{ background: group.color, color: inkFor(group.color) }}>
+              <span className="slide-number">{i + 1}</span>
+              {indexInGroup === 0 ? group.name : ''}
+            </span>
+            <span className="slide-row-text">
+              {slide.text || <span className="muted">(blank)</span>}
+              <span className="slide-row-tags">
+                {slide.label && <LabelTag label={slide.label} />}
+                <TransitionBadge presentationId={p.id} slide={slide} />
+              </span>
+            </span>
+          </div>
+        );
+      })}
     </div>
   );
 }

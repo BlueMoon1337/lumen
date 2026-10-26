@@ -71,6 +71,10 @@ npm run format       # Prettier
 | Screen picker, transport, and Stage / Timers / Messages / Props tabs                                                                 | Same.                                                                                                                                                                                                                                              |
 | Edit: slide list with group headers, Objects, canvas with rulers, Presentation / Slide inspector                                     | Same. Drag or resize the text box, double-click to type on the slide. The Text tab formats one slide.                                                                                                                                              |
 | Reflow                                                                                                                               | Type the whole song as text with `[Verse 1]` headers.                                                                                                                                                                                              |
+| Right-click menus                                                                                                                    | Same: slides, group headers, the Edit canvas, library and playlist items, playlists, headers and media each have one. See Slides, groups and labels below.                                                                                         |
+| Copy Style / Paste Style (⌥⌘C / ⌥⌘V)                                                                                                 | Same: right-click a slide, or the Text tab's Copy Style and Paste Style buttons. Paste onto one slide, a group, or every slide.                                                                                                                    |
+| Group and Label (right-click a slide), Edit Groups…                                                                                  | Same. Picking a group starts it at that slide. Labels are colored tags on the thumbnails. **Edit Groups & Labels…** sets the lists.                                                                                                                |
+| Transitions                                                                                                                          | Cut, Dissolve, Fade, Push, Wipe, Zoom and Blur, with direction and length, for a slide (right-click), a presentation (the button under the slides) or everything (Settings).                                                                       |
 
 ## Features
 
@@ -82,7 +86,8 @@ npm run format       # Prettier
 - **Themes** with font, size, colors, shadow, outline, alignment, margins, a lower-third box, and color, gradient or media backgrounds. Text shrinks automatically to fit. Per-presentation formatting from the Text button sits on top of the theme.
 - **Fonts**: Copperplate from the computer (with a free bundled stand-in), any installed font by name, and font files you add (see below).
 - **Copyright line** (title, author, publisher, CCLI song and license numbers) on the first and last slides when "Show On Screen" is on.
-- **Per-presentation transitions**: cut or fades of different lengths.
+- **Transitions**: Cut, Dissolve, Fade, Push, Wipe, Zoom and Blur, with a direction for Push and Wipe and any length, for one slide, a presentation, or as the default. A picker plays each one as you choose.
+- **Right-click menus** everywhere, **Copy / Paste Text Style**, **group presets** and **slide labels** (see Slides, groups and labels below).
 - **Media bin** for images and looping videos as backgrounds, stored locally in IndexedDB, with pause and restart.
 - **Layers** as in ProPresenter: background, slide, message and logo, each cleared on its own, with crossfade transitions.
 - **Countdown timer**, either a duration or a time of day, shown on the stage display and usable in messages.
@@ -91,6 +96,24 @@ npm run format       # Prettier
 - **ProPresenter import** of `.pro` presentations, `.proplaylist` playlists and `.rvbible` Bibles (see below).
 - **Bible mode**, laid out like ProPresenter's (see Bible below), from imported Bibles (offline) or public-domain translations via [bible-api.com](https://bible-api.com).
 - **Persistence**: everything saves automatically, and the library exports to and imports from JSON.
+
+## Slides, groups and labels
+
+Right-click a slide (in Show mode's grid or list, or Edit mode's slide list) for:
+
+- **Show Slide**, **Edit Slide**, **Cut / Copy / Paste / Duplicate**, **Insert Blank Slide**, **Delete Slide…**. Copied slides paste into any presentation, Bible verses included.
+- **Copy Text Style** and **Paste Text Style**: the font, size, weight, color, caps and alignment as the slide shows them (not the text box's position). **Paste Text Style To** puts it on the slide's group or every slide; on every slide it becomes the presentation's formatting. **Clear Text Style** goes back to the theme.
+- **Group**: Verse 1–4, Pre-Chorus, Chorus, Bridge, Tag, Vamp, Intro, Interlude, Outro, Ending, or **New Group…**. As in ProPresenter, a group starts at the slide you pick it on, and the slides after it in its old group come along. Picking a group on a group's first slide renames and recolors that group.
+- **Label**: a colored tag on the thumbnail, a cue for whoever runs slides (Welcome, Prayer, Offering, Key Change, Last Time…), or **Custom Label…**.
+- **Transition**: the default, or a kind (Push and Wipe by direction), a **Duration**, or **Transition Options…** for the picker with its preview. A slide with its own transition shows a small badge; click the badge to change it.
+
+Right-click a **group header** in Edit mode to rename it, recolor it, pick a preset, add a slide, duplicate it, paste a text style on all of its slides, give them a transition, or delete it. **Edit Groups & Labels…** (from the Group and Label menus, the Slide inspector or Settings) changes the lists of groups and labels; slides already using one keep theirs.
+
+The Slide inspector in Edit mode has the same choices: the slide's group, its label, and its transition. The Text tab has **Copy Style** and **Paste Style**.
+
+### Transitions
+
+A slide comes on screen with its own transition if it has one, else its presentation's (the button under the slides in Show mode, or the Presentation inspector), else the default in Settings. Push and Wipe move left, right, up or down. Backgrounds dissolve over the same time, and cut when the slide cuts. Messages and the logo fade with the default's length. ProPresenter's transitions import with their kind, direction and length.
 
 ## Screens
 
@@ -128,12 +151,12 @@ Open **Configure Screens…** from the Screens menu (desktop app), the More menu
 
 Use the import buttons in the Library and Playlist headers, **More → Import**, or drag files onto the sidebar. You can select many files at once.
 
-| File                                     | What comes across                                                                                                                                                                                                                                                                                                                                                              |
-| ---------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| `.pro` (ProPresenter 7 presentation)     | Title, groups with their names and colors, slide text (from every text box), slide notes, the selected arrangement, CCLI details (author, publisher, year, song number, "show on screen"), the transition length, and the font, size, color and alignment most slides use (see Fonts). Text box positions, backgrounds and media don't import; your Lumen theme supplies them. |
-| `.proplaylist` (ProPresenter 7 playlist) | Each playlist inside (folders included) with its headers and songs in order. Songs come from the copies bundled in the file and import like `.pro` files, using the arrangement the playlist item chose. Media cues and placeholders are skipped.                                                                                                                              |
-| `.rvbible` (ProPresenter Bible)          | The whole translation, stored on this computer so lookups work offline. Pick it in **Bible** mode and type references in the Bible's language or in English: `Juan 3:16-18`, `Sal 23`, `1 Co 13`, `John 3:16`. Manage imported Bibles in Settings.                                                                                                                             |
-| `.txt`                                   | Lyrics in the Reflow format below.                                                                                                                                                                                                                                                                                                                                             |
+| File                                     | What comes across                                                                                                                                                                                                                                                                                                                                                                                    |
+| ---------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `.pro` (ProPresenter 7 presentation)     | Title, groups with their names and colors, slide text (from every text box), slide notes, the selected arrangement, CCLI details (author, publisher, year, song number, "show on screen"), the transition (kind, direction and length), and the font, size, color and alignment most slides use (see Fonts). Text box positions, backgrounds and media don't import; your Lumen theme supplies them. |
+| `.proplaylist` (ProPresenter 7 playlist) | Each playlist inside (folders included) with its headers and songs in order. Songs come from the copies bundled in the file and import like `.pro` files, using the arrangement the playlist item chose. Media cues and placeholders are skipped.                                                                                                                                                    |
+| `.rvbible` (ProPresenter Bible)          | The whole translation, stored on this computer so lookups work offline. Pick it in **Bible** mode and type references in the Bible's language or in English: `Juan 3:16-18`, `Sal 23`, `1 Co 13`, `John 3:16`. Manage imported Bibles in Settings.                                                                                                                                                   |
+| `.txt`                                   | Lyrics in the Reflow format below.                                                                                                                                                                                                                                                                                                                                                                   |
 
 Songs already in your library (same title and slides) are reused rather than duplicated, so re-importing is safe. ProPresenter 6 files (`.pro6`) aren't supported yet. Bible text and media stay on the computer; library exports don't include them. Check that your licence covers projecting the translations you import.
 
@@ -201,6 +224,8 @@ Was blind, but now I see.
 | `F6`                          | Toggle logo                                                                     |
 | `⌘1` / `⌘2` (Ctrl on Windows) | Audience / Stage screens on or off (browsers may keep these for switching tabs) |
 | `⌥⌘1` (Ctrl+Alt+1)            | Configure Screens                                                               |
+| `⌥⌘C` / `⌥⌘V` (Ctrl+Alt+C/V)  | Edit mode: copy / paste the selected slide's text style                         |
+| `⌘X` `⌘C` `⌘V` `⌘D` (Ctrl)    | Edit mode: cut, copy, paste, duplicate the selected slide                       |
 
 Clickers that send arrow keys or Page Up/Down work out of the box. In Edit mode, the arrow keys nudge the selected text box (Shift for 10px), Enter starts typing, and Escape deselects.
 
@@ -211,6 +236,9 @@ src/
   types.ts         data model: presentations, themes, playlists, live state, output frame
   store.ts         Zustand store: library, playlists, slide editing, live control, timer (saved to localStorage)
   lyrics.ts        text ⇄ groups/slides/arrangement parser
+  slideOps.ts      slide and group edits shared by menus, inspector and keys: assign a group, paste a text style, transitions
+  transitions.ts   transition kinds, which one a slide uses, labels, mapping ProPresenter's effects
+  labels.ts        group presets and slide labels
   theme.ts         theme → presentation → slide formatting, backgrounds, copyright line
   fonts.ts         font menus, Copperplate fallback chain, reading font files, loading added fonts
   bible.ts         imported and online Bibles: storage, reference parsing (local + English book names), lookups
@@ -238,6 +266,9 @@ src/
     Canvas         1920×1080 canvas, auto-fitting text, layered output, transitions
     ScreenConfig   Screen Configuration window
     MenuSelect     ProPresenter-style pop-up menus (checkmarks, headers, submenus, thumbnails)
+    ContextMenu    right-click menus and small floating panels (name and color, transition picker)
+    menus          what each right-click menu offers
+    TransitionPicker  transition picker with a live preview, and the buttons that open it
     ScreenHostApp  output window (#/screen): every output on one display, each in its region, with its share of a
                    grouped screen, edge blend, delay, color, corner pin, identify and test patterns.
                    #/output and #/stage show the first audience or stage screen, e.g. as a browser source in OBS
@@ -260,7 +291,8 @@ The operator window owns all state. Every change produces an `OutputFrame`, a se
 
 - Multiple arrangements per song
 - More objects in Edit (extra text boxes, shapes, images), and slide builds
-- Slide hotkeys and group color presets shared across songs
+- Slide hotkeys, and selecting several slides at once for the right-click menu
+- Undo
 - Audio bin and video playback with sound and transport controls
 - Remote control from a phone over WebSocket
 - NDI and Syphon outputs (listed in Screen Configuration's Output menu), or capture-card output for livestreams

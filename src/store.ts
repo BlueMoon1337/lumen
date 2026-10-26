@@ -6,8 +6,13 @@ import { colorForGroup, getSequence, parseLyrics } from './lyrics';
 import { deleteMediaBlob, putMediaBlob } from './media';
 import { defaultScreenSetup, newOutput, newScreen, nextScreenName, normalizeScreens } from './screens';
 import { defaultThemes, seedMessages, seedPlaylist, seedPresentations } from './seed';
+import * as ops from './slideOps';
+import type { SlideScope } from './slideOps';
+import { applyStyles, resolveTheme } from './theme';
+import { DEFAULT_TRANSITION, fromMs } from './transitions';
 import type {
   Category,
+  ColorLabel,
   FontMeta,
   Group,
   LiveState,
@@ -23,6 +28,8 @@ import type {
   ScreenTools,
   Settings,
   Slide,
+  SlideTransition,
+  TextStyle,
   Theme,
   TimerState,
 } from './types';
@@ -63,6 +70,12 @@ interface UIState {
   showMediaBin: boolean;
   mediaFilter: 'all' | 'image' | 'video';
   liveTab: LiveTab;
+  /** Copy Text Style's formatting, for Paste Text Style. */
+  styleClipboard: TextStyle | null;
+  /** Copied slides, for Paste. */
+  slideClipboard: Slide[] | null;
+  /** The open window: Settings, Screen Configuration, or Groups & Labels. */
+  dialog: 'settings' | 'screens' | 'labels' | null;
 }
 
 interface Actions {
@@ -81,6 +94,20 @@ interface Actions {
   duplicateSlide(presentationId: string, slideId: string): string | null;
   deleteSlide(presentationId: string, slideId: string): void;
   openEditor(slideId?: string | null): void;
+  /** Puts a slide (and the rest of its group after it) in a group; see assignGroup in src/slideOps.ts. */
+  assignGroup(presentationId: string, slideId: string, preset: ColorLabel): void;
+  deleteGroup(presentationId: string, groupId: string): void;
+  duplicateGroup(presentationId: string, groupId: string): void;
+  setSlideLabel(presentationId: string, slideId: string, label: ColorLabel | undefined): void;
+  /** Copies a slide's text formatting, as it looks, for Paste Text Style. */
+  copyTextStyle(presentationId: string, slideId: string): void;
+  pasteTextStyle(presentationId: string, scope: SlideScope): void;
+  clearTextStyle(presentationId: string, scope: SlideScope): void;
+  /** Sets or (undefined) clears the transition of a slide, a group's slides, or the presentation. */
+  setTransition(presentationId: string, scope: SlideScope, transition: SlideTransition | undefined): void;
+  copySlides(presentationId: string, slideIds: string[]): void;
+  /** Pastes copied slides after a slide (or at the end); returns the first pasted slide's id. */
+  pasteSlides(presentationId: string, afterSlideId: string | null): string | null;
 
   addToPlaylist(presentationId: string, index?: number, playlistId?: string): void;
   addPlaylistHeader(label: string): void;
@@ -100,6 +127,7 @@ interface Actions {
 
   addMediaFiles(files: File[]): Promise<void>;
   deleteMedia(id: string): void;
+  updateMedia(id: string, patch: Partial<Pick<MediaItem, 'name'>>): void;
 
   addBible(meta: BibleMeta): void;
   deleteBible(id: string): void;
@@ -162,7 +190,7 @@ export type AppState = LibraryData &
   } & Actions;
 
 const defaultSettings: Settings = {
-  transitionMs: 400,
+  transition: DEFAULT_TRANSITION,
   advanceAcrossItems: true,
   defaultThemeId: 'theme-classic',
   gridSize: 220,
@@ -228,7 +256,6 @@ export function adjacentPlaylistItem(
 /** Background cleanup of stored files; a failure only leaves an orphaned file behind. */
 const quietly = (p: Promise<unknown>) => void p.catch(() => {});
 
-/** Carries ids, colors and per-slide edits over to re-parsed groups that keep their names. */
 /** A presentation's groups with new ids, for copying slides into another presentation. */
 function cloneGroups(p: Presentation): Pick<Presentation, 'groups' | 'arrangement'> {
   const ids = new Map<string, string>();
@@ -241,6 +268,27 @@ function cloneGroups(p: Presentation): Pick<Presentation, 'groups' | 'arrangemen
   return { groups, arrangement: order.map((id) => ids.get(id)).filter((id): id is string => !!id) };
 }
 
+/**
+ * Library data from before slide transitions had kinds stored only a length ("transitionMs"):
+ * 0 was a cut, anything else a dissolve.
+ */
+export function upgradeTransitions<T extends Partial<LibraryData>>(data: T): T {
+  type Legacy = { transitionMs?: number };
+  const settings = data.settings as (Settings & Legacy) | undefined;
+  if (settings && !settings.transition) {
+    const { transitionMs, ...rest } = settings;
+    data.settings = { ...rest, transition: transitionMs == null ? DEFAULT_TRANSITION : fromMs(transitionMs) };
+  }
+  if (data.presentations)
+    for (const [id, p] of Object.entries(data.presentations) as [string, Presentation & Legacy][]) {
+      if (p.transitionMs === undefined) continue;
+      const { transitionMs, ...rest } = p;
+      data.presentations[id] = transitionMs == null || p.transition ? rest : { ...rest, transition: fromMs(transitionMs) };
+    }
+  return data;
+}
+
+/** Carries ids, colors and per-slide edits over to re-parsed groups that keep their names. */
 function mergeParsed(p: Presentation, parsed: Pick<Presentation, 'groups' | 'arrangement'>) {
   const old = new Map(p.groups.map((g) => [g.name.toLowerCase(), g]));
   const ids = new Map<string, string>();
@@ -269,6 +317,11 @@ export const useStore = create<AppState>()(
         const p = get().presentations[pid];
         if (p) get().updatePresentation(pid, { groups: fn(p.groups) });
       };
+      /** Applies one of the slide operations in src/slideOps.ts to a presentation. */
+      const edit = (pid: string, fn: (p: Presentation) => Partial<Presentation>) => {
+        const p = get().presentations[pid];
+        if (p) get().updatePresentation(pid, fn(p));
+      };
 
       return {
         ...initialLibrary(),
@@ -283,6 +336,9 @@ export const useStore = create<AppState>()(
         showMediaBin: true,
         mediaFilter: 'all',
         liveTab: 'messages',
+        styleClipboard: null,
+        slideClipboard: null,
+        dialog: null,
         live: emptyLive,
         timer: initialTimer,
         screenTools: { identify: false, testPattern: null },
@@ -390,6 +446,40 @@ export const useStore = create<AppState>()(
           if (get().editSlideId === slideId) set({ editSlideId: null });
         },
         openEditor: (slideId = null) => set({ mode: 'edit', editSlideId: slideId, editTextSelected: false }),
+        assignGroup: (pid, slideId, preset) => edit(pid, (p) => ops.assignGroup(p, slideId, preset)),
+        deleteGroup: (pid, groupId) => {
+          edit(pid, (p) => ops.deleteGroup(p, groupId));
+          const p = get().presentations[pid];
+          if (p && !p.groups.some((g) => g.slides.some((sl) => sl.id === get().editSlideId))) set({ editSlideId: null });
+        },
+        duplicateGroup: (pid, groupId) => edit(pid, (p) => ops.duplicateGroup(p, groupId)),
+        setSlideLabel: (pid, slideId, label) => edit(pid, (p) => ops.setLabel(p, slideId, label)),
+        copyTextStyle: (pid, slideId) => {
+          const s = get();
+          const p = s.presentations[pid];
+          const slide = p?.groups.flatMap((g) => g.slides).find((sl) => sl.id === slideId);
+          if (p && slide) set({ styleClipboard: ops.textStyleOf(applyStyles(resolveTheme(s, p), p.style, slide.style)) });
+        },
+        pasteTextStyle: (pid, scope) => {
+          const style = get().styleClipboard;
+          if (style) edit(pid, (p) => ops.pasteTextStyle(p, scope, style));
+        },
+        clearTextStyle: (pid, scope) => edit(pid, (p) => ops.clearTextStyle(p, scope)),
+        setTransition: (pid, scope, transition) => edit(pid, (p) => ops.setTransition(p, scope, transition)),
+        copySlides: (pid, slideIds) => {
+          const p = get().presentations[pid];
+          const slides = p?.groups.flatMap((g) => g.slides).filter((sl) => slideIds.includes(sl.id));
+          if (slides?.length) set({ slideClipboard: structuredClone(slides) });
+        },
+        pasteSlides: (pid, afterSlideId) => {
+          const slides = get().slideClipboard;
+          const p = get().presentations[pid];
+          if (!slides?.length || !p) return null;
+          const before = new Set(p.groups.flatMap((g) => g.slides.map((sl) => sl.id)));
+          get().updatePresentation(pid, ops.insertSlides(p, afterSlideId, slides));
+          const after = get().presentations[pid]?.groups.flatMap((g) => g.slides) ?? [];
+          return after.find((sl) => !before.has(sl.id))?.id ?? null;
+        },
 
         addToPlaylist: (presentationId, index, playlistId) =>
           updatePlaylist((pl) => {
@@ -481,6 +571,8 @@ export const useStore = create<AppState>()(
             ),
           }));
         },
+
+        updateMedia: (id, patch) => set((s) => ({ media: s.media.map((m) => (m.id === id ? { ...m, ...patch } : m)) })),
 
         addBible: (meta) =>
           set((s) => {
@@ -682,7 +774,7 @@ export const useStore = create<AppState>()(
 
         importLibrary: (data) =>
           set({
-            ...data,
+            ...upgradeTransitions(data),
             bibles: data.bibles ?? [],
             fonts: data.fonts ?? [],
             screens: normalizeScreens(data.screens),
@@ -695,16 +787,17 @@ export const useStore = create<AppState>()(
     },
     {
       name: 'lumen-library',
-      version: 3,
+      version: 4,
       migrate: (persisted, version) => {
         const saved = persisted as Partial<LibraryData>;
         const addTheme = (id: string) => {
           const theme = defaultThemes.find((t) => t.id === id);
           if (theme && saved.themes && !saved.themes.some((t) => t.id === id)) saved.themes = [...saved.themes, theme];
         };
-        // Version 2 added the Copperplate theme, version 3 the Bible template.
+        // Version 2 added the Copperplate theme, version 3 the Bible template, version 4 transition kinds.
         if (version < 2) addTheme('theme-copperplate');
         if (version < 3) addTheme('theme-bible');
+        if (version < 4) upgradeTransitions(saved);
         return saved as LibraryData;
       },
       // Saved settings from older versions may lack newer keys.

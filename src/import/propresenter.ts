@@ -1,5 +1,6 @@
 import { cssFamilyFor, styleFromName } from '../fonts';
-import type { TextStyle } from '../types';
+import { transitionFromPro } from '../transitions';
+import type { SlideTransition, TextStyle } from '../types';
 import { PbMessage } from './protobuf';
 import { rtfToText } from './rtf';
 
@@ -27,7 +28,7 @@ export interface ImportedPresentation {
   year?: string;
   ccli?: string;
   showCopyright?: boolean;
-  transitionMs?: number;
+  transition?: SlideTransition;
   /** The font, size, color and alignment most of the slides use. */
   style?: TextStyle;
 }
@@ -38,6 +39,10 @@ const ARRANGEMENT = { uuid: 1, groupIds: 3 };
 const CUE_GROUP = { group: 1, cueIds: 2 };
 const GROUP = { uuid: 1, name: 2, color: 3 };
 const CUE = { uuid: 1, actions: 10 };
+// Transition → effect (3) → name (3) and variables (7); a variable's direction (6) → direction (1).
+const TRANSITION = { duration: 1, effect: 3 };
+const EFFECT = { name: 3, variables: 7 };
+const EFFECT_VARIABLE = { direction: 6 };
 const CCLI = { author: 1, artist: 2, title: 3, publisher: 4, year: 5, songNumber: 6, display: 7, album: 8 };
 // Graphics element → text (13) → attributes (3) → font (1) / color (3) / paragraph (6).
 const TEXT_ATTRIBUTES = { font: 1, color: 3, paragraph: 6 };
@@ -197,7 +202,13 @@ export function parseProPresenter7(bytes: Uint8Array, fallbackTitle = 'Imported'
   const str = (field: number) => ccli?.string(field)?.trim() || undefined;
   const year = ccli?.number(CCLI.year);
   const songNumber = ccli?.number(CCLI.songNumber);
-  const transition = root.message(PRESENTATION.transition)?.number(1);
+  const transition = root.message(PRESENTATION.transition);
+  const seconds = transition?.number(TRANSITION.duration);
+  const effect = transition?.message(TRANSITION.effect);
+  const direction = effect
+    ?.messages(EFFECT.variables)
+    .map((v) => v.message(EFFECT_VARIABLE.direction)?.number(1))
+    .find((d) => d !== undefined);
 
   return {
     title: root.string(PRESENTATION.name)?.trim() || str(CCLI.title) || fallbackTitle,
@@ -210,7 +221,7 @@ export function parseProPresenter7(bytes: Uint8Array, fallbackTitle = 'Imported'
     year: year ? String(year) : undefined,
     ccli: songNumber ? String(songNumber) : undefined,
     showCopyright: ccli?.number(CCLI.display) === 1 || undefined,
-    transitionMs: transition != null && transition >= 0 ? Math.round(transition * 1000) : undefined,
+    transition: seconds != null && seconds >= 0 ? transitionFromPro(effect?.string(EFFECT.name), seconds, direction) : undefined,
     style: commonStyle(styles),
   };
 }
