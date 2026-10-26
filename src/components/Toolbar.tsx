@@ -1,9 +1,10 @@
 import { useCallback, useMemo, useState, type ReactNode } from 'react';
 import { IMPORT_ACCEPT, importFiles, newPresentation } from '../commands';
-import { closeOutput, openOutput, useOpenOutputs, type OutputKind } from '../outputs';
+import { setScreensEnabled, syncBrowserWindows, useDisplays } from '../outputs';
+import { activeOutputs } from '../screens';
 import { useStore, type Mode } from '../store';
 import { applyStyles, resolveTheme } from '../theme';
-import type { TextStyle, Theme } from '../types';
+import type { ScreenKind, TextStyle, Theme } from '../types';
 import { SlidePreview } from './Canvas';
 import { FontSelect } from './FontSelect';
 import { Icon, IconButton, pickFiles, Popover, type IconName } from './ui';
@@ -38,22 +39,44 @@ function Tool({
   );
 }
 
-function ScreenTool({ kind, label, open }: { kind: OutputKind; label: string; open: boolean }) {
-  const display = useStore((s) => (kind === 'audience' ? s.settings.audienceDisplay : s.settings.stageDisplay));
+/** Audience / Stage: on (green) when that kind's screens are enabled and showing, as in ProPresenter. */
+function ScreenTool({ kind, label, onConfigure }: { kind: ScreenKind; label: string; onConfigure: () => void }) {
+  const setup = useStore((s) => s.screens);
+  const displays = useDisplays((s) => s.displays);
+  const openKeys = useDisplays((s) => s.openKeys);
+  const enabled = kind === 'audience' ? setup.audienceEnabled : setup.stageEnabled;
+  const wanted = activeOutputs(setup, displays).filter((p) => p.kind === kind);
+  const showing = wanted.filter((p) => openKeys.includes(p.key)).length;
+  const hasScreens = setup.screens.some((x) => x.kind === kind);
+  const title = !hasScreens
+    ? `No ${label.toLowerCase()} screens. Click to set one up.`
+    : `${label}: ${enabled ? `on, ${showing} of ${wanted.length} output${wanted.length === 1 ? '' : 's'} showing` : 'off'}. Right-click to configure.`;
   return (
-    <Tool
-      label={label}
-      glyph={<span className={`screen-ring ${open ? 'on' : ''}`} />}
-      onClick={() => (open ? closeOutput(kind) : openOutput(kind, display))}
-    />
+    <div className="tool" onContextMenu={(e) => (e.preventDefault(), onConfigure())}>
+      <button
+        type="button"
+        className="tool-btn"
+        title={title}
+        onClick={() => {
+          if (!hasScreens) return onConfigure();
+          // In a browser, windows the operator closed (or that were blocked) reopen on the next click.
+          if (enabled && !window.lumenDesktop && showing < wanted.length) syncBrowserWindows();
+          else setScreensEnabled(kind, !enabled);
+        }}
+      >
+        <span className="tool-icon">
+          <span className={`screen-ring ${enabled ? (showing < wanted.length ? 'partial' : 'on') : ''}`} />
+        </span>
+        <span className="tool-label">{label}</span>
+      </button>
+    </div>
   );
 }
 
-export function Toolbar({ onBible, onSettings }: { onBible: () => void; onSettings: () => void }) {
+export function Toolbar({ onBible, onSettings, onScreens }: { onBible: () => void; onSettings: () => void; onScreens: () => void }) {
   const mode = useStore((s) => s.mode);
   const hasSelection = useStore((s) => !!s.selectedPresentationId && !!s.presentations[s.selectedPresentationId]);
   const showMediaBin = useStore((s) => s.showMediaBin);
-  const outputs = useOpenOutputs();
   const [pop, setPop] = useState<PopoverName | null>(null);
   const close = useCallback(() => setPop(null), []);
   const toggle = (name: PopoverName) => setPop((p) => (p === name ? null : name));
@@ -88,7 +111,7 @@ export function Toolbar({ onBible, onSettings }: { onBible: () => void; onSettin
         <Tool icon="bible" label="Bible" onClick={onBible} />
         <Tool icon="more" label="More" active={pop === 'more'} onClick={() => toggle('more')}>
           <Popover open={pop === 'more'} onClose={close} className="menu-pop">
-            <MoreMenu onDone={close} onBible={onBible} onSettings={onSettings} />
+            <MoreMenu onDone={close} onBible={onBible} onSettings={onSettings} onScreens={onScreens} />
           </Popover>
         </Tool>
       </div>
@@ -102,8 +125,8 @@ export function Toolbar({ onBible, onSettings }: { onBible: () => void; onSettin
         />
       </div>
       <div className="tool-group">
-        <ScreenTool kind="audience" label="Audience" open={outputs.audience} />
-        <ScreenTool kind="stage" label="Stage" open={outputs.stage} />
+        <ScreenTool kind="audience" label="Audience" onConfigure={onScreens} />
+        <ScreenTool kind="stage" label="Stage" onConfigure={onScreens} />
       </div>
       <div className="tool-group">
         <Tool icon="gear" label="Settings" onClick={onSettings} />
@@ -293,7 +316,17 @@ function ThemePopover() {
   );
 }
 
-function MoreMenu({ onDone, onBible, onSettings }: { onDone: () => void; onBible: () => void; onSettings: () => void }) {
+function MoreMenu({
+  onDone,
+  onBible,
+  onSettings,
+  onScreens,
+}: {
+  onDone: () => void;
+  onBible: () => void;
+  onSettings: () => void;
+  onScreens: () => void;
+}) {
   const item = (label: string, action: () => void) => (
     <button
       onClick={() => {
@@ -310,6 +343,7 @@ function MoreMenu({ onDone, onBible, onSettings }: { onDone: () => void; onBible
       {item('Import Songs, Playlists or Bibles…', () => pickFiles(IMPORT_ACCEPT).then((files) => importFiles(files)))}
       {item('Add Scripture…', onBible)}
       <hr />
+      {item('Configure Screens…', onScreens)}
       {item('Settings & Shortcuts…', onSettings)}
     </div>
   );

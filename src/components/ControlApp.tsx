@@ -1,7 +1,8 @@
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { registerFonts } from '../fonts';
 import { startFrameSync } from '../liveFrame';
 import { dismiss, useNotices } from '../notices';
+import { setScreensEnabled, startScreenManager } from '../outputs';
 import { useStore } from '../store';
 import { isTypingTarget } from '../util';
 import { ScriptureDialog, SettingsDialog } from './Dialogs';
@@ -9,6 +10,7 @@ import { EditView } from './EditView';
 import { LivePanel } from './LivePanel';
 import { MediaContent, MediaSidebar } from './MediaBin';
 import { ReflowView } from './ReflowView';
+import { ScreenConfigDialog } from './ScreenConfig';
 import { ShowView } from './ShowView';
 import { Sidebar } from './Sidebar';
 import { ThemeEditorDialog } from './ThemeEditor';
@@ -51,6 +53,45 @@ function useShortcuts(enabled: boolean) {
   }, [enabled]);
 }
 
+const toggleScreens = (kind: 'audience' | 'stage') => {
+  const { screens } = useStore.getState();
+  setScreensEnabled(kind, !(kind === 'audience' ? screens.audienceEnabled : screens.stageEnabled));
+};
+
+/**
+ * The Screens menu (ProPresenter's ⌘1, ⌘2 and ⌥⌘1). The desktop app's menu
+ * handles the keys itself; in a browser they're caught here, where Chrome may
+ * keep ⌘1/⌘2 for switching tabs.
+ */
+function useScreenCommands(configure: () => void) {
+  useEffect(() => {
+    const run = (command: string) => {
+      if (command === 'toggle-audience') toggleScreens('audience');
+      else if (command === 'toggle-stage') toggleScreens('stage');
+      else if (command === 'configure-screens') configure();
+      else if (command === 'identify-screens') {
+        const s = useStore.getState();
+        s.setScreenTools({ identify: !s.screenTools.identify });
+      }
+    };
+    const bridge = window.lumenDesktop;
+    if (bridge) return bridge.onMenu(run);
+    const onKey = (e: KeyboardEvent) => {
+      if (!(e.metaKey || e.ctrlKey) || e.shiftKey) return;
+      // e.code, because ⌥1 types "¡" on a Mac.
+      const keys: Record<string, string> = e.altKey
+        ? { Digit1: 'configure-screens' }
+        : { Digit1: 'toggle-audience', Digit2: 'toggle-stage' };
+      const command = keys[e.code];
+      if (!command) return;
+      e.preventDefault();
+      run(command);
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [configure]);
+}
+
 function Notices() {
   const notices = useNotices((s) => s.notices);
   if (!notices.length) return null;
@@ -66,7 +107,7 @@ function Notices() {
 }
 
 export default function ControlApp() {
-  const [dialog, setDialog] = useState<'scripture' | 'settings' | null>(null);
+  const [dialog, setDialog] = useState<'scripture' | 'settings' | 'screens' | null>(null);
   const mode = useStore((s) => s.mode);
   const showMediaBin = useStore((s) => s.showMediaBin);
   const editingTheme = useStore((s) => s.editingThemeId);
@@ -74,6 +115,9 @@ export default function ControlApp() {
   const fonts = useStore((s) => s.fonts);
 
   useEffect(() => startFrameSync(), []);
+  useEffect(() => startScreenManager(), []);
+  const openScreens = useCallback(() => setDialog('screens'), []);
+  useScreenCommands(openScreens);
   useEffect(() => {
     void registerFonts(fonts);
   }, [fonts]);
@@ -81,7 +125,7 @@ export default function ControlApp() {
 
   return (
     <div className={`app mode-${mode} ${mode === 'show' && !showMediaBin ? 'no-media' : ''}`}>
-      <Toolbar onBible={() => setDialog('scripture')} onSettings={() => setDialog('settings')} />
+      <Toolbar onBible={() => setDialog('scripture')} onSettings={() => setDialog('settings')} onScreens={openScreens} />
       {mode === 'show' && (
         <>
           <Sidebar />
@@ -100,7 +144,8 @@ export default function ControlApp() {
       {mode === 'edit' && <EditView />}
       {mode === 'reflow' && <ReflowView />}
       {dialog === 'scripture' && <ScriptureDialog onClose={() => setDialog(null)} />}
-      {dialog === 'settings' && <SettingsDialog onClose={() => setDialog(null)} />}
+      {dialog === 'settings' && <SettingsDialog onClose={() => setDialog(null)} onScreens={openScreens} />}
+      {dialog === 'screens' && <ScreenConfigDialog onClose={() => setDialog(null)} />}
       {editingTheme && <ThemeEditorDialog />}
       <Notices />
     </div>

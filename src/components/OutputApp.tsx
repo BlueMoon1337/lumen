@@ -3,6 +3,7 @@ import { registerFonts } from '../fonts';
 import { useRemoteFrame } from '../sync';
 import type { FontMeta } from '../types';
 import { OutputView } from './Canvas';
+import { OutputSurface } from './OutputSurface';
 
 /** Shared behaviour for output windows: hide the cursor when idle, double-click for fullscreen. */
 export function useOutputWindowChrome(title: string) {
@@ -47,7 +48,13 @@ export default function OutputApp() {
   const idle = useOutputWindowChrome('Lumen · Audience');
   return (
     <div className={`output-window ${idle ? 'idle' : ''}`}>
-      <OutputView frame={frame} muted={!window.lumenDesktop} />
+      <OutputSurface
+        frame={frame}
+        kind="audience"
+        render={(shown, { screenColor, alphaKey }) => (
+          <OutputView frame={shown} muted={!window.lumenDesktop} screenColor={screenColor} alphaKey={alphaKey} />
+        )}
+      />
       {!idle && !window.lumenDesktop && <div className="output-hint">Double-click for fullscreen</div>}
       {!frame && <div className="output-waiting">Waiting for the Lumen control window…</div>}
     </div>

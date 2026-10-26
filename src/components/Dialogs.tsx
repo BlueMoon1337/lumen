@@ -3,9 +3,13 @@ import { bookLabel, lookupLocal, parseReference, type Passage, type Verse } from
 import { addFontFiles, importBibleFile, importFiles } from '../commands';
 import { cssFamilyFor, faceName, FONT_ACCEPT, isFontInstalled } from '../fonts';
 import { notify } from '../notices';
-import { type DisplayInfo, type OutputKind } from '../outputs';
+import { useDisplays } from '../outputs';
 import { exportLibrary, isLibraryData, useStore } from '../store';
 import { Dialog, downloadFile, pickFiles } from './ui';
+
+const IS_MAC = /Mac|iPhone|iPad/.test(navigator.platform);
+const MOD = IS_MAC ? '⌘' : 'Ctrl';
+const ALT = IS_MAC ? '⌥' : 'Alt';
 
 const ONLINE = [
   { id: 'web', label: 'World English Bible' },
@@ -282,7 +286,7 @@ export function ScriptureDialog({ onClose }: { onClose: () => void }) {
   );
 }
 
-export function SettingsDialog({ onClose }: { onClose: () => void }) {
+export function SettingsDialog({ onClose, onScreens }: { onClose: () => void; onScreens: () => void }) {
   const settings = useStore((s) => s.settings);
   const themes = useStore((s) => s.themes);
   const media = useStore((s) => s.media);
@@ -298,11 +302,8 @@ export function SettingsDialog({ onClose }: { onClose: () => void }) {
           ? 'gothic'
           : 'missing',
   );
-  const [displays, setDisplays] = useState<DisplayInfo[]>([]);
-
-  useEffect(() => {
-    window.lumenDesktop?.getDisplays().then(setDisplays);
-  }, []);
+  const screens = useStore((s) => s.screens.screens);
+  const displayCount = useDisplays((s) => s.displays.length);
 
   const importJson = async () => {
     const [file] = await pickFiles('.json,application/json', false);
@@ -317,27 +318,6 @@ export function SettingsDialog({ onClose }: { onClose: () => void }) {
     } catch {
       alert('That file is not a Lumen library export.');
     }
-  };
-
-  const displaySelect = (kind: OutputKind) => {
-    const key = kind === 'audience' ? 'audienceDisplay' : 'stageDisplay';
-    return (
-      <label className="field-row">
-        <span>{kind === 'audience' ? 'Audience screen' : 'Stage screen'}</span>
-        <select
-          value={settings[key] ?? ''}
-          onChange={(e) => s.updateSettings({ [key]: e.target.value ? Number(e.target.value) : undefined })}
-        >
-          <option value="">Automatic</option>
-          {displays.map((d) => (
-            <option key={d.id} value={d.id}>
-              {d.label}
-              {d.primary ? ' (primary)' : ''}
-            </option>
-          ))}
-        </select>
-      </label>
-    );
   };
 
   return (
@@ -396,13 +376,18 @@ export function SettingsDialog({ onClose }: { onClose: () => void }) {
           After the last slide, continue to the next playlist item
         </label>
       </section>
-      {window.lumenDesktop && (
-        <section className="settings-section">
-          <h4>Screens</h4>
-          {displaySelect('audience')}
-          {displaySelect('stage')}
-        </section>
-      )}
+      <section className="settings-section">
+        <h4>Screens</h4>
+        <p className="muted small-print">
+          {screens.filter((x) => x.kind === 'audience').length} audience and {screens.filter((x) => x.kind === 'stage').length} stage screen
+          {screens.length === 1 ? '' : 's'} set up · {displayCount} connected display{displayCount === 1 ? '' : 's'} detected.
+        </p>
+        <div className="button-row">
+          <button className="btn" onClick={onScreens}>
+            Configure Screens…
+          </button>
+        </div>
+      </section>
       <section className="settings-section">
         <h4>Bibles</h4>
         {bibles.map((b) => (
@@ -519,6 +504,14 @@ export function SettingsDialog({ onClose }: { onClose: () => void }) {
             <kbd>F6</kbd>
           </dt>
           <dd>Toggle logo</dd>
+          <dt>
+            <kbd>{MOD}</kbd> <kbd>1</kbd> / <kbd>{MOD}</kbd> <kbd>2</kbd>
+          </dt>
+          <dd>Audience / Stage screens on or off</dd>
+          <dt>
+            <kbd>{ALT}</kbd> <kbd>{MOD}</kbd> <kbd>1</kbd>
+          </dt>
+          <dd>Configure Screens</dd>
         </dl>
       </section>
     </Dialog>

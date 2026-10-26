@@ -130,9 +130,75 @@ export interface Settings {
   ccliLicense?: string;
   /** Translation last used in the Bible dialog: an imported Bible's id or an online one. */
   lastBible?: string;
-  /** Desktop app only: which screen each output opens on. */
-  audienceDisplay?: number;
-  stageDisplay?: number;
+}
+
+// ---- Screens ------------------------------------------------------------------
+
+export type ScreenKind = 'audience' | 'stage';
+
+export interface Point {
+  x: number;
+  y: number;
+}
+
+/** Where each corner of the picture lands, as fractions of the output (0,0 top-left; 1,1 bottom-right). */
+export interface CornerPin {
+  tl: Point;
+  tr: Point;
+  br: Point;
+  bl: Point;
+}
+
+/** Picture adjustments for one output; 1 (or 0 for hue) leaves the picture unchanged. */
+export interface OutputColor {
+  brightness: number;
+  contrast: number;
+  saturation: number;
+  hue: number;
+}
+
+/** A physical display as remembered in the setup, so it can be found again when reconnected. */
+export interface DisplayRef {
+  id?: number;
+  label: string;
+  width: number;
+  height: number;
+}
+
+/** One output of a screen; a screen's outputs all show the same picture (mirror). */
+export interface ScreenOutput {
+  id: string;
+  /** The display this output goes to; unset means Automatic. */
+  display?: DisplayRef;
+  delayFrames: number;
+  color: OutputColor;
+  cornerPin: CornerPin;
+  /** "fill" drops backgrounds; "key" draws the foreground as a white matte for a video switcher. */
+  alphaKey: 'off' | 'fill' | 'key';
+}
+
+export interface ScreenConfig {
+  id: string;
+  kind: ScreenKind;
+  name: string;
+  width: number;
+  height: number;
+  /** Fills the screen behind everything else; black when unset. */
+  screenColor?: string;
+  outputs: ScreenOutput[];
+}
+
+export interface ScreenSetup {
+  audienceEnabled: boolean;
+  stageEnabled: boolean;
+  screens: ScreenConfig[];
+}
+
+export type TestPattern = 'bars' | 'grid' | 'checker' | 'gradient' | 'white' | 'black';
+
+export interface ScreenTools {
+  identify: boolean;
+  testPattern: { pattern: TestPattern; screenId: string | null } | null;
 }
 
 export interface TimerState {
@@ -181,6 +247,9 @@ export interface OutputFrame {
   transitionMs: number;
   /** Added fonts, so output windows can load the ones slides use. */
   fonts: FontMeta[];
+  /** Screen setup and tools, so each output window can apply its own settings. */
+  screens: ScreenSetup;
+  screenTools: ScreenTools;
   timer: TimerState;
   stage: {
     title: string | null;

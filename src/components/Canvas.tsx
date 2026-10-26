@@ -252,14 +252,25 @@ function MessageBanner({ text, timer }: { text: string; timer: OutputFrame['time
 }
 
 /** The audience picture, layer by layer. Used by the output window and the operator's monitor. */
-export function OutputView({ frame, muted = true }: { frame: OutputFrame | null; muted?: boolean }) {
+/**
+ * The audience picture, layer by layer. Used by output windows and the operator's monitor.
+ * `alphaKey` "fill" drops the background layers; "key" also draws what's left as a
+ * white matte on black, for keying in a video switcher.
+ */
+export function OutputView({
+  frame,
+  muted = true,
+  screenColor,
+  alphaKey = 'off',
+}: {
+  frame: OutputFrame | null;
+  muted?: boolean;
+  screenColor?: string;
+  alphaKey?: 'off' | 'fill' | 'key';
+}) {
   const d = frame?.transitionMs ?? 400;
-  return (
-    <ScaledCanvas className="output-view">
-      <div className="fill" style={{ background: '#000' }} />
-      <Transition itemKey={frame?.background?.key ?? null} duration={d} mode="over">
-        {frame?.background && <BackgroundFill bg={frame.background} muted={muted} />}
-      </Transition>
+  const foreground = (
+    <>
       <Transition itemKey={frame?.slide?.key ?? null} duration={d}>
         {frame?.slide && (
           <>
@@ -278,6 +289,17 @@ export function OutputView({ frame, muted = true }: { frame: OutputFrame | null;
           </div>
         )}
       </Transition>
+    </>
+  );
+  return (
+    <ScaledCanvas className="output-view">
+      <div className="fill" style={{ background: alphaKey === 'off' ? (screenColor ?? '#000') : '#000' }} />
+      {alphaKey === 'off' && (
+        <Transition itemKey={frame?.background?.key ?? null} duration={d} mode="over">
+          {frame?.background && <BackgroundFill bg={frame.background} muted={muted} />}
+        </Transition>
+      )}
+      {alphaKey === 'key' ? <div className="fill key-matte">{foreground}</div> : foreground}
     </ScaledCanvas>
   );
 }

@@ -8,7 +8,7 @@ import '@fontsource/cinzel/latin-700.css';
 import '@fontsource/cinzel/latin-ext-700.css';
 
 // One bundle, three windows: the operator view plus the audience and stage outputs.
-const route = location.hash.replace(/^#\/?/, '');
+const route = location.hash.replace(/^#\/?/, '').split('?')[0];
 const App =
   route === 'output'
     ? lazy(() => import('./components/OutputApp'))

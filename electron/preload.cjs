@@ -1,15 +1,22 @@
 const { contextBridge, ipcRenderer } = require('electron');
 
+const subscribe = (channel) => (cb) => {
+  const listener = (_e, value) => cb(value);
+  ipcRenderer.on(channel, listener);
+  return () => ipcRenderer.removeListener(channel, listener);
+};
+
 // Implements DesktopBridge from src/outputs.ts.
 contextBridge.exposeInMainWorld('lumenDesktop', {
   platform: process.platform,
   getDisplays: () => ipcRenderer.invoke('get-displays'),
-  openOutput: (kind, displayId) => ipcRenderer.invoke('open-output', kind, displayId),
-  closeOutput: (kind) => ipcRenderer.invoke('close-output', kind),
+  onDisplaysChanged: subscribe('displays-changed'),
+  setOutputs: (outputs) => ipcRenderer.invoke('set-outputs', outputs),
   onOutputsChanged: (cb) => {
-    const listener = (_e, open) => cb(open);
-    ipcRenderer.on('outputs-changed', listener);
+    const off = subscribe('outputs-changed')(cb);
     ipcRenderer.send('outputs-query');
-    return () => ipcRenderer.removeListener('outputs-changed', listener);
+    return off;
   },
+  onMenu: subscribe('menu'),
+  setMenuState: (state) => ipcRenderer.send('menu-state', state),
 });

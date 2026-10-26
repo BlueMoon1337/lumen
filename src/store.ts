@@ -3,6 +3,7 @@ import { persist } from 'zustand/middleware';
 import { deleteBibleText, type BibleMeta } from './bible';
 import { colorForGroup, getSequence, parseLyrics } from './lyrics';
 import { deleteMediaBlob, putMediaBlob } from './media';
+import { defaultScreenSetup, newOutput, newScreen, nextScreenName } from './screens';
 import { defaultThemes, seedMessages, seedPlaylist, seedPresentations } from './seed';
 import type {
   Category,
@@ -14,6 +15,11 @@ import type {
   Playlist,
   PlaylistItem,
   Presentation,
+  ScreenConfig,
+  ScreenKind,
+  ScreenOutput,
+  ScreenSetup,
+  ScreenTools,
   Settings,
   Slide,
   Theme,
@@ -34,6 +40,8 @@ export interface LibraryData {
   bibles: BibleMeta[];
   /** Added font files; the files are stored in IndexedDB. */
   fonts: FontMeta[];
+  /** Audience and stage screens, their outputs and where each output goes. */
+  screens: ScreenSetup;
 }
 
 export type Mode = 'show' | 'edit' | 'reflow';
@@ -98,6 +106,14 @@ interface Actions {
   addFonts(fonts: FontMeta[]): void;
   deleteFont(id: string): void;
 
+  setScreensEnabled(kind: ScreenKind, enabled: boolean): void;
+  addScreen(kind: ScreenKind): string;
+  removeScreen(id: string): void;
+  updateScreen(id: string, patch: Partial<ScreenConfig>): void;
+  setOutputCount(screenId: string, count: number): void;
+  updateOutput(screenId: string, outputId: string, patch: Partial<ScreenOutput>): void;
+  setScreenTools(patch: Partial<ScreenTools>): void;
+
   addMessage(text: string): void;
   updateMessage(id: string, text: string): void;
   deleteMessage(id: string): void;
@@ -130,6 +146,8 @@ export type AppState = LibraryData &
   UIState & {
     live: LiveState;
     timer: TimerState;
+    /** Identify Screens and test patterns: operator tools, never saved. */
+    screenTools: ScreenTools;
   } & Actions;
 
 const defaultSettings: Settings = {
@@ -153,6 +171,7 @@ function initialLibrary(): LibraryData {
     activePlaylistId: playlist.id,
     bibles: [],
     fonts: [],
+    screens: defaultScreenSetup(),
   };
 }
 
@@ -243,6 +262,7 @@ export const useStore = create<AppState>()(
         liveTab: 'messages',
         live: emptyLive,
         timer: initialTimer,
+        screenTools: { identify: false, testPattern: null },
 
         select: (presentationId, playlistItemId = null) =>
           set({ selectedPresentationId: presentationId, selectedPlaylistItemId: playlistItemId }),
@@ -467,6 +487,30 @@ export const useStore = create<AppState>()(
           set((s) => ({ fonts: s.fonts.filter((f) => f.id !== id) }));
         },
 
+        setScreensEnabled: (kind, enabled) =>
+          set((s) => ({ screens: { ...s.screens, [kind === 'audience' ? 'audienceEnabled' : 'stageEnabled']: enabled } })),
+        addScreen: (kind) => {
+          const screen = newScreen(kind, nextScreenName(get().screens, kind));
+          set((s) => ({ screens: { ...s.screens, screens: [...s.screens.screens, screen] } }));
+          return screen.id;
+        },
+        removeScreen: (id) => set((s) => ({ screens: { ...s.screens, screens: s.screens.screens.filter((sc) => sc.id !== id) } })),
+        updateScreen: (id, patch) =>
+          set((s) => ({ screens: { ...s.screens, screens: s.screens.screens.map((sc) => (sc.id === id ? { ...sc, ...patch } : sc)) } })),
+        setOutputCount: (screenId, count) => {
+          const screen = get().screens.screens.find((sc) => sc.id === screenId);
+          if (!screen) return;
+          const n = Math.max(1, Math.min(8, Math.round(count)));
+          const outputs = screen.outputs.slice(0, n);
+          while (outputs.length < n) outputs.push(newOutput());
+          get().updateScreen(screenId, { outputs });
+        },
+        updateOutput: (screenId, outputId, patch) => {
+          const screen = get().screens.screens.find((sc) => sc.id === screenId);
+          if (screen) get().updateScreen(screenId, { outputs: screen.outputs.map((o) => (o.id === outputId ? { ...o, ...patch } : o)) });
+        },
+        setScreenTools: (patch) => set((s) => ({ screenTools: { ...s.screenTools, ...patch } })),
+
         addMessage: (text) => set((s) => ({ messages: [...s.messages, { id: uid(), text }] })),
         updateMessage: (id, text) => set((s) => ({ messages: s.messages.map((m) => (m.id === id ? { ...m, text } : m)) })),
         deleteMessage: (id) =>
@@ -568,6 +612,7 @@ export const useStore = create<AppState>()(
             ...data,
             bibles: data.bibles ?? [],
             fonts: data.fonts ?? [],
+            screens: data.screens ?? defaultScreenSetup(),
             selectedPresentationId: null,
             selectedPlaylistItemId: null,
             editingThemeId: null,
@@ -602,6 +647,7 @@ export const useStore = create<AppState>()(
         activePlaylistId: s.activePlaylistId,
         bibles: s.bibles,
         fonts: s.fonts,
+        screens: s.screens,
       }),
     },
   ),

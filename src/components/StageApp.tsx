@@ -5,6 +5,7 @@ import type { OutputFrame, Theme } from '../types';
 import { formatClock, formatDuration } from '../util';
 import { ScaledCanvas, SlideText } from './Canvas';
 import { useFrameFonts, useOutputWindowChrome } from './OutputApp';
+import { OutputSurface } from './OutputSurface';
 
 const stageText = (overrides: Partial<Theme>): Theme => ({
   ...defaultThemes[0],
@@ -55,7 +56,7 @@ export default function StageApp() {
   const idle = useOutputWindowChrome('Lumen · Stage');
   return (
     <div className={`output-window ${idle ? 'idle' : ''}`}>
-      <StageView frame={frame} />
+      <OutputSurface frame={frame} kind="stage" render={(shown) => <StageView frame={shown} />} />
       {!frame && <div className="output-waiting">Waiting for the Lumen control window…</div>}
     </div>
   );
