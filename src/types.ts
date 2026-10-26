@@ -25,6 +25,8 @@ export interface Slide {
   label?: ColorLabel;
   /** How this slide comes on screen; unset uses the presentation's, then the global one. */
   transition?: SlideTransition;
+  /** A media cue: showing the slide starts this image or video on the Media layer, as in ProPresenter. */
+  media?: string;
 }
 
 /** A name with a color: a group preset or a slide label. */
@@ -171,6 +173,18 @@ export interface MediaItem {
   mime: string;
   /** Audio: start again when it ends. */
   loop?: boolean;
+  /** Video: what happens when it ends. Loop when unset. */
+  playback?: VideoPlayback;
+}
+
+/** When a video ends: start again, hold the last frame, clear the Media layer, or play the next one. */
+export type VideoPlayback = 'loop' | 'stop' | 'clear' | 'next';
+
+/** A media bin playlist, like ProPresenter's: media items in an order. Each item is in the library once. */
+export interface MediaPlaylist {
+  id: string;
+  name: string;
+  items: string[];
 }
 
 export type PlaylistItem = { id: string; type: 'presentation'; presentationId: string } | { id: string; type: 'header'; label: string };
@@ -404,6 +418,10 @@ export interface LiveState {
   mediaPaused: boolean;
   /** Bumped to restart the live video from the beginning. */
   mediaRestart: number;
+  /** The live video jumps to `to` seconds whenever `n` changes. */
+  mediaSeek: { to: number; n: number };
+  /** The media playlist the live media was started from, for "play the next one". */
+  mediaFrom: string | null;
   /** Audio playing from the Audio tab (on this computer, not the screens). */
   audioId: string | null;
   audioPaused: boolean;
@@ -461,5 +479,16 @@ export interface OutputFrame {
 export type FrameBackground =
   | { key: string; kind: 'color'; color: string }
   | { key: string; kind: 'gradient'; color: string; color2: string }
-  /** `live`: from the media bin, rather than a theme or slide background. */
-  | { key: string; kind: 'media'; mediaId: string; paused?: boolean; live?: boolean };
+  /**
+   * `live`: from the media bin, rather than a theme or slide background. `loop`: a video starts
+   * again at the end (the default). `seek`: jump to `to` seconds whenever `n` changes.
+   */
+  | {
+      key: string;
+      kind: 'media';
+      mediaId: string;
+      paused?: boolean;
+      live?: boolean;
+      loop?: boolean;
+      seek?: { to: number; n: number };
+    };

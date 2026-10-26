@@ -1,0 +1,120 @@
+import { beforeEach, describe, expect, it } from 'vitest';
+import { buildFrame } from './frame';
+import { mimeFromName, nextMedia, useStore } from './store';
+import type { MediaItem } from './types';
+
+const s = () => useStore.getState();
+const video = (id: string, extra: Partial<MediaItem> = {}): MediaItem => ({ id, name: id, kind: 'video', mime: 'video/mp4', ...extra });
+
+beforeEach(() => {
+  s().clearAll();
+  useStore.setState({
+    media: [video('v1'), video('v2', { playback: 'stop' }), { id: 'i1', name: 'i1', kind: 'image', mime: 'image/png' }, video('v3')],
+    mediaPlaylists: [],
+  });
+});
+
+describe('importing', () => {
+  it('knows video files by their name when the system gives no type', () => {
+    expect(mimeFromName('Countdown.MP4')).toBe('video/mp4');
+    expect(mimeFromName('intro.mov')).toBe('video/quicktime');
+    expect(mimeFromName('notes.txt')).toBe('');
+  });
+});
+
+describe('the live video', () => {
+  it('loops unless told otherwise, and the outputs follow seeks', () => {
+    s().setLiveMedia('v1');
+    expect(buildFrame(s()).background).toMatchObject({ kind: 'media', live: true, loop: true, seek: { n: 0 } });
+    s().seekMedia(42);
+    expect(buildFrame(s()).background).toMatchObject({ seek: { to: 42, n: 1 } });
+    s().setLiveMedia('v2');
+    expect(buildFrame(s()).background).toMatchObject({ mediaId: 'v2', loop: false });
+  });
+
+  it('stops, clears or plays the next one when it ends', () => {
+    s().setLiveMedia('v2');
+    s().mediaEnded();
+    expect(s().live.mediaId).toBe('v2');
+
+    s().updateMedia('v1', { playback: 'clear' });
+    s().setLiveMedia('v1');
+    s().mediaEnded();
+    expect(s().live.mediaId).toBeNull();
+
+    // "Next" goes through the media bin, skipping audio, and clears after the last.
+    s().updateMedia('v1', { playback: 'next' });
+    s().setLiveMedia('v1');
+    s().mediaEnded();
+    expect(s().live.mediaId).toBe('v2');
+    s().updateMedia('v3', { playback: 'next' });
+    s().setLiveMedia('v3');
+    s().mediaEnded();
+    expect(s().live.mediaId).toBeNull();
+  });
+
+  it('plays the next one in the media playlist it was started from', () => {
+    const pl = s().createMediaPlaylist('Pre-service');
+    s().addToMediaPlaylist(pl, ['v3', 'v1']);
+    expect(nextMedia(s(), 'v3', pl)).toBe('v1');
+    expect(nextMedia(s(), 'v3', null)).toBeNull();
+    s().updateMedia('v3', { playback: 'next' });
+    s().setLiveMedia('v3', pl);
+    s().mediaEnded();
+    expect(s().live).toMatchObject({ mediaId: 'v1', mediaFrom: pl });
+  });
+});
+
+describe('media playlists', () => {
+  it('hold media in order once each, and lose deleted media', () => {
+    const pl = s().createMediaPlaylist('Loops');
+    s().addToMediaPlaylist(pl, ['v1', 'i1']);
+    s().addToMediaPlaylist(pl, ['v1', 'v3']);
+    expect(s().mediaPlaylists[0].items).toEqual(['v1', 'i1', 'v3']);
+    s().removeFromMediaPlaylist(pl, 'i1');
+    s().deleteMedia('v3');
+    expect(s().mediaPlaylists[0].items).toEqual(['v1']);
+    s().renameMediaPlaylist(pl, 'Backgrounds');
+    s().deleteMediaPlaylist(pl);
+    expect(s().mediaPlaylists).toEqual([]);
+  });
+});
+
+describe('media cues on slides', () => {
+  const make = () => {
+    const id = s().createPresentation({ title: 'Video song' }, '[V]\na\n\nb\n\nc');
+    return () => s().presentations[id];
+  };
+
+  it('start their media when the slide is shown, without restarting it', () => {
+    const get = make();
+    const [a, b] = get().groups[0].slides;
+    s().updateSlide(get().id, a.id, { media: 'v1' });
+    s().updateSlide(get().id, b.id, { media: 'v1' });
+    s().goLive(get().id, 0);
+    expect(s().live.mediaId).toBe('v1');
+    s().seekMedia(30);
+    const seek = s().live.mediaSeek;
+    s().goLive(get().id, 1);
+    // Still the same play-through: no new seek, no restart.
+    expect(s().live.mediaSeek).toBe(seek);
+    // A slide without a cue leaves the media playing.
+    s().goLive(get().id, 2);
+    expect(s().live.mediaId).toBe('v1');
+  });
+
+  it('survive reflowing the words, and go when their media is deleted', () => {
+    const get = make();
+    const a = get().groups[0].slides[0];
+    s().updateSlide(get().id, a.id, { media: 'v1', label: { name: 'Prayer', color: '#7c5cd6' }, transition: { kind: 'cut', ms: 0 } });
+    s().setPresentationText(get().id, '[V]\nA changed\n\nb\n\nc');
+    expect(get().groups[0].slides[0]).toMatchObject({
+      text: 'A changed',
+      media: 'v1',
+      label: { name: 'Prayer' },
+      transition: { kind: 'cut' },
+    });
+    s().deleteMedia('v1');
+    expect(get().groups[0].slides[0].media).toBeUndefined();
+  });
+});

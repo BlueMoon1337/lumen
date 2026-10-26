@@ -181,18 +181,38 @@ function FittedText({ text, caption, theme }: { text: string; caption?: string; 
   );
 }
 
-function MediaFill({ mediaId, muted, paused = false }: { mediaId: string; muted: boolean; paused?: boolean }) {
+function MediaFill({
+  mediaId,
+  muted,
+  paused = false,
+  loop = true,
+  seek,
+}: {
+  mediaId: string;
+  muted: boolean;
+  paused?: boolean;
+  loop?: boolean;
+  seek?: { to: number; n: number };
+}) {
   const media = useMedia(mediaId);
   const video = useRef<HTMLVideoElement>(null);
+  // Seeks made before this window showed the video don't apply to it.
+  const seen = useRef(seek?.n);
   useEffect(() => {
     const v = video.current;
     if (!v) return;
     if (paused) v.pause();
     else void v.play().catch(() => {});
   }, [paused, media]);
+  useEffect(() => {
+    const v = video.current;
+    if (!v || !seek || seek.n === seen.current) return;
+    seen.current = seek.n;
+    v.currentTime = seek.to;
+  }, [seek, media]);
   if (!media) return null;
   return media.isVideo ? (
-    <video ref={video} className="media-fill" src={media.url} autoPlay={!paused} loop muted={muted} playsInline />
+    <video ref={video} className="media-fill" src={media.url} autoPlay={!paused} loop={loop} muted={muted} playsInline />
   ) : (
     <img className="media-fill" src={media.url} alt="" />
   );
@@ -230,7 +250,7 @@ export function BackgroundFill({ bg, muted = true }: { bg: FrameBackground; mute
     case 'gradient':
       return <div className="fill" style={{ background: `linear-gradient(135deg, ${bg.color}, ${bg.color2})` }} />;
     case 'media':
-      return <MediaFill mediaId={bg.mediaId} muted={muted} paused={bg.paused} />;
+      return <MediaFill mediaId={bg.mediaId} muted={muted} paused={bg.paused} loop={bg.loop ?? true} seek={bg.seek} />;
   }
 }
 
@@ -427,18 +447,38 @@ export function SlidePreview({
   caption,
   theme,
   background,
+  media,
 }: {
   text: string;
   caption?: string;
   theme: Theme;
   background?: ThemeBackground;
+  /** The slide's media cue, shown behind it as it will be on screen. */
+  media?: string;
 }) {
   const fill = toFrameBackground(background ?? theme.background);
   return (
     <ScaledCanvas>
-      <div className={fill ? 'fill' : 'fill checker'} />
-      {fill && <BackgroundFill bg={fill} />}
+      <div className={fill || media ? 'fill' : 'fill checker'} />
+      {media ? (
+        <MediaStill mediaId={media} />
+      ) : fill?.kind === 'media' ? (
+        <MediaStill mediaId={fill.mediaId} />
+      ) : (
+        fill && <BackgroundFill bg={fill} />
+      )}
       <SlideText text={text} caption={caption} theme={theme} />
     </ScaledCanvas>
+  );
+}
+
+/** A still of an image or video (half a second in), for thumbnails: nothing plays. */
+export function MediaStill({ mediaId }: { mediaId: string }) {
+  const media = useMedia(mediaId);
+  if (!media) return null;
+  return media.isVideo ? (
+    <video className="media-fill" src={`${media.url}#t=0.5`} muted preload="metadata" playsInline />
+  ) : (
+    <img className="media-fill" src={media.url} alt="" />
   );
 }

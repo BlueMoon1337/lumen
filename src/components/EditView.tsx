@@ -6,7 +6,9 @@ import {
   type CSSProperties,
   type KeyboardEvent as ReactKeyboardEvent,
   type PointerEvent as ReactPointerEvent,
+  type HTMLAttributes,
   type ReactNode,
+  type Ref,
 } from 'react';
 import { useShallow } from 'zustand/react/shallow';
 import { undoBatch } from '../history';
@@ -16,12 +18,12 @@ import { useMedia } from '../media';
 import { useStore } from '../store';
 import { applyStyles, inkFor, resolveTheme, slideTheme, toFrameBackground } from '../theme';
 import type { Category, Group, MediaItem, Presentation, Slide, TextStyle, Theme, ThemeBackground } from '../types';
-import { BackgroundFill, CANVAS_H, CANVAS_W, slideBoxStyle, SlidePreview, SlideText, slideTextStyle } from './Canvas';
+import { BackgroundFill, CANVAS_H, CANVAS_W, MediaStill, slideBoxStyle, SlidePreview, SlideText, slideTextStyle } from './Canvas';
 import { NamePopup, openContextMenu, openPopupBelow } from './ContextMenu';
 import { FontSelect } from './FontSelect';
 import { MenuSelect, type MenuEntry } from './MenuSelect';
 import { canvasMenu, groupMenu, shortcut, slideMenu } from './menus';
-import { LabelTag, TransitionBadge } from './ShowView';
+import { LabelTag, MediaBadge, TransitionBadge, useMediaDrop } from './ShowView';
 import { LIBRARIES } from './Sidebar';
 import { AlignButtons } from './Toolbar';
 import { TransitionButton } from './TransitionPicker';
@@ -130,8 +132,10 @@ export function EditOutline({ presentation: p, showObjects }: { presentation: Pr
               </button>
               {open &&
                 g.slides.map((sl, i) => (
-                  <div
+                  <OutlineSlide
                     key={sl.id}
+                    presentationId={p.id}
+                    slideId={sl.id}
                     ref={sl.id === selectedId ? selectedRef : undefined}
                     className={`outline-slide ${sl.id === selectedId && mode === 'edit' ? 'selected' : ''}`}
                     onClick={() => s.setUI({ mode: 'edit', editSlideId: sl.id, editTextSelected: false })}
@@ -142,13 +146,20 @@ export function EditOutline({ presentation: p, showObjects }: { presentation: Pr
                     }}
                   >
                     <div className="outline-thumb">
-                      <SlidePreview text={sl.text} caption={sl.caption} theme={slideTheme(base, p, sl)} background={sl.background} />
+                      <SlidePreview
+                        text={sl.text}
+                        caption={sl.caption}
+                        theme={slideTheme(base, p, sl)}
+                        background={sl.background}
+                        media={sl.media}
+                      />
+                      <MediaBadge presentationId={p.id} slide={sl} />
                       <TransitionBadge presentationId={p.id} slide={sl} />
                     </div>
                     <span className="outline-num">
                       {start + i + 1}.{sl.label && <LabelTag label={sl.label} />}
                     </span>
-                  </div>
+                  </OutlineSlide>
                 ))}
             </section>
           );
@@ -165,6 +176,29 @@ export function EditOutline({ presentation: p, showObjects }: { presentation: Pr
         </div>
       )}
     </aside>
+  );
+}
+
+/** A slide in the outline; images and videos can be dropped on it as its media cue. */
+function OutlineSlide({
+  presentationId,
+  slideId,
+  className,
+  children,
+  ref,
+  ...props
+}: {
+  presentationId: string;
+  slideId: string;
+  className: string;
+  children: ReactNode;
+  ref?: Ref<HTMLDivElement>;
+} & Omit<HTMLAttributes<HTMLDivElement>, 'className' | 'children'>) {
+  const { over, ...drop } = useMediaDrop(presentationId, slideId);
+  return (
+    <div ref={ref} className={`${className} ${over ? 'drop-media' : ''}`} {...drop} {...props}>
+      {children}
+    </div>
   );
 }
 
@@ -480,7 +514,7 @@ export function EditCanvas({ presentation: p, slide }: { presentation: Presentat
           <div ref={slideRef} className="edit-slide" style={{ left, top, width: cw, height: ch }}>
             <div className="edit-slide-inner" style={{ width: CANVAS_W, height: CANVAS_H, transform: `scale(${scale})` }}>
               <div className="fill" style={{ background: '#202124' }} />
-              {fill && <BackgroundFill bg={fill} />}
+              {slide.media ? <MediaStill mediaId={slide.media} /> : fill && <BackgroundFill bg={fill} />}
               <div className="fill" style={{ visibility: editing ? 'hidden' : 'visible' }}>
                 <SlideText text={slide.text} caption={slide.caption} theme={shown} />
               </div>
@@ -780,6 +814,35 @@ function GroupSection({ presentation: p, slide, group }: { presentation: Present
   );
 }
 
+/** The slide's media cue: an image or video that starts on the Media layer when the slide is shown. */
+function MediaCueSection({ presentation: p, slide }: { presentation: Presentation; slide: Slide }) {
+  const media = useStore(useShallow((s) => s.media.filter((m) => m.kind !== 'audio')));
+  const s = useStore.getState();
+  const entries: MenuEntry[] = [
+    { type: 'item', value: '', label: 'None' },
+    { type: 'separator' },
+    ...media.map((m) => ({ type: 'item' as const, value: m.id, label: m.name, detail: m.kind === 'video' ? 'Video' : 'Image' })),
+  ];
+  return (
+    <section className="insp-section">
+      <div className="insp-heading">Media</div>
+      <Field label="Plays">
+        <MenuSelect
+          label="Slide media"
+          value={slide.media ?? ''}
+          entries={entries}
+          onChange={(v) => s.updateSlide(p.id, slide.id, { media: v || undefined })}
+        />
+      </Field>
+      <p className="small-print muted">
+        {slide.media
+          ? 'Starts on the Media layer when this slide is shown, and keeps playing until other media or a clear.'
+          : 'Drag an image or video from the media bin onto a slide to play it when the slide is shown.'}
+      </p>
+    </section>
+  );
+}
+
 /** A colored label on the slide's thumbnail, from the presets or made up. */
 function LabelSection({ presentation: p, slide }: { presentation: Presentation; slide: Slide }) {
   const presets = useStore((s) => labelPresets(s.settings));
@@ -836,6 +899,7 @@ function SlideTab({ presentation: p, slide, group }: { presentation: Presentatio
     <>
       <GroupSection presentation={p} slide={slide} group={group} />
       <LabelSection presentation={p} slide={slide} />
+      <MediaCueSection presentation={p} slide={slide} />
       <section className="insp-section">
         <div className="insp-heading">Transition</div>
         <TransitionButton target={{ presentationId: p.id, scope: { slideId: slide.id } }} className="insp-wide" />

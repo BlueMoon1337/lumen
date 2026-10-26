@@ -14,9 +14,10 @@ import {
   transitionLabel,
   withChanges,
 } from '../transitions';
-import type { Group, MediaItem, Playlist, PlaylistItem, Presentation, Slide, SlideTransition } from '../types';
+import type { Group, MediaItem, Playlist, PlaylistItem, Presentation, Slide, SlideTransition, VideoPlayback } from '../types';
 import { NamePopup, openPopupAtMenu, type ContextEntries } from './ContextMenu';
 import { LIBRARIES } from './Sidebar';
+import type { IconName } from './ui';
 import { setTransitionFor, TargetTransitionPicker, transitionState, type TransitionTarget } from './TransitionPicker';
 
 const IS_MAC = /Mac|iPhone|iPad/.test(navigator.platform);
@@ -190,6 +191,19 @@ export function slideMenu(
     { label: 'Group', swatch: group.color, submenu: () => slideGroupEntries(p, slide, group) },
     { label: 'Label', swatch: slide.label?.color, submenu: () => labelEntries(p, slide) },
     { label: 'Transition', submenu: () => transitionEntries({ presentationId: p.id, scope: { slideId: slide.id } }) },
+    { label: 'Media', submenu: () => mediaCueEntries(p, slide) },
+  ];
+}
+
+/** The slide's media cue: none, or an image or video from the media bin. */
+function mediaCueEntries(p: Presentation, slide: Slide): ContextEntries {
+  const s = st();
+  const visual = s.media.filter((m) => m.kind !== 'audio');
+  return [
+    { label: 'None', checked: !slide.media, action: () => s.updateSlide(p.id, slide.id, { media: undefined }) },
+    '-',
+    ...visual.map((m) => ({ label: m.name, checked: slide.media === m.id, action: () => s.updateSlide(p.id, slide.id, { media: m.id }) })),
+    !visual.length && { label: 'Import images or videos in the media bin first', disabled: true, action: () => {} },
   ];
 }
 
@@ -400,14 +414,63 @@ export function playlistMenu(pl: Playlist, onRename: () => void): ContextEntries
   ];
 }
 
-export function mediaMenu(m: MediaItem): ContextEntries {
+/** What a video does when it ends. */
+export const PLAYBACK: { value: VideoPlayback; label: string; short: string; icon: IconName }[] = [
+  { value: 'loop', label: 'Loop', short: 'Loop', icon: 'repeat' },
+  { value: 'stop', label: 'Stop on the Last Frame', short: 'Stop', icon: 'pause' },
+  { value: 'clear', label: 'Clear', short: 'Clear', icon: 'close' },
+  { value: 'next', label: 'Play the Next One', short: 'Next', icon: 'forward10' },
+];
+
+export function playbackEntries(mediaId: string): ContextEntries {
+  const s = st();
+  const item = s.media.find((m) => m.id === mediaId);
+  return [
+    { header: 'When It Ends' },
+    ...PLAYBACK.map((p) => ({
+      label: p.label,
+      checked: (item?.playback ?? 'loop') === p.value,
+      action: () => s.updateMedia(mediaId, { playback: p.value }),
+    })),
+  ];
+}
+
+/** A media bin item; `playlistId` when it's shown in a media playlist. */
+export function mediaMenu(m: MediaItem, playlistId?: string | null): ContextEntries {
   const s = st();
   const live = s.live.mediaId === m.id;
   const logo = s.settings.logoMediaId === m.id;
   return [
-    { label: live ? 'Clear from Screen' : 'Show Behind Slides', action: () => s.setLiveMedia(live ? null : m.id) },
+    { label: live ? 'Clear from Screen' : 'Show on Media Layer', action: () => s.setLiveMedia(live ? null : m.id, playlistId ?? null) },
+    m.kind === 'video' && { label: 'When It Ends', submenu: () => playbackEntries(m.id).slice(1) },
     { label: 'Use as Logo', checked: logo, action: () => s.updateSettings({ logoMediaId: logo ? undefined : m.id }) },
     { label: 'Media Transition…', action: () => openPopupAtMenu(<TargetTransitionPicker target="media" />) },
+    '-',
+    {
+      label: 'Add to Media Playlist',
+      submenu: () => [
+        ...st().mediaPlaylists.map((pl) => ({
+          label: pl.name,
+          checked: pl.items.includes(m.id),
+          action: () => s.addToMediaPlaylist(pl.id, [m.id]),
+        })),
+        st().mediaPlaylists.length > 0 && '-',
+        {
+          label: 'New Playlist…',
+          action: () =>
+            openPopupAtMenu(
+              <NamePopup
+                title="New Media Playlist"
+                colors={false}
+                action="Create"
+                initial={{ name: 'Playlist', color: '' }}
+                onSave={(v) => s.addToMediaPlaylist(s.createMediaPlaylist(v.name), [m.id])}
+              />,
+            ),
+        },
+      ],
+    },
+    !!playlistId && { label: 'Remove from Playlist', action: () => s.removeFromMediaPlaylist(playlistId, m.id) },
     '-',
     {
       label: 'Rename…',

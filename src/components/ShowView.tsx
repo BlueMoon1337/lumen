@@ -1,4 +1,4 @@
-import { memo, useEffect, useMemo, useRef, type MouseEvent as ReactMouseEvent, type Ref } from 'react';
+import { memo, useEffect, useMemo, useRef, useState, type DragEvent, type MouseEvent as ReactMouseEvent, type Ref } from 'react';
 import { getSequence } from '../lyrics';
 import { layerOf, useStore } from '../store';
 import { inkFor, resolveTheme, slideTheme } from '../theme';
@@ -7,7 +7,8 @@ import { SlidePreview } from './Canvas';
 import { openContextMenu, openPopupBelow } from './ContextMenu';
 import { slideMenu } from './menus';
 import { TargetTransitionPicker, TransitionButton, TransitionGlyph } from './TransitionPicker';
-import { Icon, IconButton } from './ui';
+import { importMediaFiles } from './MediaBin';
+import { DRAG_MEDIA, Icon, IconButton } from './ui';
 
 /** A slide label's tag on a thumbnail or row. */
 export function LabelTag({ label }: { label: ColorLabel }) {
@@ -33,6 +34,63 @@ export function TransitionBadge({ presentationId, slide }: { presentationId: str
       onDoubleClick={(e) => e.stopPropagation()}
     >
       <TransitionGlyph kind={slide.transition.kind} size={14} />
+    </button>
+  );
+}
+
+const dragged = (e: DragEvent) => e.dataTransfer.types.includes(DRAG_MEDIA) || e.dataTransfer.types.includes('Files');
+
+/**
+ * Lets an image or video be dropped on a slide, from the media bin or as a file, to become its
+ * media cue: showing the slide then starts it on the Media layer, as in ProPresenter.
+ */
+export function useMediaDrop(presentationId: string, slideId: string) {
+  const [over, setOver] = useState(false);
+  const set = (media: string) => useStore.getState().updateSlide(presentationId, slideId, { media });
+  return {
+    over,
+    onDragOver: (e: DragEvent) => {
+      if (!dragged(e)) return;
+      e.preventDefault();
+      e.stopPropagation();
+      setOver(true);
+    },
+    onDragLeave: () => setOver(false),
+    onDrop: (e: DragEvent) => {
+      if (!dragged(e)) return;
+      e.preventDefault();
+      e.stopPropagation();
+      setOver(false);
+      const id = e.dataTransfer.getData(DRAG_MEDIA);
+      if (id) return set(id);
+      void importMediaFiles(Array.from(e.dataTransfer.files)).then((added) => {
+        const first = added.find((m) => m.kind !== 'audio');
+        if (first) set(first.id);
+      });
+    },
+  };
+}
+
+/** Marks a slide with a media cue; click it to see which, or take it off. */
+export function MediaBadge({ presentationId, slide }: { presentationId: string; slide: Slide }) {
+  const item = useStore((s) => s.media.find((m) => m.id === slide.media));
+  if (!slide.media || !item) return null;
+  return (
+    <button
+      type="button"
+      className="slide-media-badge"
+      title={`Plays “${item.name}” on the Media layer when this slide is shown`}
+      onClick={(e) => {
+        e.stopPropagation();
+        openContextMenu(e, [
+          { header: item.name },
+          { label: 'Show Now', action: () => useStore.getState().setLiveMedia(item.id) },
+          { label: 'Remove from Slide', action: () => useStore.getState().updateSlide(presentationId, slide.id, { media: undefined }) },
+        ]);
+      }}
+      onDoubleClick={(e) => e.stopPropagation()}
+    >
+      <Icon name={item.kind === 'video' ? 'film' : 'image'} size={13} />
     </button>
   );
 }
@@ -197,19 +255,22 @@ const SlideThumb = memo(function SlideThumb({
   ref?: Ref<HTMLDivElement>;
 }) {
   const { group, slide } = entry;
+  const { over, ...drop } = useMediaDrop(presentationId, slide.id);
   return (
     <div
       ref={ref}
       role="button"
       tabIndex={-1}
-      className={`slide-thumb ${live ? 'live' : ''}`}
+      className={`slide-thumb ${live ? 'live' : ''} ${over ? 'drop-media' : ''}`}
+      {...drop}
       onClick={() => useStore.getState().goLive(presentationId, index, playlistItemId)}
       onDoubleClick={() => useStore.getState().openEditor(slide.id)}
       onContextMenu={(e) => slideContextMenu(e, presentationId, entry, index, playlistItemId)}
       title="Click to show · Double-click to edit · Right-click for more"
     >
       <div className="slide-thumb-canvas">
-        <SlidePreview text={slide.text} caption={slide.caption} theme={theme} background={slide.background} />
+        <SlidePreview text={slide.text} caption={slide.caption} theme={theme} background={slide.background} media={slide.media} />
+        <MediaBadge presentationId={presentationId} slide={slide} />
         <TransitionBadge presentationId={presentationId} slide={slide} />
       </div>
       <div className="slide-thumb-label" style={{ background: group.color, color: inkFor(group.color) }}>
@@ -227,32 +288,57 @@ function SlideList({ presentation: p }: { presentation: Presentation }) {
   if (seq.length === 0) return <NoSlides />;
   return (
     <div className="slide-list">
-      {seq.map((entry, i) => {
-        const { group, slide, indexInGroup } = entry;
-        return (
-          <div
-            key={`${group.id}:${slide.id}:${i}`}
-            role="button"
-            tabIndex={-1}
-            className={`slide-row ${i === liveIndex ? 'live' : ''}`}
-            onClick={() => useStore.getState().goLive(p.id, i, playlistItemId)}
-            onDoubleClick={() => useStore.getState().openEditor(slide.id)}
-            onContextMenu={(e) => slideContextMenu(e, p.id, entry, i, playlistItemId)}
-          >
-            <span className="slide-row-label" style={{ background: group.color, color: inkFor(group.color) }}>
-              <span className="slide-number">{i + 1}</span>
-              {indexInGroup === 0 ? group.name : ''}
-            </span>
-            <span className="slide-row-text">
-              {slide.text || <span className="muted">(blank)</span>}
-              <span className="slide-row-tags">
-                {slide.label && <LabelTag label={slide.label} />}
-                <TransitionBadge presentationId={p.id} slide={slide} />
-              </span>
-            </span>
-          </div>
-        );
-      })}
+      {seq.map((entry, i) => (
+        <SlideRow
+          key={`${entry.group.id}:${entry.slide.id}:${i}`}
+          presentationId={p.id}
+          entry={entry}
+          index={i}
+          live={i === liveIndex}
+          playlistItemId={playlistItemId}
+        />
+      ))}
+    </div>
+  );
+}
+
+function SlideRow({
+  presentationId,
+  entry,
+  index,
+  live,
+  playlistItemId,
+}: {
+  presentationId: string;
+  entry: SequenceEntry;
+  index: number;
+  live: boolean;
+  playlistItemId: string | null;
+}) {
+  const { group, slide, indexInGroup } = entry;
+  const { over, ...drop } = useMediaDrop(presentationId, slide.id);
+  return (
+    <div
+      role="button"
+      tabIndex={-1}
+      className={`slide-row ${live ? 'live' : ''} ${over ? 'drop-media' : ''}`}
+      {...drop}
+      onClick={() => useStore.getState().goLive(presentationId, index, playlistItemId)}
+      onDoubleClick={() => useStore.getState().openEditor(slide.id)}
+      onContextMenu={(e) => slideContextMenu(e, presentationId, entry, index, playlistItemId)}
+    >
+      <span className="slide-row-label" style={{ background: group.color, color: inkFor(group.color) }}>
+        <span className="slide-number">{index + 1}</span>
+        {indexInGroup === 0 ? group.name : ''}
+      </span>
+      <span className="slide-row-text">
+        {slide.text || <span className="muted">(blank)</span>}
+        <span className="slide-row-tags">
+          {slide.label && <LabelTag label={slide.label} />}
+          <MediaBadge presentationId={presentationId} slide={slide} />
+          <TransitionBadge presentationId={presentationId} slide={slide} />
+        </span>
+      </span>
     </div>
   );
 }

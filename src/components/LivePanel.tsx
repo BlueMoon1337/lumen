@@ -8,6 +8,9 @@ import { AudioTab } from './AudioTab';
 import { seekAudio, useAudioStatus } from './AudioPlayer';
 import { OutputView } from './Canvas';
 import { ClearGroupsRow } from './ClearGroups';
+import { openContextMenu } from './ContextMenu';
+import { useMediaStatus } from './MediaClock';
+import { PLAYBACK, playbackEntries } from './menus';
 import { setPaneSize, Splitter } from './Splitter';
 import { StageView } from './StageView';
 import { TransitionButton } from './TransitionPicker';
@@ -40,6 +43,34 @@ function ClearColumn() {
 
 const time = (seconds: number) => formatDuration(Math.round(seconds) * 1000);
 
+/**
+ * A position slider for something playing. While it's being dragged it shows where it's been
+ * dragged to, not where the playback still is, so letting go doesn't snap it back.
+ */
+function Scrubber({ time, duration, onSeek, label }: { time: number; duration: number; onSeek: (seconds: number) => void; label: string }) {
+  const [dragging, setDragging] = useState<number | null>(null);
+  const release = () => setTimeout(() => setDragging(null), 250);
+  return (
+    <input
+      className="np-seek pink-range"
+      type="range"
+      min={0}
+      max={duration || 1}
+      step={0.1}
+      value={Math.min(dragging ?? time, duration || 1)}
+      onChange={(e) => {
+        const to = Number(e.target.value);
+        setDragging(to);
+        onSeek(to);
+      }}
+      onPointerUp={release}
+      onKeyUp={release}
+      onBlur={release}
+      aria-label={label}
+    />
+  );
+}
+
 /** What's playing: the media bin's video, and audio from the Audio tab, each with its controls. */
 function NowPlaying() {
   const live = useStore((s) => s.live);
@@ -47,7 +78,8 @@ function NowPlaying() {
   const audio = useStore((s) => s.media.find((m) => m.id === s.live.audioId));
   const status = useAudioStatus();
   const s = useStore.getState();
-  if (!video && !audio && !live.videoInput) return <div className="transport-name">Nothing playing</div>;
+  const image = useStore((s) => s.media.find((m) => m.id === s.live.mediaId && m.kind === 'image'));
+  if (!video && !image && !audio && !live.videoInput) return <div className="transport-name">Nothing playing</div>;
   return (
     <div className="now-playing">
       {live.videoInput && (
@@ -56,18 +88,13 @@ function NowPlaying() {
           <span className="np-name">{live.videoInput.label}</span>
         </div>
       )}
-      {video && (
+      {image && (
         <div className="np-row">
           <Icon name="image" size={14} />
-          <span className="np-name">{video.name}</span>
-          <IconButton icon="reset" title="Restart video" onClick={s.restartMedia} />
-          <IconButton
-            icon={live.mediaPaused ? 'play' : 'pause'}
-            title={live.mediaPaused ? 'Play' : 'Pause'}
-            onClick={() => s.setMediaPaused(!live.mediaPaused)}
-          />
+          <span className="np-name">{image.name}</span>
         </div>
       )}
+      {video && <VideoTransport />}
       {audio && (
         <div className="np-row">
           <Icon name="music" size={14} />
@@ -81,18 +108,58 @@ function NowPlaying() {
             title={live.audioPaused ? 'Play' : 'Pause'}
             onClick={() => s.setAudioPaused(!live.audioPaused)}
           />
-          <input
-            className="np-seek pink-range"
-            type="range"
-            min={0}
-            max={status.duration || 1}
-            step={0.1}
-            value={Math.min(status.time, status.duration || 1)}
-            onChange={(e) => seekAudio(Number(e.target.value))}
-            aria-label="Position"
-          />
+          <Scrubber time={status.time} duration={status.duration} onSeek={seekAudio} label="Position" />
         </div>
       )}
+    </div>
+  );
+}
+
+/** The live video: time, position, skip, pause, play from the start, and what happens at the end. */
+function VideoTransport() {
+  const live = useStore((s) => s.live);
+  const video = useStore((s) => s.media.find((m) => m.id === s.live.mediaId));
+  const status = useMediaStatus();
+  const s = useStore.getState();
+  if (!video) return null;
+  const playback = PLAYBACK.find((p) => p.value === (video.playback ?? 'loop'))!;
+  const skip = (by: number) => s.seekMedia(Math.min(Math.max(0, status.time + by), Math.max(0, status.duration - 0.1)));
+  return (
+    <div className="np-row np-video">
+      <Icon name="video" size={14} />
+      <span className="np-name">{video.name}</span>
+      <span className="np-time" title="Played / left">
+        {time(status.time)} / −{time(Math.max(0, status.duration - status.time))}
+      </span>
+      <Scrubber time={status.time} duration={status.duration} onSeek={s.seekMedia} label="Video position" />
+      <div className="np-buttons">
+        <IconButton icon="reset" title="Play from the start" onClick={s.restartMedia} />
+        <IconButton icon="back10" title="Back 10 seconds" onClick={() => skip(-10)} />
+        <IconButton
+          icon={live.mediaPaused ? 'play' : 'pause'}
+          title={live.mediaPaused ? 'Play' : 'Pause'}
+          onClick={() => s.setMediaPaused(!live.mediaPaused)}
+        />
+        <IconButton icon="forward10" title="Forward 10 seconds" onClick={() => skip(10)} />
+        <button
+          type="button"
+          className="np-playback"
+          title="What happens when the video ends"
+          onClick={(e) =>
+            openContextMenu(
+              {
+                clientX: e.currentTarget.getBoundingClientRect().left,
+                clientY: e.currentTarget.getBoundingClientRect().bottom + 4,
+                preventDefault() {},
+                stopPropagation() {},
+              },
+              playbackEntries(video.id),
+            )
+          }
+        >
+          <Icon name={playback.icon} size={13} /> {playback.short}
+        </button>
+      </div>
     </div>
   );
 }

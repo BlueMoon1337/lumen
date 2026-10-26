@@ -66,7 +66,7 @@ npm run format       # Prettier
 | Dividers between the panes (library, slides, media bin, live panel, and above the live panel’s tabs)                                 | Same: drag to resize, double-click to reset. Edit mode’s slide list and inspector resize too. Sizes are kept.                                                                                                                                      |
 | Library and Playlist at the top left, items below with a Filter                                                                      | Same. Libraries are Songs, Scripture, Announcements and Other. Drag a presentation onto a playlist name to add it.                                                                                                                                 |
 | Slide grid with numbered, colored group labels                                                                                       | Same. Click a slide to go live (orange border), double-click to edit it.                                                                                                                                                                           |
-| Media bin along the bottom                                                                                                           | Same, with All Media / Images / Videos and Video Inputs on the left. Click an item to play it behind the slides, or a camera to show it underneath.                                                                                                |
+| Media bin along the bottom, with Playlists                                                                                           | Same: All Media / Images / Videos, media Playlists and Video Inputs on the left. Click an item to play it on the Media layer, or a camera to show it underneath. Drag a video onto a slide to play it with that slide.                             |
 | Preview with clear buttons on its right edge, ✕ for Clear All, Clear Groups underneath                                               | Same column in the same order: Audio, Messages, Logo (where ProPresenter has Props), Announcements, Slide, Media, Video Input. Each lights up while its layer is live. Clear Groups clear several layers at once.                                  |
 | Screen picker, transport, and Audio / Stage / Timers / Messages / Props tabs                                                         | Same. The Audio tab is the audio bin.                                                                                                                                                                                                              |
 | Edit: slide list with group headers, Objects, canvas with rulers, Presentation / Slide inspector                                     | Same. Drag or resize the text box, double-click to type on the slide. The Text tab formats one slide.                                                                                                                                              |
@@ -89,7 +89,7 @@ npm run format       # Prettier
 - **Transitions**: Cut, Dissolve, Fade, Push, Slide, Reveal, Wipe, Split, Iris, Zoom, Blur, Flip and Cube, with a direction, length and easing, for one slide, a group, a presentation, every slide (global), and media backgrounds. One panel sets any of them, with a preview that plays the transition.
 - **Undo and redo** for every change to the library, slides, playlists, themes and messages (see Undo below).
 - **Right-click menus** everywhere, **Copy / Paste Text Style**, **group presets** and **slide labels** (see Slides, groups and labels below).
-- **Media bin** for images and looping videos as backgrounds, stored locally in IndexedDB, with pause and restart.
+- **Media bin** for images and videos (MP4, MOV, WebM), stored locally in IndexedDB, in media playlists if you like. Videos have a transport (time, scrubbing, ±10 seconds, pause, restart) and loop, stop, clear or play the next one when they end. A video dropped on a slide plays when that slide is shown.
 - **Layers** as in ProPresenter: Video Input, Media, Slide, Announcements, Logo, Messages and Audio, each cleared on its own or with a **Clear Group** (see Layers below).
 - **Audio bin** in the live panel: music and sound effects that play from this computer, loop if you like, and fade out when cleared.
 - **Announcements**: a presentation can play on its own layer over the slides, and any presentation can advance by itself (an announcement loop).
@@ -154,6 +154,23 @@ A slide comes on screen with its own transition, else its presentation's, else t
 - In a text field, ⌘Z undoes the typing, as usual; click outside it to undo whole steps.
 - Showing slides, clearing the screen, Bible mode's passage, screen setup, pane sizes and other preferences aren't edits and stay as they are.
 - Up to 200 steps, until Lumen is closed. A deleted media file is kept until the next launch, so undoing brings it back.
+
+## Videos and the media bin
+
+**Importing.** Press + in the media bin, or drop files on it: images, and videos as MP4 (H.264 plays everywhere), MOV or WebM. Lumen checks each video can be played on this computer and says so if not (an HEVC or ProRes file in a browser without that codec, say). Audio files go to the Audio tab.
+
+**Playlists.** As in ProPresenter, the media bin's **Playlists** (+ to add one) keep media in an order, e.g. a service's walk-in loop, countdown and offering video. Importing while a playlist is open puts the files in it; drag tiles from All Media onto a playlist to add them; right-click to rename, delete, or take an item out (it stays in All Media).
+
+**Playing.** Click a video to put it on the Media layer, again to clear it. Under the preview, the transport shows how far in it is and how long is left, a slider to scrub, ±10 seconds, pause and play from the start. Every screen follows. Each video's tile shows its length, and right-click → **When It Ends** (or the button in the transport) chooses:
+
+- **Loop**: start again (the default, for backgrounds).
+- **Stop on the Last Frame**: hold the end.
+- **Clear**: take it off, with the media transition.
+- **Play the Next One**: the next video or image in the playlist it was started from (or the media bin), then clear after the last.
+
+A video's own sound plays from the first audience screen.
+
+**Videos on slides.** Drag a video or image from the media bin onto a slide (or drop an MP4 file straight on it) to give the slide a **media cue**, as in ProPresenter: showing that slide starts the video on the Media layer, and it keeps playing through the next slides until other media or a clear. The slide's thumbnail shows the video behind its words, with a film badge (click it to show it now or take it off). Right-click a slide → **Media**, or the Slide inspector's **Media**, picks one from a list too. A slide whose cue is already playing doesn't restart it.
 
 ## Layers
 
@@ -324,7 +341,8 @@ src/
     Toolbar        ProPresenter-style toolbar with Search / Text / Theme / More popovers
     Sidebar        Library and Playlist collections with their items
     ShowView       slide grid and list
-    MediaBin       media sidebar and bin
+    MediaBin       media sidebar (media, playlists, video inputs) and bin, importing with a playability check
+    MediaClock     keeps time for the live video in the operator window: transport and what happens at its end
     LivePanel      preview, clear column, transport, Audio / Stage / Timers / Messages / Props
     ClearGroups    the Clear Groups row and its window
     AudioTab, AudioPlayer  the audio bin, and the player for the Audio layer (with its fade-out)

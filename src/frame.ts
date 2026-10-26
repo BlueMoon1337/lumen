@@ -41,10 +41,21 @@ export function buildFrame(s: AppState): OutputFrame {
         }
       : null;
   // Media from the media bin replaces slide backgrounds; so does a camera, which shows underneath.
+  const loops = (id: string) => (s.media.find((m) => m.id === id)?.playback ?? 'loop') === 'loop';
+  // Theme and slide background videos loop unless the video says otherwise.
+  const withLoop = (bg: FrameBackground | null): FrameBackground | null => (bg?.kind === 'media' ? { ...bg, loop: loops(bg.mediaId) } : bg);
   const background: FrameBackground | null = s.live.mediaId
-    ? { key: `m:${s.live.mediaId}:${s.live.mediaRestart}`, kind: 'media', mediaId: s.live.mediaId, paused: s.live.mediaPaused, live: true }
+    ? {
+        key: `m:${s.live.mediaId}:${s.live.mediaRestart}`,
+        kind: 'media',
+        mediaId: s.live.mediaId,
+        paused: s.live.mediaPaused,
+        live: true,
+        loop: loops(s.live.mediaId),
+        seek: s.live.mediaSeek,
+      }
     : slide && entry && !s.live.videoInput
-      ? toFrameBackground(entry.slide.background ?? theme.background)
+      ? withLoop(toFrameBackground(entry.slide.background ?? theme.background))
       : null;
 
   // The Announcements layer: its own slide, theme and background, over the slides.
@@ -59,7 +70,7 @@ export function buildFrame(s: AppState): OutputFrame {
           text: aEntry.slide.text,
           caption: aEntry.slide.caption,
           theme: aTheme,
-          background: toFrameBackground(aEntry.slide.background ?? aTheme.background),
+          background: withLoop(toFrameBackground(aEntry.slide.background ?? aTheme.background)),
         }
       : null;
 

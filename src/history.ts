@@ -26,7 +26,9 @@ const SETTING_KEYS = [
 ] as const;
 type SettingKey = (typeof SETTING_KEYS)[number];
 
-type Doc = Pick<AppState, 'presentations' | 'themes' | 'playlists' | 'messages' | 'media'> & { settings: Pick<Settings, SettingKey> };
+type Doc = Pick<AppState, 'presentations' | 'themes' | 'playlists' | 'messages' | 'media' | 'mediaPlaylists'> & {
+  settings: Pick<Settings, SettingKey>;
+};
 
 interface Entry {
   label: string;
@@ -64,6 +66,7 @@ function docOf(s: AppState): Doc {
     playlists: s.playlists,
     messages: s.messages,
     media: s.media,
+    mediaPlaylists: s.mediaPlaylists,
     settings: Object.fromEntries(SETTING_KEYS.map((k) => [k, s.settings[k]])) as Doc['settings'],
   };
 }
@@ -73,6 +76,7 @@ const visible = (all: Record<string, Presentation>) => Object.entries(all).filte
 /** Whether the library changed. Bible mode's working passage (a hidden presentation) doesn't count. */
 function docChanged(a: AppState, b: AppState): boolean {
   if (a.themes !== b.themes || a.playlists !== b.playlists || a.messages !== b.messages || a.media !== b.media) return true;
+  if (a.mediaPlaylists !== b.mediaPlaylists) return true;
   if (SETTING_KEYS.some((k) => a.settings[k] !== b.settings[k])) return true;
   if (a.presentations === b.presentations) return false;
   const before = visible(a.presentations);
@@ -103,6 +107,7 @@ function restore(doc: Doc) {
       playlists: doc.playlists,
       messages: doc.messages,
       media: doc.media,
+      mediaPlaylists: doc.mediaPlaylists,
       settings: { ...s.settings, ...doc.settings },
       selectedPresentationId: s.selectedPresentationId && presentations[s.selectedPresentationId] ? s.selectedPresentationId : null,
       selectedPlaylistItemId: inPlaylist(s.selectedPlaylistItemId) ? s.selectedPlaylistItemId : null,
@@ -246,6 +251,7 @@ const LABELS: Record<string, string | ((args: unknown[]) => string)> = {
             ['background', 'Slide Background'],
             ['caption', 'Caption'],
             ['notes', 'Stage Notes'],
+            ['media', 'Slide Media'],
           ],
           'Edit Slide',
         ),
@@ -286,7 +292,20 @@ const LABELS: Record<string, string | ((args: unknown[]) => string)> = {
   deleteTheme: 'Delete Theme',
   addMediaFiles: 'Import Media',
   deleteMedia: 'Delete Media',
-  updateMedia: ([, patch]) => firstOf(patch, [['loop', 'Loop']], 'Rename Media'),
+  updateMedia: ([, patch]) =>
+    firstOf(
+      patch,
+      [
+        ['loop', 'Loop'],
+        ['playback', 'When Video Ends'],
+      ],
+      'Rename Media',
+    ),
+  createMediaPlaylist: 'New Media Playlist',
+  renameMediaPlaylist: 'Rename Media Playlist',
+  deleteMediaPlaylist: 'Delete Media Playlist',
+  addToMediaPlaylist: 'Add to Media Playlist',
+  removeFromMediaPlaylist: 'Remove from Media Playlist',
   addMessage: 'New Message',
   updateMessage: 'Edit Message',
   deleteMessage: 'Delete Message',

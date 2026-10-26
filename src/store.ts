@@ -13,6 +13,7 @@ import { DEFAULT_TRANSITION, fromMs } from './transitions';
 import { ALL_LAYERS, clearLive } from './layers';
 import type {
   Category,
+  MediaPlaylist,
   ClearLayer,
   ColorLabel,
   FontMeta,
@@ -52,6 +53,8 @@ export interface LibraryData {
   fonts: FontMeta[];
   /** Audience and stage screens, their outputs and where each output goes. */
   screens: ScreenSetup;
+  /** The media bin's playlists. */
+  mediaPlaylists: MediaPlaylist[];
 }
 
 export type Mode = 'show' | 'edit' | 'reflow' | 'bible';
@@ -70,8 +73,10 @@ interface UIState {
   editTextSelected: boolean;
   editingThemeId: string | null;
   showMediaBin: boolean;
-  /** What the media bin shows: its images and videos, or the cameras for the Video Input layer. */
-  mediaFilter: 'all' | 'image' | 'video' | 'inputs';
+  /** What the media bin shows: its images and videos, a media playlist, or the cameras for the Video Input layer. */
+  mediaFilter: 'all' | 'image' | 'video' | 'playlist' | 'inputs';
+  /** The media playlist shown when mediaFilter is "playlist". */
+  mediaPlaylistId: string | null;
   liveTab: LiveTab;
   /** Copy Text Style's formatting, for Paste Text Style. */
   styleClipboard: TextStyle | null;
@@ -134,9 +139,15 @@ interface Actions {
   updateTheme(id: string, patch: Partial<Theme>): void;
   deleteTheme(id: string): void;
 
-  addMediaFiles(files: File[]): Promise<void>;
+  /** Imports images, videos and audio (into a media playlist, if given) and returns what was added. */
+  addMediaFiles(files: File[], playlistId?: string | null): Promise<MediaItem[]>;
   deleteMedia(id: string): void;
-  updateMedia(id: string, patch: Partial<Pick<MediaItem, 'name' | 'loop'>>): void;
+  updateMedia(id: string, patch: Partial<Pick<MediaItem, 'name' | 'loop' | 'playback'>>): void;
+  createMediaPlaylist(name: string): string;
+  renameMediaPlaylist(id: string, name: string): void;
+  deleteMediaPlaylist(id: string): void;
+  addToMediaPlaylist(playlistId: string, mediaIds: string[]): void;
+  removeFromMediaPlaylist(playlistId: string, mediaId: string): void;
 
   addBible(meta: BibleMeta): void;
   deleteBible(id: string): void;
@@ -181,7 +192,11 @@ interface Actions {
   next(): void;
   prev(): void;
   jumpToGroup(letter: string): void;
-  setLiveMedia(id: string | null): void;
+  /** Media on the Media layer; `from` is the media playlist it was chosen in, for "play the next one". */
+  setLiveMedia(id: string | null, from?: string | null): void;
+  seekMedia(seconds: number): void;
+  /** The live video ended: loop, stop, clear or play the next, as the video says. */
+  mediaEnded(): void;
   toggleLogo(): void;
   clearAll(): void;
   clearSlide(): void;
@@ -228,6 +243,7 @@ function initialLibrary(): LibraryData {
     bibles: [],
     fonts: [],
     screens: defaultScreenSetup(),
+    mediaPlaylists: [],
   };
 }
 
@@ -239,6 +255,8 @@ const emptyLive: LiveState = {
   stageMessage: null,
   mediaPaused: false,
   mediaRestart: 0,
+  mediaSeek: { to: 0, n: 0 },
+  mediaFrom: null,
   audioId: null,
   audioPaused: false,
   audioRestart: 0,
@@ -314,6 +332,35 @@ export function upgradeTransitions<T extends Partial<LibraryData>>(data: T): T {
 }
 
 /** Carries ids, colors and per-slide edits over to re-parsed groups that keep their names. */
+const MIME_BY_EXTENSION: Record<string, string> = {
+  mp4: 'video/mp4',
+  m4v: 'video/mp4',
+  mov: 'video/quicktime',
+  webm: 'video/webm',
+  mkv: 'video/x-matroska',
+  png: 'image/png',
+  jpg: 'image/jpeg',
+  jpeg: 'image/jpeg',
+  gif: 'image/gif',
+  webp: 'image/webp',
+  mp3: 'audio/mpeg',
+  m4a: 'audio/mp4',
+  wav: 'audio/wav',
+  aac: 'audio/aac',
+  ogg: 'audio/ogg',
+};
+
+/** A file's type from its name, for files the system gave no type. */
+export const mimeFromName = (name: string) => MIME_BY_EXTENSION[name.split('.').pop()?.toLowerCase() ?? ''] ?? '';
+
+/** The video or image after `id`: in its media playlist if it was started from one, else in the media bin. */
+export function nextMedia(s: Pick<LibraryData, 'media' | 'mediaPlaylists'>, id: string, playlistId: string | null): string | null {
+  const visual = new Set(s.media.filter((m) => m.kind !== 'audio').map((m) => m.id));
+  const order = (s.mediaPlaylists.find((pl) => pl.id === playlistId)?.items ?? s.media.map((m) => m.id)).filter((x) => visual.has(x));
+  const at = order.indexOf(id);
+  return at >= 0 && at + 1 < order.length ? order[at + 1] : null;
+}
+
 function mergeParsed(p: Presentation, parsed: Pick<Presentation, 'groups' | 'arrangement'>) {
   const old = new Map(p.groups.map((g) => [g.name.toLowerCase(), g]));
   const ids = new Map<string, string>();
@@ -323,7 +370,18 @@ function mergeParsed(p: Presentation, parsed: Pick<Presentation, 'groups' | 'arr
     ids.set(g.id, prev.id);
     const slides = g.slides.map((slide, i) => {
       const was = prev.slides[i];
-      return was ? { ...slide, id: was.id, style: was.style, background: was.background } : slide;
+      // Everything about a slide but its words survives reflowing.
+      return was
+        ? {
+            ...slide,
+            id: was.id,
+            style: was.style,
+            background: was.background,
+            label: was.label,
+            transition: was.transition,
+            media: was.media,
+          }
+        : slide;
     });
     return { ...g, id: prev.id, color: prev.color, slides };
   });
@@ -360,6 +418,7 @@ export const useStore = create<AppState>()(
         editingThemeId: null,
         showMediaBin: true,
         mediaFilter: 'all',
+        mediaPlaylistId: null,
         liveTab: 'messages',
         styleClipboard: null,
         slideClipboard: null,
@@ -588,27 +647,50 @@ export const useStore = create<AppState>()(
             };
           }),
 
-        addMediaFiles: async (files) => {
+        addMediaFiles: async (files, playlistId) => {
           const added: MediaItem[] = [];
           for (const file of files) {
-            const kind = file.type.startsWith('video/')
+            // Some systems give no type for .mp4, .mov or .m4v files; go by the name then.
+            const mime = file.type || mimeFromName(file.name);
+            const kind = mime.startsWith('video/')
               ? 'video'
-              : file.type.startsWith('image/')
+              : mime.startsWith('image/')
                 ? 'image'
-                : file.type.startsWith('audio/')
+                : mime.startsWith('audio/')
                   ? 'audio'
                   : null;
             if (!kind) continue;
-            const item: MediaItem = { id: uid(), name: file.name.replace(/\.[^.]+$/, ''), kind, mime: file.type };
+            const item: MediaItem = { id: uid(), name: file.name.replace(/\.[^.]+$/, ''), kind, mime: mime || file.type };
             await putMediaBlob(item.id, file);
             added.push(item);
           }
           if (added.length) set((s) => ({ media: [...s.media, ...added] }));
+          if (added.length && playlistId)
+            get().addToMediaPlaylist(
+              playlistId,
+              added.filter((m) => m.kind !== 'audio').map((m) => m.id),
+            );
+          return added;
         },
         // The file stays until the next launch (deleteUnusedBlobs), so Undo can bring it back.
         deleteMedia: (id) =>
           set((s) => ({
             media: s.media.filter((m) => m.id !== id),
+            mediaPlaylists: s.mediaPlaylists.map((pl) => (pl.items.includes(id) ? { ...pl, items: pl.items.filter((x) => x !== id) } : pl)),
+            presentations: Object.fromEntries(
+              Object.entries(s.presentations).map(([pid, p]) => [
+                pid,
+                p.groups.some((g) => g.slides.some((sl) => sl.media === id))
+                  ? {
+                      ...p,
+                      groups: p.groups.map((g) => ({
+                        ...g,
+                        slides: g.slides.map((sl) => (sl.media === id ? { ...sl, media: undefined } : sl)),
+                      })),
+                    }
+                  : p,
+              ]),
+            ),
             live: clearLive(s.live, [
               ...(s.live.mediaId === id ? (['media'] as const) : []),
               ...(s.live.audioId === id ? (['audio'] as const) : []),
@@ -620,6 +702,30 @@ export const useStore = create<AppState>()(
           })),
 
         updateMedia: (id, patch) => set((s) => ({ media: s.media.map((m) => (m.id === id ? { ...m, ...patch } : m)) })),
+        createMediaPlaylist: (name) => {
+          const pl: MediaPlaylist = { id: uid(), name, items: [] };
+          set((s) => ({ mediaPlaylists: [...s.mediaPlaylists, pl], mediaFilter: 'playlist', mediaPlaylistId: pl.id }));
+          return pl.id;
+        },
+        renameMediaPlaylist: (id, name) =>
+          set((s) => ({ mediaPlaylists: s.mediaPlaylists.map((pl) => (pl.id === id ? { ...pl, name } : pl)) })),
+        deleteMediaPlaylist: (id) =>
+          set((s) => ({
+            mediaPlaylists: s.mediaPlaylists.filter((pl) => pl.id !== id),
+            ...(s.mediaPlaylistId === id ? { mediaPlaylistId: null, mediaFilter: 'all' as const } : {}),
+          })),
+        addToMediaPlaylist: (playlistId, mediaIds) =>
+          set((s) => ({
+            mediaPlaylists: s.mediaPlaylists.map((pl) =>
+              pl.id === playlistId ? { ...pl, items: [...pl.items, ...mediaIds.filter((id) => !pl.items.includes(id))] } : pl,
+            ),
+          })),
+        removeFromMediaPlaylist: (playlistId, mediaId) =>
+          set((s) => ({
+            mediaPlaylists: s.mediaPlaylists.map((pl) =>
+              pl.id === playlistId ? { ...pl, items: pl.items.filter((x) => x !== mediaId) } : pl,
+            ),
+          })),
 
         addBible: (meta) =>
           set((s) => {
@@ -695,10 +801,14 @@ export const useStore = create<AppState>()(
 
         goLive: (presentationId, index, playlistItemId = null) =>
           set((s) => {
+            const p = s.presentations[presentationId];
             const ref = { presentationId, index, playlistItemId: playlistItemId ?? undefined };
-            return layerOf(s.presentations[presentationId]) === 'announcement'
-              ? { live: { ...s.live, announcement: ref } }
-              : { live: { ...s.live, logo: false, slide: ref } };
+            let live = layerOf(p) === 'announcement' ? { ...s.live, announcement: ref } : { ...s.live, logo: false, slide: ref };
+            // A slide with a media cue starts its media on the Media layer (unless it's already playing).
+            const cue = p ? getSequence(p)[index]?.slide.media : undefined;
+            if (cue && cue !== s.live.mediaId && s.media.some((m) => m.id === cue))
+              live = { ...live, mediaId: cue, mediaPaused: false, mediaFrom: null, mediaSeek: { to: 0, n: s.live.mediaSeek.n } };
+            return { live };
           }),
         advanceLayer: (layer) => {
           const s = get();
@@ -813,7 +923,22 @@ export const useStore = create<AppState>()(
             if (matches(i)) return s.goLive(p.id, i, s.selectedPlaylistItemId);
           }
         },
-        setLiveMedia: (id) => set((s) => ({ live: { ...s.live, mediaId: id, mediaPaused: false } })),
+        setLiveMedia: (id, from = null) =>
+          set((s) => ({
+            live: { ...s.live, mediaId: id, mediaPaused: false, mediaFrom: id ? from : null, mediaSeek: { to: 0, n: s.live.mediaSeek.n } },
+          })),
+        seekMedia: (seconds) => set((s) => ({ live: { ...s.live, mediaSeek: { to: Math.max(0, seconds), n: s.live.mediaSeek.n + 1 } } })),
+        mediaEnded: () => {
+          const s = get();
+          const item = s.media.find((m) => m.id === s.live.mediaId);
+          if (!item || item.kind !== 'video') return;
+          if (item.playback === 'clear') s.clearLayers(['media']);
+          if (item.playback === 'next') {
+            const next = nextMedia(s, item.id, s.live.mediaFrom);
+            if (next) s.setLiveMedia(next, s.live.mediaFrom);
+            else s.clearLayers(['media']);
+          }
+        },
         toggleLogo: () => set((s) => ({ live: { ...s.live, logo: !s.live.logo } })),
         clearAll: () => get().clearLayers(ALL_LAYERS),
         clearSlide: () => get().clearLayers(['slide']),
@@ -846,6 +971,7 @@ export const useStore = create<AppState>()(
           set({
             ...upgradeTransitions(data),
             bibles: data.bibles ?? [],
+            mediaPlaylists: data.mediaPlaylists ?? [],
             fonts: data.fonts ?? [],
             screens: normalizeScreens(data.screens),
             selectedPresentationId: null,
@@ -891,6 +1017,7 @@ export const useStore = create<AppState>()(
         bibles: s.bibles,
         fonts: s.fonts,
         screens: s.screens,
+        mediaPlaylists: s.mediaPlaylists,
       }),
     },
   ),

@@ -1,14 +1,15 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useState, type DragEvent } from 'react';
 import { useShallow } from 'zustand/react/shallow';
-import { useMedia } from '../media';
-import { useStore } from '../store';
+import { loadMedia, useMedia } from '../media';
 import { notify } from '../notices';
-import type { MediaItem } from '../types';
-import { openContextMenu } from './ContextMenu';
-import { mediaMenu } from './menus';
+import { useStore } from '../store';
+import type { MediaItem, MediaPlaylist } from '../types';
+import { formatDuration } from '../util';
 import { CameraFill } from './Canvas';
+import { NamePopup, openContextMenu, openPopupBelow } from './ContextMenu';
+import { mediaMenu } from './menus';
 import { TransitionButton } from './TransitionPicker';
-import { FilterField, Icon, IconButton, pickFiles, SectionHeader } from './ui';
+import { DRAG_MEDIA, FilterField, Icon, IconButton, pickFiles, SectionHeader } from './ui';
 
 const FILTERS = [
   { value: 'all', label: 'All Media', icon: 'image' },
@@ -16,19 +17,143 @@ const FILTERS = [
   { value: 'video', label: 'Videos', icon: 'video' },
 ] as const;
 
-const importMedia = () => pickFiles('image/*,video/*').then((files) => useStore.getState().addMediaFiles(files));
-
 /** The media bin holds images and videos; audio lives in the Audio tab. */
 const isVisual = (m: MediaItem) => m.kind !== 'audio';
+
+/** Whether this browser (or the desktop app) can play a stored video; true if it can't tell in time. */
+function canPlay(id: string): Promise<boolean> {
+  return loadMedia(id).then(
+    (media) =>
+      new Promise<boolean>((resolve) => {
+        if (!media) return resolve(false);
+        const v = document.createElement('video');
+        const done = (ok: boolean) => {
+          clearTimeout(t);
+          v.removeAttribute('src');
+          v.load();
+          resolve(ok);
+        };
+        const t = setTimeout(() => done(true), 8000);
+        v.muted = true;
+        v.preload = 'metadata';
+        v.onloadedmetadata = () => done(v.videoWidth > 0 || v.duration > 0);
+        v.onerror = () => done(false);
+        v.src = media.url;
+      }),
+  );
+}
+
+/**
+ * Imports images and videos (into a media playlist, if given), and says which files were left out
+ * or can't be played here, e.g. an HEVC or ProRes video in a browser without that codec.
+ */
+export async function importMediaFiles(files: File[], playlistId?: string | null): Promise<MediaItem[]> {
+  const added = await useStore.getState().addMediaFiles(files, playlistId);
+  const audio = added.filter((m) => m.kind === 'audio').length;
+  if (audio) notify(`${audio === 1 ? 'The audio file went' : 'Audio files went'} to the Audio tab, in the live panel.`, 'info');
+  const skipped = files.length - added.length;
+  if (skipped)
+    notify(
+      `${skipped} file${skipped === 1 ? " isn't an image or video" : "s aren't images or videos"}, so ${skipped === 1 ? 'it was' : 'they were'} left out.`,
+      'error',
+    );
+  for (const m of added.filter((x) => x.kind === 'video'))
+    if (!(await canPlay(m.id)))
+      notify(
+        `“${m.name}” can’t be played on this computer: its video format isn’t supported here. An H.264 MP4 plays everywhere.`,
+        'error',
+        12000,
+      );
+  return added;
+}
+
+const importInto = (playlistId?: string | null) =>
+  pickFiles('image/*,video/*,.mp4,.m4v,.mov,.webm').then((files) => importMediaFiles(files, playlistId));
+
+const hasDrag = (e: DragEvent, type: string) => e.dataTransfer.types.includes(type);
+
+function newMediaPlaylist(anchor: Element) {
+  openPopupBelow(
+    anchor,
+    <NamePopup
+      title="New Media Playlist"
+      colors={false}
+      action="Create"
+      initial={{ name: 'Playlist', color: '' }}
+      onSave={(v) => useStore.getState().createMediaPlaylist(v.name)}
+    />,
+  );
+}
+
+/** A media playlist in the sidebar: drop media or files on it to add them. */
+function MediaPlaylistRow({ playlist }: { playlist: MediaPlaylist }) {
+  const selected = useStore((s) => s.mediaFilter === 'playlist' && s.mediaPlaylistId === playlist.id);
+  const s = useStore.getState();
+  const [drop, setDrop] = useState(false);
+  const rename = (anchor: Element) =>
+    openPopupBelow(
+      anchor,
+      <NamePopup
+        title="Rename Media Playlist"
+        colors={false}
+        initial={{ name: playlist.name, color: '' }}
+        onSave={(v) => s.renameMediaPlaylist(playlist.id, v.name)}
+      />,
+    );
+  return (
+    <div
+      className={`collection-row ${selected ? 'selected' : ''} ${drop ? 'drop' : ''}`}
+      onClick={() => s.setUI({ mediaFilter: 'playlist', mediaPlaylistId: playlist.id })}
+      onDoubleClick={(e) => rename(e.currentTarget)}
+      onContextMenu={(e) => {
+        const row = e.currentTarget;
+        openContextMenu(e, [
+          { label: 'Rename…', action: () => rename(row) },
+          { label: 'Import Media…', action: () => void importInto(playlist.id) },
+          '-',
+          {
+            label: 'Delete Playlist…',
+            danger: true,
+            action: () =>
+              confirm(`Delete the media playlist "${playlist.name}"? Its media stays in the media bin.`) &&
+              s.deleteMediaPlaylist(playlist.id),
+          },
+        ]);
+      }}
+      onDragOver={(e) => {
+        if (hasDrag(e, DRAG_MEDIA) || hasDrag(e, 'Files')) {
+          e.preventDefault();
+          setDrop(true);
+        }
+      }}
+      onDragLeave={() => setDrop(false)}
+      onDrop={(e) => {
+        e.preventDefault();
+        setDrop(false);
+        const id = e.dataTransfer.getData(DRAG_MEDIA);
+        if (id) s.addToMediaPlaylist(playlist.id, [id]);
+        else void importMediaFiles(Array.from(e.dataTransfer.files), playlist.id);
+      }}
+      title="Drop media here to add it. Double-click to rename."
+    >
+      <span className="collection-icon media">
+        <Icon name="playlist" size={14} />
+      </span>
+      <span className="list-label">{playlist.name}</span>
+      <span className="count">{playlist.items.length}</span>
+    </div>
+  );
+}
 
 export function MediaSidebar() {
   const filter = useStore((s) => s.mediaFilter);
   const media = useStore(useShallow((s) => s.media.filter(isVisual)));
+  const playlists = useStore((s) => s.mediaPlaylists);
   const camera = useStore((s) => !!s.live.videoInput);
   const { setUI } = useStore.getState();
   return (
     <aside className="media-sidebar">
-      <SectionHeader title="Media" onAdd={importMedia} addTitle="Import media" />
+      <SectionHeader title="Media" onAdd={() => void importInto()} addTitle="Import media" />
       {FILTERS.map((f) => (
         <div
           key={f.value}
@@ -42,6 +167,23 @@ export function MediaSidebar() {
           <span className="count">{f.value === 'all' ? media.length : media.filter((m) => m.kind === f.value).length}</span>
         </div>
       ))}
+      <div className="section-header">
+        <span className="section-title">Playlists</span>
+        <span className="section-actions">
+          <button
+            type="button"
+            className="icon-btn"
+            title="New media playlist"
+            aria-label="New media playlist"
+            onClick={(e) => newMediaPlaylist(e.currentTarget)}
+          >
+            <Icon name="plus" />
+          </button>
+        </span>
+      </div>
+      {playlists.map((pl) => (
+        <MediaPlaylistRow key={pl.id} playlist={pl} />
+      ))}
       <SectionHeader title="Video Inputs" />
       <div className={`collection-row ${filter === 'inputs' ? 'selected' : ''}`} onClick={() => setUI({ mediaFilter: 'inputs' })}>
         <span className="collection-icon media">
@@ -54,13 +196,60 @@ export function MediaSidebar() {
   );
 }
 
-function MediaThumb({ item }: { item: MediaItem }) {
+const length = (seconds: number) => formatDuration(Math.round(seconds) * 1000);
+
+/** A media bin item: a still of it, its name, and for a video its length. Drag it onto a slide or a media playlist. */
+function MediaTile({ item, live, logo, playlistId }: { item: MediaItem; live: boolean; logo: boolean; playlistId: string | null }) {
   const media = useMedia(item.id);
-  if (!media) return <div className="media-thumb-img" />;
-  return media.isVideo ? (
-    <video className="media-thumb-img" src={`${media.url}#t=0.5`} muted preload="metadata" />
-  ) : (
-    <img className="media-thumb-img" src={media.url} alt="" />
+  const [duration, setDuration] = useState(0);
+  const s = useStore.getState();
+  return (
+    <div
+      className={`media-tile ${live ? 'live' : ''}`}
+      draggable
+      onDragStart={(e) => {
+        e.dataTransfer.setData(DRAG_MEDIA, item.id);
+        e.dataTransfer.effectAllowed = 'copy';
+      }}
+      onClick={() => s.setLiveMedia(live ? null : item.id, playlistId)}
+      onContextMenu={(e) => openContextMenu(e, mediaMenu(item, playlistId))}
+      title="Click to show on the Media layer, click again to clear. Drag onto a slide to play it with that slide."
+    >
+      <div className="media-tile-frame">
+        {!media ? (
+          <div className="media-thumb-img" />
+        ) : media.isVideo ? (
+          <video
+            className="media-thumb-img"
+            src={`${media.url}#t=0.5`}
+            muted
+            preload="metadata"
+            onLoadedMetadata={(e) => setDuration(e.currentTarget.duration)}
+          />
+        ) : (
+          <img className="media-thumb-img" src={media.url} alt="" />
+        )}
+        {item.kind === 'video' && (
+          <span className="media-kind">
+            {item.playback && item.playback !== 'loop' ? '' : '⟳ '}
+            {duration ? length(duration) : 'VIDEO'}
+          </span>
+        )}
+      </div>
+      <div className="media-tile-footer">
+        <span className="list-label">{item.name}</span>
+        {logo && <span className="badge">Logo</span>}
+        <span className="row-actions">
+          <IconButton
+            icon="layers"
+            title={logo ? 'Stop using as logo' : 'Use as logo'}
+            active={logo}
+            onClick={() => s.updateSettings({ logoMediaId: logo ? undefined : item.id })}
+          />
+          <IconButton icon="trash" title="Delete" danger onClick={() => confirm(`Delete "${item.name}"?`) && s.deleteMedia(item.id)} />
+        </span>
+      </div>
+    </div>
   );
 }
 
@@ -72,25 +261,30 @@ export function MediaContent() {
 
 function MediaGrid() {
   const filter = useStore((s) => s.mediaFilter);
+  const playlist = useStore((s) => (s.mediaFilter === 'playlist' ? s.mediaPlaylists.find((pl) => pl.id === s.mediaPlaylistId) : undefined));
   const all = useStore((s) => s.media);
   const media = useMemo(() => all.filter(isVisual), [all]);
   const liveMedia = useStore((s) => s.live.mediaId);
   const logoId = useStore((s) => s.settings.logoMediaId);
-  const s = useStore.getState();
   const [query, setQuery] = useState('');
   const [size, setSize] = useState(160);
   const [dropping, setDropping] = useState(false);
+  const playlistId = playlist?.id ?? null;
 
   const items = useMemo(() => {
     const q = query.trim().toLowerCase();
-    return media.filter((m) => (filter === 'all' || m.kind === filter) && (!q || m.name.toLowerCase().includes(q)));
-  }, [media, filter, query]);
+    const shown = playlist
+      ? playlist.items.map((id) => media.find((m) => m.id === id)).filter((m): m is MediaItem => !!m)
+      : media.filter((m) => filter === 'all' || filter === 'playlist' || m.kind === filter);
+    return shown.filter((m) => !q || m.name.toLowerCase().includes(q));
+  }, [media, filter, playlist, query]);
+  const empty = playlist ? playlist.items.length === 0 : media.length === 0;
 
   return (
     <section
       className={`media-content ${dropping ? 'dropping' : ''}`}
       onDragOver={(e) => {
-        if (e.dataTransfer.types.includes('Files')) {
+        if (hasDrag(e, 'Files') || (playlist && hasDrag(e, DRAG_MEDIA))) {
           e.preventDefault();
           setDropping(true);
         }
@@ -99,63 +293,40 @@ function MediaGrid() {
       onDrop={(e) => {
         e.preventDefault();
         setDropping(false);
-        const files = Array.from(e.dataTransfer.files);
-        void s.addMediaFiles(files);
-        if (files.some((f) => f.type.startsWith('audio/'))) notify('Audio files went to the Audio tab, in the live panel.', 'info');
+        const id = e.dataTransfer.getData(DRAG_MEDIA);
+        if (id && playlist) useStore.getState().addToMediaPlaylist(playlist.id, [id]);
+        else if (e.dataTransfer.files.length) void importMediaFiles(Array.from(e.dataTransfer.files), playlistId);
       }}
     >
       <div className="crumbs">
         <Icon name="chevronLeft" size={14} />
         <Icon name="chevronRight" size={14} />
         <span className="crumb">
-          <Icon name="image" size={13} /> Media
+          <Icon name={playlist ? 'playlist' : 'image'} size={13} /> {playlist ? 'Playlists' : 'Media'}
         </span>
         <span className="crumb-sep">›</span>
-        <span className="crumb">{FILTERS.find((f) => f.value === filter)?.label}</span>
+        <span className="crumb">{playlist?.name ?? FILTERS.find((f) => f.value === filter)?.label}</span>
         <span className="pane-footer-spacer" />
         <TransitionButton target="media" className="media-transition" prefix="Media" />
       </div>
-      {media.length === 0 ? (
+      {empty ? (
         <div className="import-empty">
-          <button className="import-tile" onClick={importMedia}>
+          <button className="import-tile" onClick={() => void importInto(playlistId)}>
             <Icon name="download" size={40} />
           </button>
           <span>Import Media</span>
+          <span className="muted small-print">Images and videos (MP4, MOV, WebM). Or drop them here.</span>
         </div>
       ) : (
         <div className="media-grid" style={{ gridTemplateColumns: `repeat(auto-fill, minmax(${size}px, 1fr))` }}>
           {items.map((m) => (
-            <div
-              key={m.id}
-              className={`media-tile ${liveMedia === m.id ? 'live' : ''}`}
-              onClick={() => s.setLiveMedia(liveMedia === m.id ? null : m.id)}
-              onContextMenu={(e) => openContextMenu(e, mediaMenu(m))}
-              title="Click to show behind your slides, click again to clear"
-            >
-              <div className="media-tile-frame">
-                <MediaThumb item={m} />
-                {m.kind === 'video' && <span className="media-kind">VIDEO</span>}
-              </div>
-              <div className="media-tile-footer">
-                <span className="list-label">{m.name}</span>
-                {logoId === m.id && <span className="badge">Logo</span>}
-                <span className="row-actions">
-                  <IconButton
-                    icon="layers"
-                    title={logoId === m.id ? 'Stop using as logo' : 'Use as logo'}
-                    active={logoId === m.id}
-                    onClick={() => s.updateSettings({ logoMediaId: logoId === m.id ? undefined : m.id })}
-                  />
-                  <IconButton icon="trash" title="Delete" danger onClick={() => confirm(`Delete "${m.name}"?`) && s.deleteMedia(m.id)} />
-                </span>
-              </div>
-            </div>
+            <MediaTile key={m.id} item={m} live={liveMedia === m.id} logo={logoId === m.id} playlistId={playlistId} />
           ))}
           {items.length === 0 && <p className="muted">No media matches.</p>}
         </div>
       )}
       <div className="pane-footer">
-        <IconButton icon="plus" title="Import media" onClick={importMedia} />
+        <IconButton icon="plus" title="Import media" onClick={() => void importInto(playlistId)} />
         <span className="pane-footer-spacer" />
         <FilterField value={query} onChange={setQuery} />
         <span className="pane-footer-spacer" />

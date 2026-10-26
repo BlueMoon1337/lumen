@@ -11,6 +11,7 @@ import { isTypingTarget } from '../util';
 import { AudioPlayer } from './AudioPlayer';
 import { BibleView } from './BibleView';
 import { ClearGroupsDialog } from './ClearGroups';
+import { MediaClock } from './MediaClock';
 import { ContextMenuHost } from './ContextMenu';
 import { LabelsDialog, SettingsDialog } from './Dialogs';
 import { EditView, findSlide } from './EditView';
@@ -393,6 +394,7 @@ export default function ControlApp() {
       <Notices />
       <ContextMenuHost />
       <AudioPlayer />
+      <MediaClock />
     </div>
   );
 }

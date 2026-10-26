@@ -49,6 +49,9 @@ const paths = {
   megaphone: 'M4 10h3l9-5v14l-9-5H4zM7 14l1.5 5H11l-1.2-4.2M19 9.5a3 3 0 0 1 0 5',
   repeat: 'M17 2l3 3-3 3M20 5H8a4 4 0 0 0-4 4v1M7 22l-3-3 3-3M4 19h12a4 4 0 0 0 4-4v-1',
   stop: 'M6 6h12v12H6z',
+  back10: 'M11 7l-5 5 5 5M18 7l-5 5 5 5',
+  forward10: 'M13 7l5 5-5 5M6 7l5 5-5 5',
+  film: 'M4 4h16v16H4zM8 4v16M16 4v16M4 8h4M4 12h4M4 16h4M16 8h4M16 12h4M16 16h4',
 } as const;
 
 export type IconName = keyof typeof paths;
@@ -251,3 +254,5 @@ export function downloadFile(name: string, contents: string, type = 'application
 /** Drag payload type for library items dropped onto the playlist. */
 export const DRAG_PRESENTATION = 'application/x-lumen-presentation';
 export const DRAG_PLAYLIST_ITEM = 'application/x-lumen-playlist-item';
+/** Drag payload type for media bin items dropped on media playlists or slides. */
+export const DRAG_MEDIA = 'application/x-lumen-media';
