@@ -12,6 +12,8 @@ const isDev = process.argv.includes('--dev');
 const isMac = process.platform === 'darwin';
 const DEV_URL = 'http://localhost:5173/';
 const DIST = path.join(__dirname, '..', 'dist');
+// The app icon (build/icon.icns and build/icon.ico are the packaged-app versions).
+const ICON = path.join(__dirname, '..', 'build', 'icon.png');
 
 protocol.registerSchemesAsPrivileged([
   { scheme: 'app', privileges: { standard: true, secure: true, supportFetchAPI: true, stream: true } },
@@ -82,6 +84,7 @@ function createOutput(request, display) {
     frame: !external,
     backgroundColor: '#000000',
     title: request.title,
+    icon: ICON,
     webPreferences,
   });
   win.lumenDisplayId = display ? display.id : null;
@@ -178,6 +181,7 @@ function createControlWindow() {
     minHeight: 640,
     backgroundColor: '#1d1d1d',
     title: 'Lumen',
+    icon: ICON,
     // macOS: traffic lights sit inside the toolbar, as in ProPresenter.
     titleBarStyle: isMac ? 'hiddenInset' : 'default',
     webPreferences,
@@ -207,6 +211,8 @@ app.whenReady().then(() => {
     if (!file.startsWith(DIST)) return new Response('Not found', { status: 404 });
     return net.fetch(pathToFileURL(file).toString());
   });
+  // Windows and Linux take the icon per window; on a Mac the Dock shows it (a packaged app uses build/icon.icns).
+  if (isMac) app.dock?.setIcon(ICON);
   buildMenu();
   createControlWindow();
   // Plugging in or unplugging a display (or changing its resolution) updates the operator window, which re-plans outputs.

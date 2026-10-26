@@ -1,3 +1,5 @@
+<img src="docs/icon.png" alt="Lumen icon" width="112">
+
 # Lumen
 
 Live presentation software for worship services and events, in the spirit of ProPresenter. It lets you build a song and scripture library, plan the service in a playlist, and run lyrics, backgrounds, messages and countdowns on an audience screen and a stage confidence monitor.
@@ -213,6 +215,8 @@ src/
     StageView      stage display layout
     ThemeEditor, Dialogs
 electron/          desktop shell: display detection, one fullscreen window per output, Screens menu, app:// protocol
+build/             app icon: icon.svg (source), icon.png, icon.icns (macOS), icon.ico (Windows)
+public/            browser tab icon (favicon.svg) and home-screen icon
 ```
 
 The operator window owns all state. Every change produces an `OutputFrame`, a self-contained description of what each screen should show, which goes to the output windows over `BroadcastChannel`. Output windows hold no library data. They render the frame and load media from the IndexedDB they share with the operator window. Every view renders onto the same fixed 1920×1080 canvas and scales it, so text wraps the same way in thumbnails, the monitor and the projector.
