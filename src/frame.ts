@@ -51,6 +51,7 @@ export function buildFrame(s: AppState): OutputFrame {
     logoMediaId: s.live.logo ? (s.settings.logoMediaId ?? null) : null,
     transitionMs: p?.transitionMs ?? s.settings.transitionMs,
     fonts: s.fonts,
+    appIcon: s.settings.appIcon ?? 'star',
     screens: s.screens,
     screenTools: s.screenTools,
     timer: s.timer,

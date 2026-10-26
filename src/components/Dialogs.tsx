@@ -5,6 +5,7 @@ import { cssFamilyFor, faceName, FONT_ACCEPT, isFontInstalled } from '../fonts';
 import { notify } from '../notices';
 import { useDisplays } from '../outputs';
 import { exportLibrary, isLibraryData, useStore } from '../store';
+import { IconPicker } from './IconChooser';
 import { Dialog, downloadFile, pickFiles } from './ui';
 
 const IS_MAC = /Mac|iPhone|iPad/.test(navigator.platform);
@@ -375,6 +376,13 @@ export function SettingsDialog({ onClose, onScreens }: { onClose: () => void; on
           />
           After the last slide, continue to the next playlist item
         </label>
+      </section>
+      <section className="settings-section">
+        <h4>App Icon</h4>
+        <IconPicker value={settings.appIcon ?? 'star'} onChange={(appIcon) => s.updateSettings({ appIcon })} />
+        {window.lumenDesktop?.platform === 'darwin' && (
+          <p className="muted small-print">The Dock shows the new icon while Lumen runs; Finder keeps the one Lumen was installed with.</p>
+        )}
       </section>
       <section className="settings-section">
         <h4>Screens</h4>

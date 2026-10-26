@@ -5,6 +5,7 @@
 // so BroadcastChannel and IndexedDB are shared between them.
 
 const { app, BrowserWindow, ipcMain, Menu, net, protocol, screen } = require('electron');
+const fs = require('node:fs');
 const path = require('node:path');
 const { pathToFileURL } = require('node:url');
 
@@ -12,8 +13,11 @@ const isDev = process.argv.includes('--dev');
 const isMac = process.platform === 'darwin';
 const DEV_URL = 'http://localhost:5173/';
 const DIST = path.join(__dirname, '..', 'dist');
-// The app icon (build/icon.icns and build/icon.ico are the packaged-app versions).
-const ICON = path.join(__dirname, '..', 'build', 'icon.png');
+// App icons the operator can choose between (build/icon.icns and build/icon.ico are the packaged-app versions).
+const ICONS = {
+  star: path.join(__dirname, '..', 'build', 'icon.png'),
+  camera: path.join(__dirname, '..', 'build', 'icon-camera.png'),
+};
 
 protocol.registerSchemesAsPrivileged([
   { scheme: 'app', privileges: { standard: true, secure: true, supportFetchAPI: true, stream: true } },
@@ -25,6 +29,34 @@ app.commandLine.appendSwitch('autoplay-policy', 'no-user-gesture-required');
 const outputs = new Map();
 let control = null;
 let menuState = { audienceEnabled: false, stageEnabled: false, identify: false };
+
+// ---- App icon -----------------------------------------------------------------
+// Remembered on disk too, so the Dock shows the chosen icon from the moment Lumen starts.
+
+const prefsFile = () => path.join(app.getPath('userData'), 'lumen-prefs.json');
+
+function readPrefs() {
+  try {
+    return JSON.parse(fs.readFileSync(prefsFile(), 'utf8'));
+  } catch {
+    return {};
+  }
+}
+
+let appIcon = 'star';
+const iconPath = () => ICONS[appIcon] ?? ICONS.star;
+
+function setAppIcon(id) {
+  if (!ICONS[id] || id === appIcon) return;
+  appIcon = id;
+  try {
+    fs.writeFileSync(prefsFile(), JSON.stringify({ ...readPrefs(), appIcon: id }));
+  } catch {
+    // Not being able to save it only means the old icon shows briefly at the next start.
+  }
+  if (isMac) app.dock?.setIcon(iconPath());
+  else for (const win of BrowserWindow.getAllWindows()) win.setIcon(iconPath());
+}
 
 function appUrl(route = '') {
   return `${isDev ? DEV_URL : 'app://lumen/index.html'}${route ? `#/${route}` : ''}`;
@@ -84,7 +116,7 @@ function createOutput(request, display) {
     frame: !external,
     backgroundColor: '#000000',
     title: request.title,
-    icon: ICON,
+    icon: iconPath(),
     webPreferences,
   });
   win.lumenDisplayId = display ? display.id : null;
@@ -181,7 +213,7 @@ function createControlWindow() {
     minHeight: 640,
     backgroundColor: '#1d1d1d',
     title: 'Lumen',
-    icon: ICON,
+    icon: iconPath(),
     // macOS: traffic lights sit inside the toolbar, as in ProPresenter.
     titleBarStyle: isMac ? 'hiddenInset' : 'default',
     webPreferences,
@@ -199,6 +231,7 @@ function createControlWindow() {
 ipcMain.handle('get-displays', () => displayList());
 ipcMain.handle('set-outputs', (_e, requests) => setOutputs(requests));
 ipcMain.on('outputs-query', sendOutputs);
+ipcMain.on('set-app-icon', (_e, id) => setAppIcon(id));
 ipcMain.on('menu-state', (_e, state) => {
   menuState = state;
   buildMenu();
@@ -212,7 +245,9 @@ app.whenReady().then(() => {
     return net.fetch(pathToFileURL(file).toString());
   });
   // Windows and Linux take the icon per window; on a Mac the Dock shows it (a packaged app uses build/icon.icns).
-  if (isMac) app.dock?.setIcon(ICON);
+  const saved = readPrefs().appIcon;
+  appIcon = ICONS[saved] ? saved : 'star';
+  if (isMac) app.dock?.setIcon(iconPath());
   buildMenu();
   createControlWindow();
   // Plugging in or unplugging a display (or changing its resolution) updates the operator window, which re-plans outputs.

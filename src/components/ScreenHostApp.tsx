@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
+import { showIconInPage } from '../appIcons';
 import { registerFonts } from '../fonts';
 import { blendMask, colorFilter, cornerPinTransform, screenLayout, targetRect, usedOutputs } from '../screens';
 import { useRemoteFrame } from '../sync';
@@ -303,6 +304,10 @@ export default function ScreenHostApp() {
   const frame = useRemoteFrame();
   useFrameFonts(frame);
   const route = useHostRoute();
+  const icon = frame?.appIcon;
+  useEffect(() => {
+    if (icon) showIconInPage(icon);
+  }, [icon]);
   const shown = route.entries.map((e) => resolve(frame, e)).filter((r): r is Resolved => !!r);
   const title = shown.length ? `Lumen · ${[...new Set(shown.map((r) => r.screen.name))].join(' + ')}` : 'Lumen';
   const idle = useOutputWindowChrome(title);

@@ -19,4 +19,5 @@ contextBridge.exposeInMainWorld('lumenDesktop', {
   },
   onMenu: subscribe('menu'),
   setMenuState: (state) => ipcRenderer.send('menu-state', state),
+  setAppIcon: (id) => ipcRenderer.send('set-app-icon', id),
 });

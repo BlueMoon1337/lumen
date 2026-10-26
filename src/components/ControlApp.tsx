@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
+import { applyAppIcon } from '../appIcons';
 import { registerFonts } from '../fonts';
 import { startFrameSync } from '../liveFrame';
 import { dismiss, useNotices } from '../notices';
@@ -7,6 +8,7 @@ import { useStore } from '../store';
 import { isTypingTarget } from '../util';
 import { ScriptureDialog, SettingsDialog } from './Dialogs';
 import { EditView } from './EditView';
+import { WelcomeDialog } from './IconChooser';
 import { LivePanel } from './LivePanel';
 import { MediaContent, MediaSidebar } from './MediaBin';
 import { ReflowView } from './ReflowView';
@@ -113,6 +115,8 @@ export default function ControlApp() {
   const editingTheme = useStore((s) => s.editingThemeId);
 
   const fonts = useStore((s) => s.fonts);
+  // Unset until the first-launch welcome, which asks for it.
+  const appIcon = useStore((s) => s.settings.appIcon);
 
   useEffect(() => startFrameSync(), []);
   useEffect(() => startScreenManager(), []);
@@ -121,7 +125,10 @@ export default function ControlApp() {
   useEffect(() => {
     void registerFonts(fonts);
   }, [fonts]);
-  useShortcuts(dialog === null && !editingTheme);
+  useEffect(() => {
+    if (appIcon) applyAppIcon(appIcon);
+  }, [appIcon]);
+  useShortcuts(dialog === null && !editingTheme && !!appIcon);
 
   return (
     <div className={`app mode-${mode} ${mode === 'show' && !showMediaBin ? 'no-media' : ''}`}>
@@ -147,6 +154,7 @@ export default function ControlApp() {
       {dialog === 'settings' && <SettingsDialog onClose={() => setDialog(null)} onScreens={openScreens} />}
       {dialog === 'screens' && <ScreenConfigDialog onClose={() => setDialog(null)} />}
       {editingTheme && <ThemeEditorDialog />}
+      {!appIcon && <WelcomeDialog />}
       <Notices />
     </div>
   );

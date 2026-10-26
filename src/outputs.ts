@@ -2,7 +2,7 @@ import { create } from 'zustand';
 import { notify } from './notices';
 import { activeOutputs, hostRoute, planHosts, type DetectedDisplay, type OutputHost } from './screens';
 import { useStore } from './store';
-import type { ScreenKind } from './types';
+import type { AppIconId, ScreenKind } from './types';
 
 /** An output window the desktop app should have open. */
 export interface DesktopOutputRequest {
@@ -23,6 +23,8 @@ export interface DesktopBridge {
   onOutputsChanged(cb: (openHosts: string[]) => void): () => void;
   onMenu(cb: (command: string) => void): () => void;
   setMenuState(state: { audienceEnabled: boolean; stageEnabled: boolean; identify: boolean }): void;
+  /** Dock (macOS), taskbar and window icons. */
+  setAppIcon(id: AppIconId): void;
 }
 
 declare global {

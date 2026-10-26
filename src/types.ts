@@ -119,7 +119,12 @@ export interface Message {
   text: string;
 }
 
+/** Lumen's app icon. */
+export type AppIconId = 'star' | 'camera';
+
 export interface Settings {
+  /** Chosen on first launch; unset until then. */
+  appIcon?: AppIconId;
   transitionMs: number;
   /** Advancing past the last slide moves on to the next playlist item. */
   advanceAcrossItems: boolean;
@@ -280,6 +285,8 @@ export interface OutputFrame {
   transitionMs: number;
   /** Added fonts, so output windows can load the ones slides use. */
   fonts: FontMeta[];
+  /** For the output windows' own icon. */
+  appIcon: AppIconId;
   /** Screen setup and tools, so each output window can apply its own settings. */
   screens: ScreenSetup;
   screenTools: ScreenTools;
