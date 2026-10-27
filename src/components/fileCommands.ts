@@ -75,7 +75,18 @@ export const failed = (what: string) => (e: unknown) => notify(`${what}: ${e ins
 
 // ---- New --------------------------------------------------------------------------------------
 
-export const newPresentationCommand = () => newPresentation(st().libraryCategory);
+/** File ▸ New Presentation: asks for its name (as New Playlist and New Library do), then opens it in Edit. */
+export async function newPresentationNamed(category: Category = st().libraryCategory) {
+  const name = await promptDialog({
+    title: 'New Presentation',
+    defaultValue: category === 'song' ? 'New Song' : 'New Presentation',
+    placeholder: 'Presentation name',
+    confirmLabel: 'Create',
+  });
+  if (name) undoBatch('New Presentation', () => newPresentation(category, name));
+}
+
+export const newPresentationCommand = () => newPresentationNamed();
 
 export async function newPlaylist() {
   const name = await promptDialog({

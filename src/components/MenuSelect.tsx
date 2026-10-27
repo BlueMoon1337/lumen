@@ -1,4 +1,5 @@
 import { useEffect, useLayoutEffect, useRef, useState, type CSSProperties, type KeyboardEvent, type ReactNode } from 'react';
+import { createPortal } from 'react-dom';
 
 /** Entries of a ProPresenter-style pop-up menu: a checkmark on the current item, section headers, separators and submenus. */
 export type MenuEntry =
@@ -64,6 +65,7 @@ export function MenuList({
   side,
   onClose,
   className = '',
+  host,
 }: {
   entries: MenuEntry[];
   value: string;
@@ -72,6 +74,12 @@ export function MenuList({
   side: Side;
   onClose: () => void;
   className?: string;
+  /**
+   * Where submenus go: beside the top menu, in the element that holds it, rather than inside
+   * their parent menu. A long menu scrolls, and WebKit (the desktop app) clips anything inside
+   * a scrolling menu to it, fixed position or not, so the chapters and verses of a book weren't seen.
+   */
+  host?: HTMLElement | null;
 }) {
   const { ref, style } = usePlacement(true, anchor, side);
   const [sub, setSub] = useState<{ index: number; rect: DOMRect } | null>(null);
@@ -161,18 +169,23 @@ export function MenuList({
           </button>
         );
       })}
-      {subEntry?.type === 'submenu' && sub && (
-        <MenuList
-          key={sub.index}
-          entries={typeof subEntry.entries === 'function' ? subEntry.entries() : subEntry.entries}
-          value={value}
-          onPick={onPick}
-          anchor={() => sub.rect}
-          side="right"
-          onClose={() => setSub(null)}
-          className="msl-sub"
-        />
-      )}
+      {subEntry?.type === 'submenu' &&
+        sub &&
+        (host ?? ref.current?.parentElement) &&
+        createPortal(
+          <MenuList
+            key={sub.index}
+            entries={typeof subEntry.entries === 'function' ? subEntry.entries() : subEntry.entries}
+            value={value}
+            onPick={onPick}
+            anchor={() => sub.rect}
+            side="right"
+            onClose={() => setSub(null)}
+            className="msl-sub"
+            host={host ?? ref.current?.parentElement}
+          />,
+          (host ?? ref.current?.parentElement)!,
+        )}
     </div>
   );
 }

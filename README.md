@@ -25,7 +25,7 @@ npm run dev          # operator UI at http://localhost:5173
 
 The first time Lumen starts, it asks you to choose its icon: the **Projector** (the default, already selected), the blue **Star**, the yellow **Camera** or the black-and-white **Film Camera**. You can change it later in **Settings → App Icon**. The choice applies to the browser tab and, in the desktop app, to the Dock or taskbar.
 
-**Settings → Highlight Color** picks the color of selections, the open library or playlist and buttons that are on: ProPresenter's **Pink** (the default) or macOS's **Blue**. The library icons and the dot on a live library or playlist item are lime with pink and orange with blue.
+**Settings → Highlight Color** picks the color of selections, the open library or playlist and buttons that are on: ProPresenter's **Pink** (the default) or macOS's **Blue**. Menus highlight in it too. The library icons and the dot on a live library or playlist item are lime with pink and orange with blue; the playlist icons are deep blue with pink and red with blue.
 
 Click **Audience** or **Stage** in the toolbar to open the output windows. In Chrome or Edge, open **Screens → Configure Screens…** (More menu, or right-click Audience) and press **Detect Screens** once: the outputs then open fullscreen on your TV or projector by themselves. In other browsers, drag the window to the projector and double-click it for fullscreen.
 
@@ -232,7 +232,7 @@ The right-click menu of a selected slide works on all the selected slides too (*
 
 In the desktop app it's in the menu bar; in a browser it's under **More ▸ File**.
 
-- **New Presentation** (⌘N) makes a presentation in the open library with one blank slide in a group called "Group", on no background (transparent, so it shows over whatever media is playing), and opens it in Edit mode, as ProPresenter does. Its **Background** in the Presentation tab can be None (transparent), a color, or the theme's; a slide's own background still wins.
+- **New Presentation** (⌘N) asks for its name (like New Playlist and New Library), then makes a presentation in the open library with one blank slide in a group called "Group", on no background (transparent, so it shows over whatever media is playing), and opens it in Edit mode, as ProPresenter does. Its **Background** in the Presentation tab can be None (transparent), a color, or the theme's; a slide's own background still wins.
 - **New Playlist** and **New Library** ask for a name. Libraries can be renamed (double-click) and deleted like playlists, and a presentation can be moved between them by dragging it onto one or from its **Library** menu.
 - **Import ▸**
   - **File…** (⇧⌘I): ProPresenter `.pro` presentations and `.proplaylist` playlists, `.txt` lyrics, `.rvbible` Bibles, PowerPoint `.pptx` and Keynote `.key` files, and Lumen's own exports. Songs go into the open library; PowerPoint and Keynote presentations into the PowerPoint & Keynote library.

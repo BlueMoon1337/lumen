@@ -1,5 +1,4 @@
 /** The right-click menus: what each thing in the window offers, as in ProPresenter. */
-import { newPresentation } from '../commands';
 import { groupPresets, LABEL_SWATCHES, labelPresets } from '../labels';
 import { colorForGroup } from '../lyrics';
 import type { SlideScope } from '../slideOps';
@@ -39,6 +38,7 @@ import {
   importFileCommand,
   newLibrary,
   newPlaylist,
+  newPresentationNamed,
 } from './fileCommands';
 import { shortcut, type IconName } from './ui';
 import { setTransitionFor, TargetTransitionPicker, transitionState, type TransitionTarget } from './TransitionPicker';
@@ -425,7 +425,7 @@ export function libraryMenu(lib: Library, onRename: () => void): ContextEntries 
     { label: 'Open', action: open },
     { label: 'Rename…', action: onRename },
     '-',
-    { label: 'New Presentation', action: () => newPresentation(lib.id) },
+    { label: 'New Presentation…', action: () => void newPresentationNamed(lib.id) },
     {
       label: 'Import Files…',
       action: () => {

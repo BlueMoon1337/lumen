@@ -27,6 +27,8 @@
   /* Library icons: lime with the pink highlight (with a dark glyph, as white doesn't show on it), orange with the blue. */
   --library-icon: #bae64a;
   --library-icon-ink: #1f2a07;
+  /* Playlist icons: deep blue with the pink highlight, red with the blue. */
+  --playlist-icon: #0e029b;
   --orange: #f7941d;
   --yellow: #f5c518;
   --purple: #9b3b97;
@@ -59,6 +61,7 @@
   --live-dot: var(--orange);
   --library-icon: #f08a24;
   --library-icon-ink: #fff;
+  --playlist-icon: #e93325;
 }
 
 * {
@@ -942,7 +945,7 @@ body.resizing-y * {
 }
 
 .collection-icon.playlist {
-  background: #2e8cf0;
+  background: var(--playlist-icon);
 }
 
 .collection-icon.media {
@@ -3924,7 +3927,9 @@ body.resizing-y * {
 .msl-item:hover:not(:disabled),
 .msl-item:focus-visible,
 .msl-item.open {
-  background: #2f5f99;
+  /* The highlight color (Settings ▸ Highlight Color), as ProPresenter's menus use its own. */
+  background: var(--pink);
+  color: #fff;
   outline: none;
 }
 

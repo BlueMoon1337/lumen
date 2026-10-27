@@ -1,11 +1,11 @@
 import { useMemo, useState, type DragEvent } from 'react';
-import { importFiles, newPresentation } from '../commands';
+import { importFiles } from '../commands';
 import { useStore } from '../store';
 import type { Category } from '../types';
 import { slideWords } from '../slideshows';
 import { openContextMenu, type ContextEntries } from './ContextMenu';
 import { deleteLibrary, deletePlaylist, deletePresentation, removePlaylistItem } from './deleting';
-import { importFileCommand, newLibrary, newPlaylist } from './fileCommands';
+import { importFileCommand, newLibrary, newPlaylist, newPresentationNamed } from './fileCommands';
 import { libraryMenu, playlistHeaderMenu, playlistMenu, presentationMenu } from './menus';
 import { DRAG_PLAYLIST_ITEM, DRAG_PRESENTATION, FilterField, Icon, IconButton, pickFiles, SectionHeader, type IconName } from './ui';
 
@@ -274,7 +274,7 @@ function LibraryItems() {
     >
       <SectionHeader
         title={`${list.length} ${list.length === 1 ? 'item' : 'items'}`}
-        onAdd={() => newPresentation(category)}
+        onAdd={() => void newPresentationNamed(category)}
         addTitle="New presentation"
       />
       <ul className="item-list" tabIndex={-1} data-edit-scope="library">

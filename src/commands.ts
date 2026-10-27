@@ -47,11 +47,11 @@ export async function importLumenFile(file: File, category: Category): Promise<L
  * File ▸ New Presentation, as in ProPresenter: one blank slide in a group called "Group", with no
  * background (transparent, so it shows over whatever media is playing), open in the editor.
  */
-export function newPresentation(category: Category = 'song'): string {
+export function newPresentation(category: Category = 'song', title?: string): string {
   const s = useStore.getState();
   const group: Group = { id: uid(), name: 'Group', color: NEW_GROUP_COLOR, slides: [{ id: uid(), text: '' }] };
   const id = s.createPresentation({
-    title: category === 'song' ? 'Untitled Song' : 'Untitled',
+    title: title || (category === 'song' ? 'Untitled Song' : 'Untitled'),
     category,
     groups: [group],
     arrangement: [group.id],
