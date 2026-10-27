@@ -46,7 +46,7 @@ const isUngrouped = (g: Pick<Group, 'name'>) => g.name === NO_GROUP.name;
 
 /**
  * Whether Ungroup does anything for a slide: a group's first slide can join the group before
- * (the first group goes grey), and a slide inside a named group can go grey on its own.
+ * (the first group goes grey), and a slide inside a named group can go grey with the slides after it.
  */
 export function canUngroup(p: Presentation, slideId: string): boolean {
   const gi = p.groups.findIndex((g) => g.slides.some((sl) => sl.id === slideId));
@@ -59,8 +59,7 @@ export function canUngroup(p: Presentation, slideId: string): boolean {
 /**
  * Ungroup, as in ProPresenter. On a group's first slide, the group joins the group of the slide
  * before it (the first group, with none before it, goes grey). On a slide already in the group
- * of the slide before it, that slide goes grey on its own: out of the group, which carries on
- * after it with the slides that follow.
+ * of the slide before it, that slide and the ones after it in the group go grey: no group.
  */
 export function ungroup(p: Presentation, slideId: string): Pick<Presentation, 'groups' | 'arrangement'> {
   const same = { groups: p.groups, arrangement: p.arrangement };
@@ -80,20 +79,8 @@ export function ungroup(p: Presentation, slideId: string): Pick<Presentation, 'g
     // Its slides play wherever the group before it does now; the group itself is gone from the arrangement.
     return { groups, arrangement: p.arrangement.filter((id) => id !== old.id) };
   }
-  // A grey group of just this slide, and the rest of the group after it.
-  const grey: Group = { id: uid(), ...NO_GROUP, slides: [old.slides[at]] };
-  const restSlides = old.slides.slice(at + 1);
-  const rest: Group | null = restSlides.length ? { id: uid(), name: old.name, color: old.color, slides: restSlides } : null;
-  const groups = [
-    ...p.groups.slice(0, gi),
-    { ...old, slides: old.slides.slice(0, at) },
-    grey,
-    ...(rest ? [rest] : []),
-    ...p.groups.slice(gi + 1),
-  ];
-  // Wherever the old group plays, the slide and the rest of the group still follow it.
-  const arrangement = p.arrangement.flatMap((id) => (id === old.id ? [id, grey.id, ...(rest ? [rest.id] : [])] : [id]));
-  return { groups, arrangement };
+  // The slide and the rest of its group after it go grey together, as a group with no name.
+  return assignGroup(p, slideId, NO_GROUP);
 }
 
 /** Removes a group, its slides and its places in the arrangement. */
