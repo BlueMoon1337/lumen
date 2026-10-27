@@ -4378,11 +4378,32 @@ body.resizing-y * {
 
 /* ---- Transitions ------------------------------------------------------------- */
 
+/* The panel always fits the window, rounded corners and all: when the window is short, the
+   preview gets smaller (keeping its shape) rather than the panel scrolling. The floating panel
+   around it takes 8px margins, 10px padding and a 1px border on each side. */
 .tp-panel {
   display: flex;
   flex-direction: column;
   gap: 10px;
   width: 400px;
+  max-height: calc(100vh - 38px);
+}
+
+.tp-panel > *,
+.tp > * {
+  flex-shrink: 0;
+}
+
+.tp-panel > .tp {
+  flex-shrink: 1;
+  min-height: 0;
+}
+
+.tp > .tp-preview {
+  flex: 0 1 225px;
+  min-height: 72px;
+  align-self: center;
+  max-width: 100%;
 }
 
 .tp-levels {

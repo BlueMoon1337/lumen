@@ -140,9 +140,17 @@ function Popup({ x, y, children }: { x: number; y: number; children: ReactNode }
     const el = ref.current;
     if (!el) return;
     const M = 8;
-    const left = Math.max(M, Math.min(x, window.innerWidth - el.offsetWidth - M));
-    const top = Math.max(M, Math.min(y, window.innerHeight - el.offsetHeight - M));
-    setStyle({ left, top });
+    // Placed again whenever it changes size (a panel that grows once its preview is drawn,
+    // say), so all of it, rounded corners included, stays in the window.
+    const place = () => {
+      const left = Math.max(M, Math.min(x, window.innerWidth - el.offsetWidth - M));
+      const top = Math.max(M, Math.min(y, window.innerHeight - el.offsetHeight - M));
+      setStyle({ left, top });
+    };
+    place();
+    const ro = new ResizeObserver(place);
+    ro.observe(el);
+    return () => ro.disconnect();
   }, [x, y]);
   return (
     <div ref={ref} className="floating-popup" style={style} onKeyDown={(e) => e.stopPropagation()}>
