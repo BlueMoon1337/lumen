@@ -1393,13 +1393,18 @@ body.resizing-y * {
   border-bottom: 0;
 }
 
+/* A layer that's live: ProPresenter's dark red, as the Clear All bar, with a pale pink icon;
+   brighter under the pointer, and all together while the pointer is on Clear All. */
 .clear-btn.active {
-  color: #f0f0f0;
+  background: #501e1d;
+  color: #c7a3a1;
   cursor: pointer;
+  transition: background 0.12s;
 }
 
-.clear-btn.active:hover {
-  background: #3a3a3a;
+.clear-btn.active:hover,
+.preview-row:has(.clear-all.live:hover) .clear-btn.active {
+  background: #83312f;
 }
 
 /* Clear All: a bar between the preview and the clear column, ProPresenter's dark red while
