@@ -5605,3 +5605,127 @@ h3.looks-name {
   text-transform: uppercase;
   color: var(--text-3);
 }
+
+/* ---- Update ---- */
+
+.tool-btn .tool-icon {
+  position: relative;
+}
+
+.update-dot {
+  position: absolute;
+  top: 1px;
+  right: 6px;
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  background: var(--pink);
+  box-shadow: 0 0 0 2px var(--panel);
+}
+
+.tool-btn.update-ready .tool-label {
+  color: var(--pink);
+}
+
+.dialog.update-dialog {
+  width: min(520px, calc(100vw - 32px));
+}
+
+.update-current {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+}
+
+.update-app {
+  font-size: 18px;
+  font-weight: 700;
+}
+
+.update-status,
+.update-error {
+  margin: 0;
+}
+
+.update-error {
+  color: #f87171;
+  white-space: pre-wrap;
+}
+
+.update-found {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 10px 12px;
+  border-radius: 8px;
+  background: #2a2a2a;
+}
+
+.update-notes {
+  max-height: 220px;
+  margin: 0;
+  overflow: auto;
+  font-family: inherit;
+  font-size: 12.5px;
+  color: var(--text-2);
+  white-space: pre-wrap;
+}
+
+.update-progress {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.update-progress progress {
+  width: 100%;
+  accent-color: var(--pink);
+}
+
+.update-token {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.update-token p {
+  margin: 0;
+}
+
+.update-steps {
+  margin: 0;
+  padding-left: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  font-size: 13px;
+}
+
+.update-link {
+  font-family: ui-monospace, Menlo, monospace;
+  font-size: 12px;
+  user-select: all;
+  -webkit-user-select: all;
+  word-break: break-all;
+}
+
+.update-token-row {
+  display: flex;
+  gap: 8px;
+}
+
+.update-token-row input {
+  flex: 1;
+  min-width: 0;
+}
+
+.btn.link {
+  border-color: transparent;
+  background: none;
+  color: var(--text-2);
+  padding-left: 0;
+}
+
+.btn.link:hover:not(:disabled) {
+  color: var(--text);
+}

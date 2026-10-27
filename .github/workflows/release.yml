@@ -1,0 +1,87 @@
+# Builds Lumen for macOS (one app for Apple silicon and Intel) and Windows, signs the update
+# files, and publishes them as a GitHub release that Lumen's Update button installs from.
+#
+# Runs when a version tag (v0.3.0) is pushed, or by hand from the Actions tab ("Run workflow"),
+# which tags the version in package.json. Bump "version" in package.json and src-tauri/Cargo.toml
+# first: Lumen only offers a release newer than itself.
+#
+# Needs one repository secret, TAURI_SIGNING_PRIVATE_KEY: the private half of the key whose public
+# half is "pubkey" in src-tauri/tauri.conf.json (Settings ▸ Secrets and variables ▸ Actions).
+
+name: Release
+
+on:
+  push:
+    tags: ['v*']
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    outputs:
+      tag: ${{ steps.release.outputs.tag }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - id: release
+        name: Create the release, with the changes since the last one as its notes
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          tag="v$(node -p "require('./package.json').version")"
+          if [ "${GITHUB_REF_TYPE}" = "tag" ] && [ "${GITHUB_REF_NAME}" != "$tag" ]; then
+            echo "::error::Tag ${GITHUB_REF_NAME} doesn't match package.json's version ($tag)."
+            exit 1
+          fi
+          echo "tag=$tag" >> "$GITHUB_OUTPUT"
+          if gh release view "$tag" >/dev/null 2>&1; then
+            echo "$tag already has a release; the builds are added to it."
+            exit 0
+          fi
+          previous="$(git tag --list 'v*' --sort=-v:refname | grep -vx "$tag" | head -n 1 || true)"
+          range="${previous:+$previous..}HEAD"
+          git log --no-merges --pretty='- %s' $range > notes.md
+          gh release create "$tag" --title "Lumen $tag" --notes-file notes.md --target "$GITHUB_SHA"
+
+  build:
+    needs: release
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: macos-latest
+            args: --target universal-apple-darwin
+          - os: windows-latest
+            args: ''
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: ${{ matrix.os == 'macos-latest' && 'aarch64-apple-darwin,x86_64-apple-darwin' || '' }}
+      - uses: swatinem/rust-cache@v2
+        with:
+          workspaces: './src-tauri -> target'
+      - run: npm ci
+      - uses: tauri-apps/tauri-action@v0
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ''
+        with:
+          tagName: ${{ needs.release.outputs.tag }}
+          releaseName: Lumen ${{ needs.release.outputs.tag }}
+          releaseDraft: false
+          prerelease: false
+          includeUpdaterJson: true
+          # The update files (and their signatures) are made here only: a build on your own computer
+          # has no private key to sign them with.
+          args: ${{ matrix.args }} --config '{"bundle":{"createUpdaterArtifacts":true}}'

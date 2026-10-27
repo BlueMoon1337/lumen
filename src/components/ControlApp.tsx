@@ -3,6 +3,7 @@ import { applyAppIcon } from '../appIcons';
 import { registerFonts } from '../fonts';
 import { installHistory, runHistoryCommand, useHistory } from '../history';
 import { startFrameSync } from '../liveFrame';
+import { checkForUpdates, startUpdateChecks } from '../updates';
 import { deleteUnusedBlobs } from '../media';
 import { dismiss, useNotices } from '../notices';
 import { startScreenManager } from '../outputs';
@@ -30,6 +31,7 @@ import { ScreenConfigDialog } from './ScreenConfig';
 import { useScreensCommands } from './screensCommands';
 import { useViewCommands } from './viewCommands';
 import { useWindowCommands } from './windowCommands';
+import { UpdateDialog } from './UpdateDialog';
 import { ShowView } from './ShowView';
 import { StageLayoutsEditor } from './StageLayoutsEditor';
 import { Sidebar } from './Sidebar';
@@ -298,6 +300,16 @@ export default function ControlApp() {
   useScreensCommands();
   useViewCommands();
   useWindowCommands();
+  useEffect(() => startUpdateChecks(), []);
+  useEffect(
+    () =>
+      window.lumenDesktop?.onMenu((id) => {
+        if (id !== 'check-updates') return;
+        setDialog('update');
+        void checkForUpdates();
+      }),
+    [setDialog],
+  );
   useEffect(() => {
     void registerFonts(fonts);
   }, [fonts]);
@@ -360,6 +372,7 @@ export default function ControlApp() {
       {dialog === 'settings' && <SettingsDialog onClose={() => setDialog(null)} onScreens={openScreens} />}
       {dialog === 'screens' && <ScreenConfigDialog onClose={() => setDialog(null)} />}
       {dialog === 'labels' && <LabelsDialog onClose={() => setDialog(null)} />}
+      {dialog === 'update' && <UpdateDialog onClose={() => setDialog(null)} />}
       {dialog === 'capture' && <CaptureDialog onClose={() => setDialog(null)} />}
       {dialog === 'looks' && <LooksDialog onClose={() => setDialog(null)} />}
       {dialog === 'clearGroups' && <ClearGroupsDialog onClose={() => setDialog(null)} />}

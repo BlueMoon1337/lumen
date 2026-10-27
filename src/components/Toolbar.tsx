@@ -15,6 +15,7 @@ import { viewEntries } from './viewCommands';
 import { windowEntries } from './windowCommands';
 import { useElapsed } from './CaptureDialog';
 import { stopCapture, useCapture } from '../capture';
+import { checkForUpdates, useUpdates } from '../updates';
 import { FontSelect } from './FontSelect';
 import { useToolbarPop, type PopoverName } from './toolbarState';
 import { Icon, IconButton, Popover, shortcut, type IconName } from './ui';
@@ -52,6 +53,31 @@ function Tool({
         <span className="tool-label">{label}</span>
       </button>
       {children}
+    </div>
+  );
+}
+
+/** Update: lit, with a dot, when a newer Lumen is ready to install. */
+function UpdateTool() {
+  const u = useUpdates();
+  const ready = u.status === 'available' || u.status === 'installing';
+  return (
+    <div className="tool">
+      <button
+        type="button"
+        className={`tool-btn ${ready ? 'update-ready' : ''}`}
+        title={ready && u.found ? `Lumen ${u.found.version} is available. Click to install it.` : 'Check for updates'}
+        onClick={() => {
+          useStore.getState().setUI({ dialog: 'update' });
+          if (!ready) void checkForUpdates();
+        }}
+      >
+        <span className="tool-icon">
+          <Icon name="download" size={20} />
+          {ready && <span className="update-dot" />}
+        </span>
+        <span className="tool-label">Update</span>
+      </button>
     </div>
   );
 }
@@ -169,6 +195,11 @@ export function Toolbar({ onSettings, onScreens }: { onSettings: () => void; onS
         <ScreenTool kind="audience" label="Audience" onConfigure={onScreens} />
         <ScreenTool kind="stage" label="Stage" onConfigure={onScreens} />
       </div>
+      {window.lumenDesktop && (
+        <div className="tool-group">
+          <UpdateTool />
+        </div>
+      )}
       <div className="tool-group">
         <Tool icon="gear" label="Settings" onClick={onSettings} />
       </div>
@@ -397,6 +428,13 @@ function openMoreMenu(button: HTMLElement, { onBible, onSettings }: { onBible: (
     { label: 'Window', submenu: windowEntries },
     '-',
     { label: 'Bible…', action: onBible },
+    window.lumenDesktop && {
+      label: 'Check for Updates…',
+      action: () => {
+        useStore.getState().setUI({ dialog: 'update' });
+        void checkForUpdates();
+      },
+    },
     { label: 'Settings & Shortcuts…', action: onSettings },
   ]);
 }

@@ -60,6 +60,16 @@ export interface DesktopBridge {
   setWindowState(state: { screens: { id: string; name: string; kind: ScreenKind }[] }): void;
   /** Runs a Window menu command (Minimize, Fill, Move & Resize…) on the window in front. */
   runWindowCommand(id: string): Promise<void>;
+  /** Lumen's version, as built. */
+  appVersion(): Promise<string>;
+  /** Updates: whether a GitHub token has been given, and keeping one (empty forgets it). */
+  hasUpdateToken(): Promise<boolean>;
+  setUpdateToken(token: string): Promise<void>;
+  /** Looks for a newer release; null when Lumen is up to date. */
+  checkUpdate(): Promise<{ version: string; current: string; notes: string | null; date: string | null } | null>;
+  /** Downloads and installs the update found, then restarts Lumen. */
+  installUpdate(): Promise<void>;
+  onUpdateProgress(cb: (p: { received: number; total: number | null }) => void): () => void;
   /** The View menu's checkmarks, and its editors on or off. */
   setViewState(state: { presentation: boolean; continuousPlaylist: boolean; slideView: string }): void;
   /** Turns the Presentation menu's items on and off, and lists the clear groups in Clear Groups. */

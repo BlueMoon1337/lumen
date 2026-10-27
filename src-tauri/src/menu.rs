@@ -14,7 +14,8 @@ use crate::screens::{self, ScreensMenu};
 use crate::view::{self, ViewMenu};
 use crate::window::{self, WindowMenu};
 
-const COMMANDS: [&str; 14] = [
+const COMMANDS: [&str; 15] = [
+    "check-updates",
     "new-presentation",
     "new-playlist",
     "new-library",
@@ -141,6 +142,24 @@ pub fn build(app: &AppHandle) -> tauri::Result<(Menu<Wry>, ScreensMenu, EditMenu
             menu.insert(&window, at)?;
         }
     }
+
+    // Check for Updates…: after About in the app menu on a Mac, in Help elsewhere.
+    let updates = MenuItem::with_id(app, "check-updates", "Check for Updates…", true, None::<&str>)?;
+    let help = menu.items()?.into_iter().find_map(|item| match item {
+        MenuItemKind::Submenu(sub) if sub.id() == tauri::menu::HELP_SUBMENU_ID => Some(sub),
+        _ => None,
+    });
+    #[cfg(target_os = "macos")]
+    if let Some(MenuItemKind::Submenu(app_menu)) = menu.items()?.into_iter().next() {
+        app_menu.insert(&updates, 1)?;
+    }
+    #[cfg(not(target_os = "macos"))]
+    match help {
+        Some(help) => help.append(&updates)?,
+        None => menu.append(&Submenu::with_items(app, "Help", true, &[&updates])?)?,
+    }
+    #[cfg(target_os = "macos")]
+    let _ = help;
 
     // File: Lumen's commands above the standard Close Window (and Quit). Linux has no standard
     // File menu, so it gets one, ending in Quit.

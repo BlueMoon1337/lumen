@@ -123,7 +123,18 @@ interface UIState {
   /** Copied slides, for Paste. */
   slideClipboard: Slide[] | null;
   /** The open window: Settings, Screen Configuration, Groups & Labels, Clear Groups, one of File's, Looks, or Capture Settings. */
-  dialog: 'settings' | 'screens' | 'labels' | 'clearGroups' | 'textImport' | 'slideImages' | 'exportThemes' | 'looks' | 'capture' | null;
+  dialog:
+    | 'settings'
+    | 'screens'
+    | 'labels'
+    | 'clearGroups'
+    | 'textImport'
+    | 'slideImages'
+    | 'exportThemes'
+    | 'looks'
+    | 'capture'
+    | 'update'
+    | null;
   /** The stage layout open in the layout editor, and its selected object. */
   stageLayoutId: string | null;
   stageObjectId: string | null;

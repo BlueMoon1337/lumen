@@ -13,6 +13,7 @@ mod menu;
 mod outputs;
 mod presentation;
 mod screens;
+mod updates;
 mod view;
 mod window;
 
@@ -24,6 +25,8 @@ pub fn run() {
     tauri::Builder::default()
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_clipboard_manager::init())
+        .plugin(tauri_plugin_updater::Builder::new().build())
+        .manage(updates::Updates::default())
         .manage(outputs::Outputs::default())
         .manage(files::ExportFolder::default())
         .manage(files::OpenedFiles::default())
@@ -37,6 +40,11 @@ pub fn run() {
             view::set_view_state,
             window::set_window_state,
             window::run_window_command,
+            updates::app_version,
+            updates::has_update_token,
+            updates::set_update_token,
+            updates::check_update,
+            updates::install_update,
             edit::set_undo_state,
             edit::set_edit_state,
             presentation::set_presentation_state,

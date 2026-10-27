@@ -62,6 +62,12 @@ export function installDesktopBridge() {
     setViewState: (state) => void invoke('set_view_state', { state }),
     setWindowState: (state) => void invoke('set_window_state', { state }),
     runWindowCommand: (id) => invoke('run_window_command', { id }),
+    appVersion: () => invoke<string>('app_version'),
+    hasUpdateToken: () => invoke<boolean>('has_update_token'),
+    setUpdateToken: (token) => invoke('set_update_token', { token }),
+    checkUpdate: () => invoke('check_update'),
+    installUpdate: () => invoke('install_update'),
+    onUpdateProgress: (cb) => subscribe('update-progress', cb),
     openFiles: async (options) => {
       const opened = await invoke<{ folder: string | null; files: { name: string; path: string }[] }>('open_files', { options });
       const files = await Promise.all(

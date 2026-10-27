@@ -46,6 +46,24 @@ npm run desktop:build  # build the finished, installable app
 
 An app you build runs on your own computer. Before it can be handed to other Macs without the "unidentified developer" warning, it has to be signed and notarized with an Apple Developer account. Until then, right-click the app and choose **Open** the first time. A signed build also needs the camera entitlement (`com.apple.security.device.camera`) for Video Input; `src-tauri/Info.plist` already has the message macOS shows when it asks.
 
+### Updates
+
+The desktop app's **Update** button (in the toolbar, next to Settings; also **Lumen ▸ Check for Updates…** on a Mac, **Help ▸ Check for Updates…** elsewhere, and **More ▸ Check for Updates…**) installs new versions of Lumen without building anything:
+
+1. The first time, it asks for a GitHub token, because the repository is private. Make a [fine-grained token](https://github.com/settings/personal-access-tokens/new) with access to **Only select repositories ▸ lumen** and **Contents: Read-only**, and paste it in. Lumen keeps it in a file in its settings folder, on this computer only.
+2. Lumen looks for a newer release when it starts and every six hours. When there is one, the Update button lights up with a dot.
+3. Click it to see what's new, then **Install and Restart**. Lumen downloads the new version, checks its signature, replaces itself and starts again. Your library, playlists and settings are kept.
+
+**Publishing a release.** Releases are built by GitHub Actions (`.github/workflows/release.yml`) for macOS (one app for Apple silicon and Intel) and Windows:
+
+1. Raise `version` in `package.json` and `src-tauri/Cargo.toml` (Lumen only offers a release newer than itself).
+2. Push a tag for it (`git tag v0.3.0 && git push origin v0.3.0`), or open **Actions ▸ Release ▸ Run workflow** on GitHub.
+3. The workflow makes the release (its notes are the commits since the last one), builds and signs both apps, and adds `latest.json`, which is what the Update button reads. It takes 15 to 25 minutes.
+
+The update files are signed with a private key kept as the repository secret `TAURI_SIGNING_PRIVATE_KEY` (**Settings ▸ Secrets and variables ▸ Actions**); its public half is `plugins.updater.pubkey` in `src-tauri/tauri.conf.json`, and Lumen refuses any update not signed with it. Keep a copy of the private key somewhere safe: without it, no new version can be published to apps that already have this public key.
+
+The apps from a release are ad-hoc signed, not notarized, so the first time you open one downloaded with a browser, macOS asks: right-click it and choose **Open** (or **System Settings ▸ Privacy & Security ▸ Open Anyway**). Updates installed by the Update button don't ask again. An app you build yourself with `npm run desktop:build` can update itself the same way.
+
 ### Other scripts
 
 ```sh
@@ -518,6 +536,7 @@ src/
   slideImages.ts   drawing slides onto a canvas for Export ▸ Slide Images
   looks.ts         looks: which layers each audience screen shows, its theme and mask
   stageLayouts.ts  stage layouts: the kinds of object, the templates, moving and resizing
+  updates.ts       the Update button's state: checking at start-up and every six hours, installing
   capture.ts       Screens ▸ Capture: drawing an audience screen onto a canvas, its sound, recording to a file
   import/          readers for ProPresenter .pro (protobuf + RTF), .proplaylist and .rvbible (zip of USX books),
                    and a zip reader that tolerates ProPresenter's Zip64 layout
@@ -532,6 +551,7 @@ src/
     ControlApp     window layout per mode and keyboard shortcuts
     fileCommands   the File menu: New, Import and Export, saving through the desktop app or downloads
     presentationCommands  the Presentation menu: its commands, function keys and desktop menu state
+    UpdateDialog   the Update button's window: the token, what's new, Install and Restart
     windowCommands the Window menu: New Windowed Output, and More ▸ Window
     viewCommands   the View menu: modes, Continuous Playlist and Slide View, their keys and desktop menu state
     screensCommands  the Screens menu: its commands and keys, and the desktop menu's checkmarks and looks
@@ -572,6 +592,7 @@ src-tauri/          the desktop app (Tauri, Rust)
   src/camera.rs    lets the web views open cameras (Video Input)
   src/menu.rs      menu bar: File (New, Import, Export), and where the other menus go
   src/view.rs      the View menu
+  src/updates.rs   the Update button: the GitHub token, finding a newer release, installing it
   src/window.rs    the Window menu: moving and arranging windows, New Windowed Output, the window list
   src/screens.rs   the Screens menu, with the looks listed under Live
   src/capture.rs   capture files: Save To's folders, writing the recording as it comes
