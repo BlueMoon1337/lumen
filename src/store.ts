@@ -163,6 +163,8 @@ interface Actions {
   deleteGroup(presentationId: string, groupId: string): void;
   duplicateGroup(presentationId: string, groupId: string): void;
   setSlideLabel(presentationId: string, slideId: string, label: ColorLabel | undefined): void;
+  /** One label (or none) on several slides, as one step. */
+  setSlideLabels(presentationId: string, slideIds: string[], label: ColorLabel | undefined): void;
   /** Copies a slide's text formatting, as it looks, for Paste Text Style. */
   copyTextStyle(presentationId: string, slideId: string): void;
   pasteTextStyle(presentationId: string, scope: SlideScope): void;
@@ -654,6 +656,7 @@ export const useStore = create<AppState>()(
         },
         duplicateGroup: (pid, groupId) => edit(pid, (p) => ops.duplicateGroup(p, groupId)),
         setSlideLabel: (pid, slideId, label) => edit(pid, (p) => ops.setLabel(p, slideId, label)),
+        setSlideLabels: (pid, slideIds, label) => edit(pid, (p) => ops.setLabels(p, slideIds, label)),
         copyTextStyle: (pid, slideId) => {
           const s = get();
           const p = s.presentations[pid];

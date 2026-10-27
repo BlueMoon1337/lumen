@@ -1,4 +1,14 @@
-import { memo, useEffect, useMemo, useRef, useState, type DragEvent, type MouseEvent as ReactMouseEvent, type Ref } from 'react';
+import {
+  memo,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type DragEvent,
+  type MouseEvent as ReactMouseEvent,
+  type PointerEvent as ReactPointerEvent,
+  type Ref,
+} from 'react';
 import { getSequence } from '../lyrics';
 import { layerOf, useStore } from '../store';
 import { inkFor, resolveTheme, slideTheme } from '../theme';
@@ -101,7 +111,9 @@ function slideContextMenu(e: ReactMouseEvent, presentationId: string, entry: Seq
   const p = useStore.getState().presentations[presentationId];
   if (!p) return;
   selectForMenu(entry.slide.id);
-  openContextMenu(e, slideMenu(p, entry.slide, entry.group, { index, playlistItemId }));
+  // Panels from the menu (Label ▸ Edit…) open under the slide.
+  const anchor = e.currentTarget as Element;
+  openContextMenu(e, slideMenu(p, entry.slide, entry.group, { index, playlistItemId, anchor }));
 }
 
 /** Show mode's slides: the selected presentation's, or with View ▸ Continuous Playlist, every presentation in the playlist. */
@@ -261,6 +273,80 @@ function useItemId(own: string | undefined) {
   return own ?? selected;
 }
 
+/**
+ * Selecting slides by dragging a box over them from the space around them, as in ProPresenter.
+ * ⌘ or ⇧ adds to the slides already selected; a click on empty space selects none.
+ */
+function useMarquee(presentationId: string, playlistItemId: string | null, continuous: boolean) {
+  const ref = useRef<HTMLDivElement>(null);
+  const [box, setBox] = useState<{ left: number; top: number; width: number; height: number } | null>(null);
+  const onPointerDown = (e: ReactPointerEvent) => {
+    const el = ref.current;
+    if (!el || e.button !== 0 || (e.target as Element).closest('[data-slide-id], button, input')) return;
+    e.preventDefault();
+    const s = useStore.getState();
+    if (s.selectedPresentationId !== presentationId) s.select(presentationId, continuous ? playlistItemId : s.selectedPlaylistItemId);
+    const adding = e.shiftKey || e.metaKey || e.ctrlKey;
+    const base = adding ? useStore.getState().selectedSlideIds : [];
+    // Positions inside the list, so the box stays put on the slides when the list scrolls.
+    const local = (x: number, y: number) => {
+      const r = el.getBoundingClientRect();
+      return { x: x - r.left + el.scrollLeft, y: y - r.top + el.scrollTop };
+    };
+    const start = local(e.clientX, e.clientY);
+    let last = { x: e.clientX, y: e.clientY };
+    let moved = false;
+    const update = () => {
+      const now = local(last.x, last.y);
+      const rect = {
+        left: Math.min(start.x, now.x),
+        top: Math.min(start.y, now.y),
+        width: Math.abs(now.x - start.x),
+        height: Math.abs(now.y - start.y),
+      };
+      setBox(rect);
+      const hits: string[] = [];
+      for (const slide of el.querySelectorAll<HTMLElement>('[data-slide-id]')) {
+        const r = slide.getBoundingClientRect();
+        const a = local(r.left, r.top);
+        if (a.x < rect.left + rect.width && a.x + r.width > rect.left && a.y < rect.top + rect.height && a.y + r.height > rect.top)
+          hits.push(slide.dataset.slideId!);
+      }
+      const ids = [...new Set([...base, ...hits])];
+      const current = useStore.getState().selectedSlideIds;
+      if (ids.length !== current.length || ids.some((id, i) => id !== current[i])) useStore.getState().setUI({ selectedSlideIds: ids });
+    };
+    // Near the top or bottom edge, the list scrolls along.
+    const scroller = (el.scrollHeight > el.clientHeight ? el : el.closest('.continuous-playlist')) as HTMLElement | null;
+    const timer = window.setInterval(() => {
+      if (!moved || !scroller) return;
+      const r = scroller.getBoundingClientRect();
+      const dy = last.y < r.top + 30 ? -12 : last.y > r.bottom - 30 ? 12 : 0;
+      if (dy) {
+        scroller.scrollTop += dy;
+        update();
+      }
+    }, 30);
+    const onMove = (ev: PointerEvent) => {
+      last = { x: ev.clientX, y: ev.clientY };
+      if (!moved && Math.abs(ev.clientX - e.clientX) + Math.abs(ev.clientY - e.clientY) < 4) return;
+      moved = true;
+      update();
+    };
+    const onUp = () => {
+      window.removeEventListener('pointermove', onMove);
+      window.removeEventListener('pointerup', onUp);
+      window.clearInterval(timer);
+      setBox(null);
+      if (!moved && !adding) useStore.getState().setUI({ selectedSlideIds: [] });
+    };
+    window.addEventListener('pointermove', onMove);
+    window.addEventListener('pointerup', onUp);
+  };
+  const marquee = box && <div className="marquee" style={box} />;
+  return { ref, onPointerDown, marquee };
+}
+
 /** Clicking a slide: shows it, and in a continuous playlist selects its presentation too. */
 function clickToShow(
   e: ReactMouseEvent,
@@ -301,6 +387,7 @@ function SlideGrid({ presentation: p, playlistItemId: own, easy }: { presentatio
   const playlistItemId = useItemId(own);
   const { base, seq, liveIndex } = useSlides(p, own);
   const liveRef = useRef<HTMLDivElement>(null);
+  const marquee = useMarquee(p.id, playlistItemId, !!own);
 
   useEffect(() => {
     liveRef.current?.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
@@ -310,9 +397,12 @@ function SlideGrid({ presentation: p, playlistItemId: own, easy }: { presentatio
 
   return (
     <div
+      ref={marquee.ref}
       className={`slide-grid ${easy ? 'easy' : ''} ${own ? 'inline' : ''}`}
       style={{ gridTemplateColumns: `repeat(auto-fill, minmax(${gridSize}px, 1fr))` }}
+      onPointerDown={marquee.onPointerDown}
     >
+      {marquee.marquee}
       {seq.map((entry, i) => (
         <SlideThumb
           key={`${entry.group.id}:${entry.slide.id}:${i}`}
@@ -372,6 +462,7 @@ const SlideThumb = memo(function SlideThumb({
       ref={ref}
       role="button"
       tabIndex={-1}
+      data-slide-id={slide.id}
       className={`slide-thumb ${live ? 'live' : ''} ${selected ? 'selected' : ''} ${over ? 'drop-media' : ''}`}
       {...drop}
       onClick={(e) => clickToShow(e, presentationId, slide.id, index, playlistItemId, continuous)}
@@ -400,9 +491,11 @@ const SlideThumb = memo(function SlideThumb({
 function SlideList({ presentation: p, playlistItemId: own }: { presentation: Presentation; playlistItemId?: string }) {
   const playlistItemId = useItemId(own);
   const { base, seq, liveIndex } = useSlides(p, own);
+  const marquee = useMarquee(p.id, playlistItemId, !!own);
   if (seq.length === 0) return <NoSlides />;
   return (
-    <div className={`slide-list ${own ? 'inline' : ''}`}>
+    <div ref={marquee.ref} className={`slide-list ${own ? 'inline' : ''}`} onPointerDown={marquee.onPointerDown}>
+      {marquee.marquee}
       {seq.map((entry, i) => (
         <SlideRow
           key={`${entry.group.id}:${entry.slide.id}:${i}`}
@@ -443,6 +536,7 @@ function SlideRow({
     <div
       role="button"
       tabIndex={-1}
+      data-slide-id={slide.id}
       className={`slide-row ${live ? 'live' : ''} ${selected ? 'selected' : ''} ${over ? 'drop-media' : ''}`}
       {...drop}
       onClick={(e) => clickToShow(e, presentationId, slide.id, index, playlistItemId, continuous)}

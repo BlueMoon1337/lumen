@@ -147,7 +147,7 @@ export function EditOutline({ presentation: p, showObjects }: { presentation: Pr
                       // Right-clicking a slide selects it, as in ProPresenter.
                       selectForMenu(sl.id);
                       if (mode === 'edit' && !chosen.includes(sl.id)) s.setUI({ editSlideId: sl.id, editTextSelected: false });
-                      openContextMenu(e, slideMenu(p, sl, g, { inEdit: mode === 'edit' }));
+                      openContextMenu(e, slideMenu(p, sl, g, { inEdit: mode === 'edit', anchor: e.currentTarget }));
                     }}
                   >
                     <div className="outline-thumb">

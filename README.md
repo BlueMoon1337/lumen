@@ -131,12 +131,14 @@ npm run format       # Prettier
 
 ## Slides, groups and labels
 
+**Selecting slides.** Click a slide to show it; ⌘-click or ⇧-click to select more without showing them; or, in Show mode, drag a box over slides from the space around them (⌘ or ⇧ adds to the selection). A click on empty space selects none. Edit's commands and the right-click menu work on all the selected slides.
+
 Right-click a slide (in Show mode's grid or list, or Edit mode's slide list) for:
 
 - **Show Slide**, **Edit Slide**, **Cut / Copy / Paste / Duplicate**, **Insert Blank Slide**, **Delete Slide**. Copied slides paste into any presentation, Bible verses included.
 - **Copy Text Style** and **Paste Text Style**: the font, size, weight, color, caps and alignment as the slide shows them (not the text box's position). **Paste Text Style To** puts it on the slide's group or every slide; on every slide it becomes the presentation's formatting. **Clear Text Style** goes back to the theme.
 - **Group**: Verse 1–4, Pre-Chorus, Chorus, Bridge, Tag, Vamp, Intro, Interlude, Outro, Ending, or **New Group…**. As in ProPresenter, a group starts at the slide you pick it on, and the slides after it in its old group come along. Picking a group on a group's first slide renames and recolors that group.
-- **Label**: a colored tag on the thumbnail, a cue for whoever runs slides (Welcome, Prayer, Offering, Key Change, Last Time…), or **Custom Label…**.
+- **Label**: a colored tag on the thumbnail, a cue for whoever runs slides (Welcome, Prayer, Offering, Key Change, Last Time…). **Edit…** opens a small panel under the slide: type any name (or pick a saved one from its list) and a color, and it goes on the slides as you type. A new name can be kept with **Save to global labels**. With several slides selected, the label goes on all of them.
 - **Transition**: the default, or a kind (by direction, for those that move), a **Duration**, an **Easing**, or **Transition Options…** for the transition panel. A slide with its own transition shows a small badge; click the badge to change it.
 
 Right-click a **group header** in Edit mode to rename it, recolor it, pick a preset, add a slide, duplicate it, paste a text style on all of its slides, give them a transition, or delete it. **Edit Groups & Labels…** (from the Group and Label menus, the Slide inspector or Settings) changes the lists of groups and labels; slides already using one keep theirs.

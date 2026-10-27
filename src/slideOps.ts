@@ -121,6 +121,11 @@ export function setLabel(p: Presentation, slideId: string, label: ColorLabel | u
   return { groups: mapSlides(p, { slideId }, (sl) => ({ ...sl, label })) };
 }
 
+/** The same label (or none) on several slides at once. */
+export function setLabels(p: Presentation, slideIds: string[], label: ColorLabel | undefined): Pick<Presentation, 'groups'> {
+  return { groups: mapSlides(p, { slideIds }, (sl) => ({ ...sl, label })) };
+}
+
 /** The slides of a group, the slides named, or every slide once (ignoring repeats in the arrangement). */
 export function slidesIn(p: Presentation, scope: SlideScope): Slide[] {
   if (scope === 'presentation') return p.groups.flatMap((g) => g.slides);

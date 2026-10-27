@@ -16,7 +16,8 @@ import {
   withChanges,
 } from '../transitions';
 import type { Group, Library, MediaItem, Playlist, PlaylistItem, Presentation, Slide, SlideTransition, VideoPlayback } from '../types';
-import { NamePopup, openPopupAtMenu, type ContextEntries } from './ContextMenu';
+import { NamePopup, openPopupAtMenu, openPopupBelow, type ContextEntries } from './ContextMenu';
+import { LabelPopup } from './LabelPopup';
 import {
   deleteGroup,
   deleteLibrary,
@@ -145,12 +146,19 @@ function slideGroupEntries(p: Presentation, slide: Slide, group: Group): Context
   ];
 }
 
-function labelEntries(p: Presentation, slide: Slide): ContextEntries {
+/** Label ▸, for the slide right-clicked and the others selected with it. */
+function labelEntries(p: Presentation, slide: Slide, ids: string[], anchor?: Element | null): ContextEntries {
   const s = st();
-  const set = (label: Slide['label']) => s.setSlideLabel(p.id, slide.id, label);
+  const set = (label: Slide['label']) => s.setSlideLabels(p.id, ids, label);
   const presets = labelPresets(s.settings);
   const custom = slide.label && !presets.some((l) => l.name === slide.label?.name && l.color === slide.label.color);
+  const popup = <LabelPopup presentationId={p.id} slideIds={ids} />;
   return [
+    {
+      label: ids.length > 1 ? `Edit ${ids.length} Slides…` : 'Edit…',
+      action: () => (anchor?.isConnected ? openPopupBelow(anchor, popup) : openPopupAtMenu(popup)),
+    },
+    '-',
     { label: 'None', checked: !slide.label, action: () => set(undefined) },
     '-',
     ...presets.map((l) => ({
@@ -159,12 +167,8 @@ function labelEntries(p: Presentation, slide: Slide): ContextEntries {
       checked: slide.label?.name === l.name && slide.label.color === l.color,
       action: () => set(l),
     })),
-    custom && slide.label && { label: slide.label.name, swatch: slide.label.color, checked: true, action: () => {} },
+    custom && slide.label && { label: slide.label.name, swatch: slide.label.color, checked: true, action: () => set(slide.label) },
     '-',
-    {
-      label: 'Custom Label…',
-      action: () => openPopupAtMenu(<NamePopup title="Slide Label" initial={slide.label ?? { name: '', color: '#e07b28' }} onSave={set} />),
-    },
     { label: 'Edit Labels…', action: () => s.setUI({ dialog: 'labels' }) },
   ];
 }
@@ -180,7 +184,8 @@ export function slideMenu(
   p: Presentation,
   slide: Slide,
   group: Group,
-  opts: { index?: number; playlistItemId?: string | null; inEdit?: boolean },
+  /** `anchor`: the slide's element, for panels that open under it. */
+  opts: { index?: number; playlistItemId?: string | null; inEdit?: boolean; anchor?: Element | null },
 ): ContextEntries {
   const s = st();
   const inEdit = !!opts.inEdit;
@@ -208,7 +213,7 @@ export function slideMenu(
     ...styleEntries(p, slide, group, ids),
     '-',
     { label: 'Group', swatch: group.color, submenu: () => slideGroupEntries(p, slide, group) },
-    { label: 'Label', swatch: slide.label?.color, submenu: () => labelEntries(p, slide) },
+    { label: 'Label', swatch: slide.label?.color, submenu: () => labelEntries(p, slide, ids, opts.anchor) },
     { label: 'Transition', submenu: () => transitionEntries({ presentationId: p.id, scope: { slideId: slide.id } }) },
     { label: 'Media', submenu: () => mediaCueEntries(p, slide) },
   ];
@@ -525,7 +530,7 @@ export function canvasMenu(p: Presentation, slide: Slide, group: Group, editText
     '-',
     ...styleEntries(p, slide, group),
     '-',
-    { label: 'Label', swatch: slide.label?.color, submenu: () => labelEntries(p, slide) },
+    { label: 'Label', swatch: slide.label?.color, submenu: () => labelEntries(p, slide, [slide.id]) },
     { label: 'Transition', submenu: () => transitionEntries({ presentationId: p.id, scope: { slideId: slide.id } }) },
     '-',
     { label: 'Delete Slide', danger: true, action: () => deleteSlide(p.id, slide.id) },
