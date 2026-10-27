@@ -17,6 +17,8 @@ pub struct KeynoteExports(Mutex<HashMap<String, Export>>);
 pub struct Export {
     dir: PathBuf,
     images: Vec<PathBuf>,
+    /// Keynote's PowerPoint export, which Lumen edits the slides from.
+    pptx: Option<PathBuf>,
 }
 
 #[derive(Serialize, Deserialize, Clone)]
@@ -40,6 +42,8 @@ pub struct KeynoteDeck {
     /// Every slide, skipped ones too; pictures are of the others, in order.
     slides: Vec<KeynoteSlide>,
     images: usize,
+    /// Whether Keynote also exported it as PowerPoint (read it with `keynote_pptx`).
+    pptx: bool,
 }
 
 #[cfg_attr(not(target_os = "macos"), allow(dead_code))]
@@ -50,8 +54,9 @@ struct ScriptResult {
     slides: Vec<KeynoteSlide>,
 }
 
-/// Opens the file in Keynote, exports its slides as JPEGs into `out`, and says what's on them.
-/// JavaScript for Automation, so the words come back as JSON.
+/// Opens the file in Keynote, exports its slides as JPEGs into `out` and the whole presentation as
+/// PowerPoint (for editing in Lumen), and says what's on them. JavaScript for Automation, so the
+/// words come back as JSON.
 #[cfg_attr(not(target_os = "macos"), allow(dead_code))]
 const SCRIPT: &str = r#"
 function run(argv) {
@@ -73,6 +78,7 @@ function run(argv) {
     });
     const size = { width: doc.width(), height: doc.height() };
     keynote.export(doc, { to: Path(argv[1]), as: 'slide images', withProperties: { imageFormat: 'JPEG', compressionFactor: 0.9, skippedSlides: false } });
+    try { keynote.export(doc, { to: Path(argv[2]), as: 'Microsoft PowerPoint' }); } catch (e) {}
     return JSON.stringify({ width: size.width, height: size.height, slides: slides });
   } finally {
     doc.close({ saving: 'no' });
@@ -97,7 +103,7 @@ pub async fn keynote_export(exports: tauri::State<'_, KeynoteExports>, request: 
     let id = new_id();
     let dir = std::env::temp_dir().join(format!("lumen-keynote-{id}"));
     let result = export(&dir, bytes);
-    let (info, images) = match result {
+    let (info, images, pptx) = match result {
         Ok(r) => r,
         Err(e) => {
             let _ = std::fs::remove_dir_all(&dir);
@@ -110,13 +116,18 @@ pub async fn keynote_export(exports: tauri::State<'_, KeynoteExports>, request: 
         height: info.height,
         slides: info.slides,
         images: images.len(),
+        pptx: pptx.is_some(),
     };
-    exports.0.lock().map_err(|e| e.to_string())?.insert(id, Export { dir, images });
+    exports
+        .0
+        .lock()
+        .map_err(|e| e.to_string())?
+        .insert(id, Export { dir, images, pptx });
     Ok(deck)
 }
 
 #[cfg(target_os = "macos")]
-fn export(dir: &std::path::Path, bytes: &[u8]) -> Result<(ScriptResult, Vec<PathBuf>), String> {
+fn export(dir: &std::path::Path, bytes: &[u8]) -> Result<Exported, String> {
     use std::process::Command;
     let out = dir.join("slides");
     std::fs::create_dir_all(&out).map_err(|e| e.to_string())?;
@@ -126,6 +137,7 @@ fn export(dir: &std::path::Path, bytes: &[u8]) -> Result<(ScriptResult, Vec<Path
         .args(["-l", "JavaScript", "-e", SCRIPT])
         .arg(&file)
         .arg(&out)
+        .arg(dir.join("presentation.pptx"))
         .output()
         .map_err(|e| format!("Couldn’t ask Keynote to open it: {e}"))?;
     if !run.status.success() {
@@ -143,13 +155,17 @@ fn export(dir: &std::path::Path, bytes: &[u8]) -> Result<(ScriptResult, Vec<Path
     let mut images = Vec::new();
     collect_images(&out, 0, &mut images);
     images.sort_by_key(|p| slide_number(p));
-    Ok((info, images))
+    let pptx = Some(dir.join("presentation.pptx")).filter(|p| p.is_file());
+    Ok((info, images, pptx))
 }
 
 #[cfg(not(target_os = "macos"))]
-fn export(_dir: &std::path::Path, _bytes: &[u8]) -> Result<(ScriptResult, Vec<PathBuf>), String> {
+fn export(_dir: &std::path::Path, _bytes: &[u8]) -> Result<Exported, String> {
     Err("Keynote files can only be imported on a Mac with Keynote. Export the presentation from Keynote as PowerPoint and import that instead.".into())
 }
+
+/// What Keynote said, its slide pictures, and its PowerPoint export if it made one.
+type Exported = (ScriptResult, Vec<PathBuf>, Option<PathBuf>);
 
 #[cfg_attr(not(target_os = "macos"), allow(dead_code))]
 fn collect_images(dir: &std::path::Path, depth: usize, out: &mut Vec<PathBuf>) {
@@ -189,6 +205,17 @@ pub async fn keynote_image(exports: tauri::State<'_, KeynoteExports>, id: String
         let map = exports.0.lock().map_err(|e| e.to_string())?;
         let export = map.get(&id).ok_or("That Keynote export is gone.")?;
         export.images.get(index).cloned().ok_or("There’s no such slide.")?
+    };
+    std::fs::read(&path).map(Response::new).map_err(|e| e.to_string())
+}
+
+/// Keynote's PowerPoint export of the presentation.
+#[tauri::command]
+pub async fn keynote_pptx(exports: tauri::State<'_, KeynoteExports>, id: String) -> Result<Response, String> {
+    let path = {
+        let map = exports.0.lock().map_err(|e| e.to_string())?;
+        let export = map.get(&id).ok_or("That Keynote export is gone.")?;
+        export.pptx.clone().ok_or("Keynote didn’t export it as PowerPoint.")?
     };
     std::fs::read(&path).map(Response::new).map_err(|e| e.to_string())
 }

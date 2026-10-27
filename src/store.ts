@@ -13,8 +13,7 @@ import { DEFAULT_TRANSITION, fromMs } from './transitions';
 import { ALL_LAYERS, clearLive } from './layers';
 import { DEFAULT_LOOK, lookScreen } from './looks';
 import { DEFAULT_STAGE_LAYOUTS } from './stageLayouts';
-import { isReadOnly, READ_ONLY_NOTICE, SLIDESHOW_LIBRARY_ID, SLIDESHOW_LIBRARY_NAME } from './slideshows';
-import { notify } from './notices';
+import { deckFileOf, isSlideshow, SLIDESHOW_LIBRARY_ID, SLIDESHOW_LIBRARY_NAME } from './slideshows';
 import type {
   Category,
   Library,
@@ -510,10 +509,8 @@ export const useStore = create<AppState>()(
         const p = get().presentations[pid];
         if (p) get().updatePresentation(pid, fn(p));
       };
-      /** PowerPoint and Keynote presentations: their slides can be labelled and given transitions, not changed. */
-      const locked = (pid: string | null) => !!pid && isReadOnly(get().presentations[pid]);
-      const only = <T extends object>(patch: T, keys: (keyof T)[]): T =>
-        Object.fromEntries(Object.entries(patch).filter(([k]) => keys.includes(k as keyof T))) as T;
+      /** PowerPoint and Keynote presentations: their slides are pictures, which Reflow's text would replace. */
+      const pictures = (pid: string | null) => !!pid && isSlideshow(get().presentations[pid]);
 
       return {
         ...initialLibrary(),
@@ -571,7 +568,7 @@ export const useStore = create<AppState>()(
           set((s) => ({ presentations: { ...s.presentations, ...Object.fromEntries(list.map((p) => [p.id, p])) } })),
         setPresentationText: (id, text) => {
           const p = get().presentations[id];
-          if (p && !locked(id)) get().updatePresentation(id, mergeParsed(p, parseLyrics(text)));
+          if (p && !pictures(id)) get().updatePresentation(id, mergeParsed(p, parseLyrics(text)));
         },
         duplicatePresentation: (id) => {
           const p = get().presentations[id];
@@ -596,24 +593,18 @@ export const useStore = create<AppState>()(
             };
           }),
 
-        updateSlide: (pid, slideId, change) => {
-          const patch = locked(pid) ? only(change, ['label', 'transition', 'media']) : change;
-          if (!Object.keys(patch).length) return;
+        updateSlide: (pid, slideId, patch) =>
           setGroups(pid, (groups) =>
             groups.map((g) =>
               g.slides.some((sl) => sl.id === slideId)
                 ? { ...g, slides: g.slides.map((sl) => (sl.id === slideId ? { ...sl, ...patch } : sl)) }
                 : g,
             ),
-          );
-        },
-        updateGroup: (pid, groupId, change) => {
-          const patch = locked(pid) ? only(change, ['name', 'color']) : change;
-          if (Object.keys(patch).length) setGroups(pid, (groups) => groups.map((g) => (g.id === groupId ? { ...g, ...patch } : g)));
-        },
+          ),
+        updateGroup: (pid, groupId, patch) => setGroups(pid, (groups) => groups.map((g) => (g.id === groupId ? { ...g, ...patch } : g))),
         addSlide: (pid, afterSlideId) => {
           const p = get().presentations[pid];
-          if (!p || locked(pid)) return null;
+          if (!p) return null;
           const slide: Slide = { id: uid(), text: '' };
           if (!p.groups.length) {
             const group: Group = { id: uid(), name: 'Verse 1', color: colorForGroup('Verse 1'), slides: [slide] };
@@ -634,7 +625,6 @@ export const useStore = create<AppState>()(
           return slide.id;
         },
         duplicateSlide: (pid, slideId) => {
-          if (locked(pid)) return null;
           const id = uid();
           setGroups(pid, (groups) =>
             groups.map((g) => {
@@ -649,7 +639,7 @@ export const useStore = create<AppState>()(
         },
         deleteSlide: (pid, slideId) => {
           const p = get().presentations[pid];
-          if (!p || locked(pid)) return;
+          if (!p) return;
           const groups = p.groups.map((g) => ({ ...g, slides: g.slides.filter((sl) => sl.id !== slideId) }));
           const emptied = new Set(groups.filter((g) => g.slides.length === 0).map((g) => g.id));
           get().updatePresentation(pid, {
@@ -660,18 +650,15 @@ export const useStore = create<AppState>()(
           if (get().selectedSlideIds.includes(slideId))
             set((s) => ({ selectedSlideIds: s.selectedSlideIds.filter((id) => id !== slideId) }));
         },
-        openEditor: (slideId = null) => {
-          if (locked(get().selectedPresentationId)) return void notify(READ_ONLY_NOTICE, 'info');
-          set({ mode: 'edit', editSlideId: slideId, editTextSelected: false, selectedSlideIds: slideId ? [slideId] : [] });
-        },
-        assignGroup: (pid, slideId, preset) => !locked(pid) && edit(pid, (p) => ops.assignGroup(p, slideId, preset)),
+        openEditor: (slideId = null) =>
+          set({ mode: 'edit', editSlideId: slideId, editTextSelected: false, selectedSlideIds: slideId ? [slideId] : [] }),
+        assignGroup: (pid, slideId, preset) => edit(pid, (p) => ops.assignGroup(p, slideId, preset)),
         deleteGroup: (pid, groupId) => {
-          if (locked(pid)) return;
           edit(pid, (p) => ops.deleteGroup(p, groupId));
           const p = get().presentations[pid];
           if (p && !p.groups.some((g) => g.slides.some((sl) => sl.id === get().editSlideId))) set({ editSlideId: null });
         },
-        duplicateGroup: (pid, groupId) => !locked(pid) && edit(pid, (p) => ops.duplicateGroup(p, groupId)),
+        duplicateGroup: (pid, groupId) => edit(pid, (p) => ops.duplicateGroup(p, groupId)),
         setSlideLabel: (pid, slideId, label) => edit(pid, (p) => ops.setLabel(p, slideId, label)),
         setSlideLabels: (pid, slideIds, label) => edit(pid, (p) => ops.setLabels(p, slideIds, label)),
         copyTextStyle: (pid, slideId) => {
@@ -682,9 +669,9 @@ export const useStore = create<AppState>()(
         },
         pasteTextStyle: (pid, scope) => {
           const style = get().styleClipboard;
-          if (style && !locked(pid)) edit(pid, (p) => ops.pasteTextStyle(p, scope, style));
+          if (style) edit(pid, (p) => ops.pasteTextStyle(p, scope, style));
         },
-        clearTextStyle: (pid, scope) => !locked(pid) && edit(pid, (p) => ops.clearTextStyle(p, scope)),
+        clearTextStyle: (pid, scope) => edit(pid, (p) => ops.clearTextStyle(p, scope)),
         setTransition: (pid, scope, transition) => edit(pid, (p) => ops.setTransition(p, scope, transition)),
         clearSlideTransitions: (pid) => edit(pid, (p) => ops.clearSlideTransitions(p)),
         clearPresentationTransitions: () =>
@@ -698,7 +685,13 @@ export const useStore = create<AppState>()(
           })),
         copySlides: (pid, slideIds) => {
           const p = get().presentations[pid];
-          const slides = p?.groups.flatMap((g) => g.slides).filter((sl) => slideIds.includes(sl.id));
+          const slides = p?.groups
+            .flatMap((g) => g.slides)
+            .filter((sl) => slideIds.includes(sl.id))
+            // A PowerPoint slide takes its file along, so it can be edited wherever it's pasted.
+            .map((sl) =>
+              sl.source && !sl.source.file && deckFileOf(p, sl) ? { ...sl, source: { ...sl.source, file: deckFileOf(p, sl) } } : sl,
+            );
           if (slides?.length) set({ slideClipboard: structuredClone(slides) });
         },
         cutSlides: (pid, slideIds) => {
@@ -708,7 +701,7 @@ export const useStore = create<AppState>()(
         pasteSlides: (pid, afterSlideId, options) => {
           const copied = get().slideClipboard;
           const p = get().presentations[pid];
-          if (!copied?.length || !p || locked(pid)) return null;
+          if (!copied?.length || !p) return null;
           const slides = options?.matchStyle ? ops.matchStyle(copied) : copied;
           const before = new Set(p.groups.flatMap((g) => g.slides.map((sl) => sl.id)));
           get().updatePresentation(pid, ops.insertSlides(p, afterSlideId, slides));

@@ -76,6 +76,7 @@ export function installDesktopBridge() {
         }
       : {}),
     keynoteImage: (id, index) => invoke<ArrayBuffer>('keynote_image', { id, index }),
+    keynotePptx: (id) => invoke<ArrayBuffer>('keynote_pptx', { id }),
     keynoteDone: (id) => invoke('keynote_done', { id }),
     openFiles: async (options) => {
       const opened = await invoke<{ folder: string | null; files: { name: string; path: string }[] }>('open_files', { options });

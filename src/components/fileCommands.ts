@@ -7,7 +7,7 @@
 import { zipSync } from 'fflate';
 import { create } from 'zustand';
 import { IMPORT_ACCEPT, importFiles, newPresentation } from '../commands';
-import { isReadOnly } from '../slideshows';
+import { isSlideshow } from '../slideshows';
 import {
   EXTENSIONS,
   encodeJson,
@@ -71,7 +71,7 @@ async function working<T>(text: string, run: () => Promise<T>): Promise<T> {
   }
 }
 
-const failed = (what: string) => (e: unknown) => notify(`${what}: ${e instanceof Error ? e.message : String(e)}`, 'error');
+export const failed = (what: string) => (e: unknown) => notify(`${what}: ${e instanceof Error ? e.message : String(e)}`, 'error');
 
 // ---- New --------------------------------------------------------------------------------------
 
@@ -192,7 +192,7 @@ function presentationOrSay(id?: string) {
 export async function exportPresentation(id?: string) {
   const p = presentationOrSay(id);
   if (!p) return;
-  if (isReadOnly(p)) return exportBundle(p.id);
+  if (isSlideshow(p)) return exportBundle(p.id);
   const file = presentationFile(st(), p.id);
   await saveBytes(
     `${safeFileName(p.title)}.${EXTENSIONS.presentation}`,

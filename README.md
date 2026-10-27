@@ -123,7 +123,7 @@ npm run format       # Prettier
 - **Messages** on the audience screen, with `{countdown}` and `{clock}` tokens.
 - **Stage display** showing the current and next slide, notes, clock, timer, and a flashing message to the stage.
 - **ProPresenter import** of `.pro` presentations, `.proplaylist` playlists and `.rvbible` Bibles (see below).
-- **PowerPoint and Keynote import** into their own library, read-only for now (see below).
+- **PowerPoint and Keynote import** into their own library, with their slides editable in Edit mode (see below).
 - **Bible mode**, laid out like ProPresenter's (see Bible below), from imported Bibles (offline) or public-domain translations via [bible-api.com](https://bible-api.com).
 - **File menu** like ProPresenter's: new presentations, playlists and libraries; import songs, folders, media, text from the clipboard and Bibles; export presentations, bundles, text, slide images, playlists and themes (see The File menu below).
 - **Edit menu** like ProPresenter's, for text fields and for slides: select several slides (⌘-click, ⇧-click, Select All) and cut, copy, paste (or paste and match style), duplicate or delete them, or copy and paste their text style (see The Edit menu below).
@@ -438,11 +438,25 @@ Songs already in your library (same title and slides) are reused rather than dup
 Use **File ▸ Import ▸ PowerPoint or Keynote…**, **Import ▸ File…**, or drag `.pptx` and `.key` files onto the sidebar. They go into the **PowerPoint & Keynote** library (it's made again if you deleted it), whichever library is open.
 
 - **PowerPoint (`.pptx`)**, from PowerPoint, Google Slides or Keynote's export, on any computer. Lumen reads the file and draws each slide as a 1920×1080 picture: the slide master's and layout's shapes, backgrounds (colors, gradients, pictures), shapes and drawn outlines, groups, pictures with their crops, and text with its fonts, sizes, colors, bullets and numbering, spacing and alignment. Animations, videos, charts and SmartArt aren't drawn, and fonts the computer doesn't have fall back to similar ones (install the presentation's fonts for the closest match). A slide that isn't 16:9 sits in the middle on black.
-- **Keynote (`.key`)**, in the Mac desktop app with Keynote installed. Lumen asks Keynote to export the slides as pictures; the first time, macOS asks whether Lumen may control Keynote (change it later in **System Settings ▸ Privacy & Security ▸ Automation**). Elsewhere, export from Keynote with **File ▸ Export To ▸ PowerPoint** and import that.
+- **Keynote (`.key`)**, in the Mac desktop app with Keynote installed. Lumen asks Keynote to export the slides as pictures, and a PowerPoint copy to edit them from; the first time, macOS asks whether Lumen may control Keynote (change it later in **System Settings ▸ Privacy & Security ▸ Automation**). Elsewhere, export from Keynote with **File ▸ Export To ▸ PowerPoint** and import that.
 
 Each slide keeps its words (top to bottom), which **Search** finds and the stage display's Current and Next Slide Text show, and its speaker notes as the slide's notes for the stage. PowerPoint's sections become groups; otherwise the slides are in one group. Hidden (skipped) slides are left out. PowerPoint 97–2003 `.ppt` files can't be read; save them as `.pptx` first.
 
-**Read-only for now.** These presentations can't be edited, reflowed or restyled, and their slides can't be added, deleted or pasted over; Edit and Reflow are off, and Lumen says so if you try. You can still show them, rename them and their groups, move them between libraries, label slides, give slides, groups or the whole presentation transitions, add media cues, copy slides into other presentations, and put them in playlists. The original file, and for PowerPoint Lumen's model of every shape and text box, are kept with the presentation, ready for editing in a later version.
+### Editing PowerPoint and Keynote slides
+
+Open a slide in **Edit** (double-click it, or the Edit button). Instead of Lumen's text box, the slide's own shapes, pictures and text boxes are there to change:
+
+- **Click** a shape, picture or text box to select it; **drag** it to move (arrow keys nudge, Shift by 10), drag the **handles** to resize (Shift, and pictures, keep their shape) and the round handle above to **turn** it (Shift: 15° steps). The slide's design (its master and layout: backgrounds, bands, logos) stays put and can't be selected.
+- **Double-click** a text box (or press Return) to type in it. Its fonts, sizes and colors stay as they are; select words and use **B**, **I**, **U** or a color swatch in the inspector to change just them. Click outside or press Escape when done.
+- The inspector's **Shape** tab has the position, size and angle; Front, Forward, Backward and Back; the text's font, size, color, bold, italic, underline, alignment and vertical alignment (for the whole box); and fill and line colors. With nothing selected it's **Slide Design**, with the slide's background color.
+- The buttons above the slide add a **text box**, a **shape** (rectangle, rounded rectangle, oval, triangles, line) or a **picture** (from a file or the media bin).
+- Edit's **Cut**, **Copy**, **Paste**, **Duplicate** and **Delete** (and the keys) work on the selected shape, or on the slide when nothing is selected. Right-click a shape for them, and for its order.
+
+Each change is one step to undo, and redraws the slide's picture, so thumbnails, the stage and the screens show it straight away (also while it's live). The slide's words for search and the stage come from its text as it now is.
+
+Slides can be added (**Insert Blank Slide** gives one with the same design), duplicated, deleted, cut, copied and pasted, moved between groups and reordered like any slide; a copied slide takes its PowerPoint file along, so it can be edited in another presentation too. **Reflow** stays off for these presentations, since their slides are pictures rather than text.
+
+Keynote slides are edited from Keynote's PowerPoint copy, so a slide may look slightly different from Keynote's own picture once it's changed. Keynote presentations imported before editing came in have no PowerPoint copy yet: Edit offers **Make Editable with Keynote** (Mac, with Keynote).
 
 ## Bible
 
@@ -547,10 +561,13 @@ src/
   bibleSlides.ts   Bible mode's slides: verses into the template's boxes, references, verse numbers, parallel translations
   versification.ts chapter and verse counts of the 66 books, for online translations
   commands.ts      new presentation, file import (ProPresenter files, lyrics, Bibles, slideshows and Lumen's own)
-  slideshows.ts    PowerPoint and Keynote presentations: read-only, their slides' words, the files they keep
+  slideshows.ts    PowerPoint and Keynote presentations: their slides' words, the files they keep, which file a slide edits from
   slideshowImport.ts  importing them: drawing PowerPoint slides, having Keynote export its slides, the library
   deck.ts          Lumen's model of a PowerPoint deck: shapes, pictures and text, resolved from masters and layouts
   deckRender.ts    draws a deck's slides onto a canvas (shapes, gradients, pictures, wrapped text, bullets)
+  deckEdit.ts      editing a deck slide: hit-testing, moving, resizing and turning, restacking, new shapes, text formatting
+  deckSlides.ts    a slide's model to edit (saved, or from its PowerPoint file), saving it and redrawing its picture
+  deckTextDom.ts   a text box as HTML for typing in it, and back
   fileFormats.ts   Lumen's export files (.lumen, .lumenbundle, .lumenplaylist, .lumenthemes): writing, reading, importing
   slideImages.ts   drawing slides onto a canvas for Export ▸ Slide Images
   looks.ts         looks: which layers each audience screen shows, its theme and mask
@@ -592,6 +609,7 @@ src/
     ClearGroups    the Clear Groups row and its window
     AudioTab, AudioPlayer  the audio bin, and the player for the Audio layer (with its fade-out)
     EditView       slide outline, canvas editor with rulers, inspector
+    DeckEditor     Edit mode for PowerPoint and Keynote slides: their shapes on a canvas, typing in place, the Shape inspector
     ReflowView     lyrics text editor
     Canvas         1920×1080 canvas, auto-fitting text, layered output, transitions
     ScreenConfig   Screen Configuration window
@@ -616,7 +634,7 @@ src-tauri/          the desktop app (Tauri, Rust)
   src/window.rs    the Window menu: moving and arranging windows, New Windowed Output, the window list
   src/screens.rs   the Screens menu, with the looks listed under Live
   src/capture.rs   capture files: Save To's folders, writing the recording as it comes
-  src/keynote.rs   Keynote files (macOS): has Keynote export the slides as pictures, with their words and notes
+  src/keynote.rs   Keynote files (macOS): has Keynote export the slides as pictures and a PowerPoint copy, with their words and notes
   src/presentation.rs  the Presentation menu, with the operator's clear groups listed in Clear Groups
   src/edit.rs      the Edit menu: its items on and off, Undo and Redo named after the next step, macOS's own
                    Spelling and Grammar and Transformations, and Edit's commands for a Save or Open panel in front

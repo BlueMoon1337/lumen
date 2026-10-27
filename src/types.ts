@@ -39,19 +39,30 @@ export interface SlideSource {
   text: string;
   /** Its number in the file, from 1. */
   number: number;
+  /**
+   * The PowerPoint file it was made from (stored like media; for Keynote, Keynote's PowerPoint
+   * export), whose pictures it uses. Unset on slides imported before editing: the presentation's.
+   */
+  file?: string;
+  /** Once edited: the slide as Lumen's model (an EditableSlide, as JSON), stored like media. */
+  model?: string;
+  /** Pictures added in Lumen that the model uses ("media:<id>"), stored like media. */
+  images?: string[];
 }
 
 /**
- * The file a presentation was made from (a PowerPoint or Keynote file). Such presentations are
- * read-only for now; the file and Lumen's model of it (src/deck.ts) are kept for editing later.
+ * The file a presentation was made from (a PowerPoint or Keynote file). Its slides are pictures,
+ * edited as Lumen's model of the file (src/deck.ts, src/deckEdit.ts).
  */
 export interface PresentationSource {
   kind: 'powerpoint' | 'keynote';
   fileName: string;
   /** The original file, stored like media. */
   fileId?: string;
-  /** Lumen's model of the slides (a Deck, as JSON), stored like media; PowerPoint files only. */
+  /** Lumen's model of the slides (a Deck, as JSON), stored like media, as imported. */
   modelId?: string;
+  /** Keynote: Keynote's PowerPoint export of it, which its slides are edited from. */
+  pptxId?: string;
   /** The slides' size, in px. */
   width: number;
   height: number;

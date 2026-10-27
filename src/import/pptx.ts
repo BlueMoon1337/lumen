@@ -761,7 +761,7 @@ function shapeOf(ctx: Ctx, part: Part, sp: XmlElement, inherit: Inherit): DeckEl
   }
   const geometry = geometryOf(spPr ?? undefined);
   if (!text && !fill && !stroke) return undefined;
-  return { kind: 'shape', ...box, geometry, fill: fill ?? null, stroke: stroke ?? null, text };
+  return { kind: 'shape', ...box, ...(ph ? { placeholder: ph.type } : {}), geometry, fill: fill ?? null, stroke: stroke ?? null, text };
 }
 
 function pictureOf(ctx: Ctx, part: Part, pic: XmlElement): DeckElement | undefined {
@@ -922,12 +922,15 @@ export function parsePptx(bytes: Uint8Array): Deck {
     const showMaster = slide.xml.attrs.showMasterSp !== '0';
     const layoutShowsMaster = layout?.xml.attrs.showMasterSp !== '0';
     const elements: DeckElement[] = [];
+    const design = (els: DeckElement[]) => els.map((e) => ({ ...e, template: true }));
     if (showMaster && layoutShowsMaster && master)
       elements.push(
-        ...elementsOf({ ...ctx, clrMap: masterMap }, master, path(master.xml, 'cSld', 'spTree'), { master, defaultTextStyle }, true),
+        ...design(
+          elementsOf({ ...ctx, clrMap: masterMap }, master, path(master.xml, 'cSld', 'spTree'), { master, defaultTextStyle }, true),
+        ),
       );
     if (showMaster && layout)
-      elements.push(...elementsOf(ctx, layout, path(layout.xml, 'cSld', 'spTree'), { layout, master, defaultTextStyle }, true));
+      elements.push(...design(elementsOf(ctx, layout, path(layout.xml, 'cSld', 'spTree'), { layout, master, defaultTextStyle }, true)));
     const tree = path(slide.xml, 'cSld', 'spTree');
     elements.push(...elementsOf(ctx, slide, tree, inherit, false));
 

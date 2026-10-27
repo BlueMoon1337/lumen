@@ -24,6 +24,7 @@ import { deleteSlide } from './deleting';
 import { clickSlide, selectForMenu } from './editCommands';
 import { FontSelect } from './FontSelect';
 import { MenuSelect, type MenuEntry } from './MenuSelect';
+import { DeckEditor } from './DeckEditor';
 import { canvasMenu, groupMenu, slideMenu } from './menus';
 import { LabelTag, MediaBadge, TransitionBadge, useMediaDrop } from './ShowView';
 import { LibraryOptions } from './Sidebar';
@@ -68,6 +69,14 @@ export function EditView() {
   }, [found, first]);
 
   if (!p) return <NoPresentation />;
+  // A PowerPoint or Keynote slide is edited as its shapes, pictures and text boxes.
+  if (found?.slide.source)
+    return (
+      <>
+        <EditOutline presentation={p} />
+        <DeckEditor key={found.slide.id} presentation={p} slide={found.slide} group={found.group} />
+      </>
+    );
   return (
     <>
       <EditOutline presentation={p} showObjects />
@@ -213,8 +222,8 @@ function OutlineSlide({
 export type Handle = 'move' | 'n' | 's' | 'e' | 'w' | 'ne' | 'nw' | 'se' | 'sw';
 export const HANDLES: Exclude<Handle, 'move'>[] = ['nw', 'n', 'ne', 'e', 'se', 's', 'sw', 'w'];
 export const RULER = 20;
-const TOOLBAR_SPACE = 64;
-const PAD = 36;
+export const TOOLBAR_SPACE = 64;
+export const PAD = 36;
 const MIN_SIZE = 3;
 
 const clamp = (v: number, lo: number, hi: number) => Math.min(hi, Math.max(lo, v));
@@ -634,7 +643,7 @@ export function Switch({ checked, onChange, label }: { checked: boolean; onChang
   );
 }
 
-function PresentationTab({ presentation: p }: { presentation: Presentation }) {
+export function PresentationTab({ presentation: p }: { presentation: Presentation }) {
   const themes = useStore((s) => s.themes);
   const s = useStore.getState();
   const update = (patch: Partial<Presentation>) => s.updatePresentation(p.id, patch);
@@ -919,7 +928,7 @@ function LabelSection({ presentation: p, slide }: { presentation: Presentation; 
   );
 }
 
-function SlideTab({ presentation: p, slide, group }: { presentation: Presentation; slide: Slide; group: Group }) {
+export function SlideTab({ presentation: p, slide, group }: { presentation: Presentation; slide: Slide; group: Group }) {
   const media = useStore((s) => s.media);
   const base = useBaseTheme(p);
   const s = useStore.getState();
@@ -937,69 +946,75 @@ function SlideTab({ presentation: p, slide, group }: { presentation: Presentatio
         <TransitionButton target={{ presentationId: p.id, scope: { slideId: slide.id } }} className="insp-wide" />
         <p className="small-print muted">How this slide comes on screen.</p>
       </section>
-      <section className="insp-section">
-        <div className="insp-heading">
-          Background
-          <span className="insp-heading-aside">
-            Override theme
-            <Switch
-              checked={!!bg}
-              onChange={(on) =>
-                updateSlide({
-                  background: on
-                    ? (p.background ?? base.background).type === 'none'
-                      ? { type: 'color', color: '#202124', color2: '#202124' }
-                      : { ...(p.background ?? base.background) }
-                    : undefined,
-                })
-              }
-              label="Override the theme background"
-            />
-          </span>
-        </div>
-        {bg ? (
-          <>
-            <Field label="Type">
-              <select value={bg.type} onChange={(e) => setBg({ type: e.target.value as ThemeBackground['type'] })}>
-                <option value="none">None (transparent)</option>
-                <option value="color">Color</option>
-                <option value="gradient">Gradient</option>
-                <option value="media">Image / video</option>
-              </select>
-            </Field>
-            {(bg.type === 'color' || bg.type === 'gradient') && (
-              <Field label="Colors">
-                <span className="pair">
-                  <input type="color" value={bg.color} onChange={(e) => setBg({ color: e.target.value })} />
-                  {bg.type === 'gradient' && <input type="color" value={bg.color2} onChange={(e) => setBg({ color2: e.target.value })} />}
-                </span>
-              </Field>
-            )}
-            {bg.type === 'media' && (
-              <Field label="Media">
-                <select value={bg.mediaId ?? ''} onChange={(e) => setBg({ mediaId: e.target.value || undefined })}>
-                  <option value="">Choose…</option>
-                  {media.map((m) => (
-                    <option key={m.id} value={m.id}>
-                      {m.name}
-                    </option>
-                  ))}
+      {!slide.source && (
+        <section className="insp-section">
+          <div className="insp-heading">
+            Background
+            <span className="insp-heading-aside">
+              Override theme
+              <Switch
+                checked={!!bg}
+                onChange={(on) =>
+                  updateSlide({
+                    background: on
+                      ? (p.background ?? base.background).type === 'none'
+                        ? { type: 'color', color: '#202124', color2: '#202124' }
+                        : { ...(p.background ?? base.background) }
+                      : undefined,
+                  })
+                }
+                label="Override the theme background"
+              />
+            </span>
+          </div>
+          {bg ? (
+            <>
+              <Field label="Type">
+                <select value={bg.type} onChange={(e) => setBg({ type: e.target.value as ThemeBackground['type'] })}>
+                  <option value="none">None (transparent)</option>
+                  <option value="color">Color</option>
+                  <option value="gradient">Gradient</option>
+                  <option value="media">Image / video</option>
                 </select>
               </Field>
-            )}
-          </>
-        ) : (
-          <p className="small-print muted">This slide uses the theme background.</p>
-        )}
-      </section>
+              {(bg.type === 'color' || bg.type === 'gradient') && (
+                <Field label="Colors">
+                  <span className="pair">
+                    <input type="color" value={bg.color} onChange={(e) => setBg({ color: e.target.value })} />
+                    {bg.type === 'gradient' && <input type="color" value={bg.color2} onChange={(e) => setBg({ color2: e.target.value })} />}
+                  </span>
+                </Field>
+              )}
+              {bg.type === 'media' && (
+                <Field label="Media">
+                  <select value={bg.mediaId ?? ''} onChange={(e) => setBg({ mediaId: e.target.value || undefined })}>
+                    <option value="">Choose…</option>
+                    {media.map((m) => (
+                      <option key={m.id} value={m.id}>
+                        {m.name}
+                      </option>
+                    ))}
+                  </select>
+                </Field>
+              )}
+            </>
+          ) : (
+            <p className="small-print muted">This slide uses the theme background.</p>
+          )}
+        </section>
+      )}
       <section className="insp-section">
-        <div className="insp-heading">Caption</div>
-        <input
-          className="insp-wide"
-          value={slide.caption ?? ''}
-          placeholder="e.g. John 3:16"
-          onChange={(e) => updateSlide({ caption: e.target.value || undefined })}
-        />
+        {!slide.source && (
+          <>
+            <div className="insp-heading">Caption</div>
+            <input
+              className="insp-wide"
+              value={slide.caption ?? ''}
+              placeholder="e.g. John 3:16"
+              onChange={(e) => updateSlide({ caption: e.target.value || undefined })}
+            />
+          </>
+        )}
         <div className="insp-heading">Stage notes</div>
         <textarea
           className="insp-wide"

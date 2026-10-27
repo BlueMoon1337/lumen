@@ -7,7 +7,7 @@
 import type { Deck, DeckElement, DeckFill, DeckGeometry, DeckParagraph, DeckPath, DeckRun, DeckSlide, DeckStroke, DeckText } from './deck';
 
 type Ctx = CanvasRenderingContext2D;
-type Images = Map<string, CanvasImageSource | null>;
+export type Images = Map<string, CanvasImageSource | null>;
 
 const MIME: Record<string, string> = {
   png: 'image/png',
@@ -19,8 +19,8 @@ const MIME: Record<string, string> = {
   webp: 'image/webp',
 };
 
-/** The pictures a deck uses, decoded (those that can't be, such as EMF, are null). */
-export async function loadDeckImages(deck: Deck, files: Map<string, Uint8Array>): Promise<Images> {
+/** The paths of the pictures slides use (pictures, picture fills, picture backgrounds). */
+export function deckImagePaths(slides: DeckSlide[]): Set<string> {
   const paths = new Set<string>();
   const walk = (els: DeckElement[]) =>
     els.forEach((e) => {
@@ -28,28 +28,43 @@ export async function loadDeckImages(deck: Deck, files: Map<string, Uint8Array>)
       if (e.kind === 'shape' && e.fill?.kind === 'image') paths.add(e.fill.image);
       if (e.kind === 'group') walk(e.children);
     });
-  for (const s of deck.slides) {
+  for (const s of slides) {
     if (s.background?.kind === 'image') paths.add(s.background.image);
     walk(s.elements);
   }
+  return paths;
+}
+
+/** A picture decoded for drawing, or null if it can't be (EMF, say). */
+export async function decodeImage(blob: Blob): Promise<CanvasImageSource | null> {
+  try {
+    if (blob.type === 'image/svg+xml') {
+      const url = URL.createObjectURL(blob);
+      const img = new Image();
+      img.src = url;
+      await img.decode();
+      return img;
+    }
+    return await createImageBitmap(blob);
+  } catch {
+    return null;
+  }
+}
+
+/** A picture in the file, by its path, as a typed Blob; null for a kind that can't be drawn. */
+export function fileImage(path: string, files: Map<string, Uint8Array>): Blob | null {
+  const bytes = files.get(path);
+  const type = MIME[path.slice(path.lastIndexOf('.') + 1).toLowerCase()];
+  return bytes && type ? new Blob([bytes as BlobPart], { type }) : null;
+}
+
+/** The pictures a deck uses, decoded (those that can't be, such as EMF, are null). */
+export async function loadDeckImages(deck: Deck, files: Map<string, Uint8Array>): Promise<Images> {
   const images: Images = new Map();
   await Promise.all(
-    [...paths].map(async (p) => {
-      const bytes = files.get(p);
-      const type = MIME[p.slice(p.lastIndexOf('.') + 1).toLowerCase()];
-      if (!bytes || !type) return images.set(p, null);
-      const blob = new Blob([bytes as BlobPart], { type });
-      try {
-        if (type === 'image/svg+xml') {
-          const url = URL.createObjectURL(blob);
-          const img = new Image();
-          img.src = url;
-          await img.decode();
-          images.set(p, img);
-        } else images.set(p, await createImageBitmap(blob));
-      } catch {
-        images.set(p, null);
-      }
+    [...deckImagePaths(deck.slides)].map(async (p) => {
+      const blob = fileImage(p, files);
+      images.set(p, blob ? await decodeImage(blob) : null);
     }),
   );
   return images;
@@ -530,7 +545,13 @@ export function drawDeckSlide(ctx: Ctx, deck: Pick<Deck, 'width' | 'height'>, sl
  * A slide as a 1920 × 1080 JPEG for the screens: a slide of another shape (4:3, say) sits in the
  * middle on black.
  */
-export async function renderDeckSlide(deck: Deck, slide: DeckSlide, images: Images, width = 1920, height = 1080): Promise<Blob> {
+export async function renderDeckSlide(
+  deck: Pick<Deck, 'width' | 'height'>,
+  slide: DeckSlide,
+  images: Images,
+  width = 1920,
+  height = 1080,
+): Promise<Blob> {
   const canvas = document.createElement('canvas');
   canvas.width = width;
   canvas.height = height;

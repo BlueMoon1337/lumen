@@ -66,6 +66,7 @@ pub fn run() {
             capture::choose_capture_folder,
             keynote::keynote_export,
             keynote::keynote_image,
+            keynote::keynote_pptx,
             keynote::keynote_done,
         ])
         .setup(|app| {

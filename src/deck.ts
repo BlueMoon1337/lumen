@@ -111,6 +111,10 @@ interface DeckBox {
   rotation: number;
   flipH: boolean;
   flipV: boolean;
+  /** From the slide master or layout (the slide's design), rather than the slide itself. */
+  template?: boolean;
+  /** The placeholder it fills: title, body, sldNum (slide number)… */
+  placeholder?: string;
 }
 
 export interface DeckShape extends DeckBox {
@@ -123,7 +127,7 @@ export interface DeckShape extends DeckBox {
 
 export interface DeckPicture extends DeckBox {
   kind: 'picture';
-  /** The picture's path in the file (ppt/media/image3.png). */
+  /** The picture's path in the file (ppt/media/image3.png), or "media:<id>" for one stored in Lumen. */
   image: string;
   crop?: DeckCrop;
   alpha?: number;
@@ -147,6 +151,13 @@ export interface DeckSlide {
   /** The speaker notes. */
   notes: string;
   hidden: boolean;
+}
+
+/** One slide of a deck as Lumen keeps it for editing: the slide, and the deck's size. */
+export interface EditableSlide {
+  width: number;
+  height: number;
+  slide: DeckSlide;
 }
 
 export interface Deck {

@@ -4,7 +4,8 @@
  * the keys run these.
  */
 import { useEffect } from 'react';
-import { isReadOnly } from '../slideshows';
+import { notify } from '../notices';
+import { isSlideshow, REFLOW_NOTICE } from '../slideshows';
 import { useStore, type AppState, type Mode } from '../store';
 import type { Settings } from '../types';
 import { isTypingTarget } from '../util';
@@ -21,15 +22,17 @@ const SLIDE_VIEWS: Record<string, Settings['slideView']> = {
 };
 
 const hasPresentation = (s: AppState) => !!s.selectedPresentationId && !!s.presentations[s.selectedPresentationId];
-/** A presentation that can be edited: not a PowerPoint or Keynote one. */
-const editable = (s: AppState) => hasPresentation(s) && !isReadOnly(s.presentations[s.selectedPresentationId!]);
+/** Reflow is text: not for a PowerPoint or Keynote presentation's picture slides. */
+const reflowable = (s: AppState) => hasPresentation(s) && !isSlideshow(s.presentations[s.selectedPresentationId!]);
 
 export function canRunView(id: string, s: AppState = st()): boolean {
-  return id === 'view-edit' || id === 'view-reflow' ? editable(s) : id in MODES || id in SLIDE_VIEWS || id === 'continuous-playlist';
+  if (id === 'view-reflow') return reflowable(s);
+  return id === 'view-edit' ? hasPresentation(s) : id in MODES || id in SLIDE_VIEWS || id === 'continuous-playlist';
 }
 
 export function runViewCommand(id: string): boolean {
   const s = st();
+  if (id === 'view-reflow' && hasPresentation(s) && !reflowable(s)) return (void notify(REFLOW_NOTICE, 'info'), true);
   if (!canRunView(id, s)) return false;
   if (id in MODES) s.setUI({ mode: MODES[id] });
   else if (id in SLIDE_VIEWS) s.updateSettings({ slideView: SLIDE_VIEWS[id] });
@@ -60,7 +63,7 @@ export function useViewCommands() {
       const sync = () => {
         const s = st();
         const state = {
-          presentation: editable(s),
+          presentation: hasPresentation(s),
           continuousPlaylist: !!s.settings.continuousPlaylist,
           slideView: s.settings.slideView,
         };

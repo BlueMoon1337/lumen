@@ -16,7 +16,7 @@ import { windowEntries } from './windowCommands';
 import { useElapsed } from './CaptureDialog';
 import { stopCapture, useCapture } from '../capture';
 import { checkForUpdates, useUpdates } from '../updates';
-import { isReadOnly, READ_ONLY_NOTICE, slideWords } from '../slideshows';
+import { isSlideshow, REFLOW_NOTICE, slideWords } from '../slideshows';
 import { FontSelect } from './FontSelect';
 import { useToolbarPop, type PopoverName } from './toolbarState';
 import { Icon, IconButton, Popover, shortcut, type IconName } from './ui';
@@ -140,7 +140,7 @@ function ScreenTool({ kind, label, onConfigure }: { kind: ScreenKind; label: str
 export function Toolbar({ onSettings, onScreens }: { onSettings: () => void; onScreens: () => void }) {
   const mode = useStore((s) => s.mode);
   const hasSelection = useStore((s) => !!s.selectedPresentationId && !!s.presentations[s.selectedPresentationId]);
-  const readOnly = useStore((s) => isReadOnly(s.selectedPresentationId ? s.presentations[s.selectedPresentationId] : null));
+  const pictures = useStore((s) => isSlideshow(s.selectedPresentationId ? s.presentations[s.selectedPresentationId] : null));
   const showMediaBin = useStore((s) => s.showMediaBin);
   const pop = useToolbarPop((s) => s.pop);
   const close = useCallback(() => useToolbarPop.setState({ pop: null }), []);
@@ -172,20 +172,13 @@ export function Toolbar({ onSettings, onScreens }: { onSettings: () => void; onS
       </div>
       <div className="tool-group">
         <Tool icon="play" label="Show" active={mode === 'show'} onClick={() => setMode('show')} />
-        <Tool
-          icon="edit"
-          label="Edit"
-          active={mode === 'edit'}
-          disabled={!hasSelection || readOnly}
-          title={readOnly ? READ_ONLY_NOTICE : undefined}
-          onClick={() => setMode('edit')}
-        />
+        <Tool icon="edit" label="Edit" active={mode === 'edit'} disabled={!hasSelection} onClick={() => setMode('edit')} />
         <Tool
           icon="reflow"
           label="Reflow"
           active={mode === 'reflow'}
-          disabled={!hasSelection || readOnly}
-          title={readOnly ? READ_ONLY_NOTICE : undefined}
+          disabled={!hasSelection || pictures}
+          title={pictures ? REFLOW_NOTICE : undefined}
           onClick={() => setMode('reflow')}
         />
         <Tool icon="bible" label="Bible" active={mode === 'bible'} onClick={() => setMode(mode === 'bible' ? 'show' : 'bible')} />

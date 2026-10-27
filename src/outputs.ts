@@ -79,8 +79,17 @@ export interface DesktopBridge {
   keynoteExport?(
     name: string,
     data: Uint8Array,
-  ): Promise<{ id: string; width: number; height: number; images: number; slides: { text: string; notes: string; skipped: boolean }[] }>;
+  ): Promise<{
+    id: string;
+    width: number;
+    height: number;
+    images: number;
+    /** Whether Keynote also exported it as PowerPoint, for editing (read it with keynotePptx). */
+    pptx: boolean;
+    slides: { text: string; notes: string; skipped: boolean }[];
+  }>;
   keynoteImage(id: string, index: number): Promise<ArrayBuffer>;
+  keynotePptx(id: string): Promise<ArrayBuffer>;
   keynoteDone(id: string): Promise<void>;
   /** The View menu's checkmarks, and its editors on or off. */
   setViewState(state: { presentation: boolean; continuousPlaylist: boolean; slideView: string }): void;

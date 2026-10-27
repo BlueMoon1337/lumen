@@ -38,7 +38,7 @@ import { Sidebar } from './Sidebar';
 import { DEFAULT_PANES, setPaneSize, Splitter } from './Splitter';
 import { ThemeEditorDialog } from './ThemeEditor';
 import { Toolbar } from './Toolbar';
-import { isReadOnly, ownFiles } from '../slideshows';
+import { isSlideshow, ownFiles } from '../slideshows';
 
 // Record edits for undo from the start, before any view reads the store's actions.
 installHistory();
@@ -288,12 +288,12 @@ export default function ControlApp() {
   const appIcon = useStore((s) => s.settings.appIcon);
 
   useEffect(() => startFrameSync(), []);
-  // PowerPoint and Keynote presentations can't be edited: choosing one leaves the editors.
+  // PowerPoint and Keynote presentations have no Reflow (their slides are pictures): choosing one leaves it.
   useEffect(
     () =>
       useStore.subscribe((s) => {
         const p = s.selectedPresentationId ? s.presentations[s.selectedPresentationId] : null;
-        if ((s.mode === 'edit' || s.mode === 'reflow') && isReadOnly(p)) s.setUI({ mode: 'show' });
+        if (s.mode === 'reflow' && isSlideshow(p)) s.setUI({ mode: 'show' });
       }),
     [],
   );

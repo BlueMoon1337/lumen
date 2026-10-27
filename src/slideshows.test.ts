@@ -4,7 +4,7 @@ import { slideMenu } from './components/menus';
 import { planImport, presentationFile, readLumenFile, zipFile } from './fileFormats';
 import { buildFrame } from './frame';
 import { getSequence } from './lyrics';
-import { isReadOnly, ownFiles, slideWords, withoutMissingFiles } from './slideshows';
+import { deckFileOf, isSlideshow, ownFiles, slideWords, withoutMissingFiles } from './slideshows';
 import { useStore } from './store';
 import type { Presentation } from './types';
 
@@ -51,62 +51,48 @@ describe('imported PowerPoint and Keynote presentations', () => {
     expect(slideWords(slides(id)[1])).toBe('OBJECTIVES');
   });
 
-  it('can’t have their slides changed, added, removed or restyled', () => {
-    const id = slideshow();
-    const before = structuredClone(s().presentations[id].groups);
-    s().updateSlide(id, 's1', { text: 'Typed over', background: { type: 'color', color: '#fff', color2: '#fff' } });
-    expect(s().addSlide(id, 's1')).toBeNull();
-    expect(s().duplicateSlide(id, 's1')).toBeNull();
-    s().deleteSlides(id, ['s2']);
-    s().cutSlides(id, ['s1']);
-    s().setPresentationText(id, 'New words');
-    s().clearTextStyle(id, 'presentation');
-    s().copySlides(id, ['s2']);
-    expect(s().pasteSlides(id, 's1')).toBeNull();
-    s().assignGroup(id, 's2', { name: 'Chorus', color: '#f00' });
-    s().deleteGroup(id, 'g1');
-    expect(s().presentations[id].groups).toEqual(before);
-    // Cut still copied.
-    expect(s().slideClipboard?.map((sl) => sl.id)).toEqual(['s2']);
-  });
-
-  it('can still be labelled, given transitions and renamed', () => {
-    const id = slideshow();
-    s().setSlideLabels(id, ['s1', 's2'], { name: 'Opening', color: '#e07b28' });
-    s().setTransition(id, { slideId: 's2' }, { kind: 'cut', ms: 0 });
-    s().updateGroup(id, 'g1', { name: 'Welcome', color: '#123456', slides: [] });
-    s().updatePresentation(id, { title: 'Retreat 2026' });
-    const p = s().presentations[id];
-    expect(p.groups[0]).toMatchObject({ name: 'Welcome', color: '#123456' });
-    expect(p.groups[0].slides.map((sl) => sl.label?.name)).toEqual(['Opening', 'Opening']);
-    expect(p.groups[0].slides[1].transition).toEqual({ kind: 'cut', ms: 0 });
-    expect(p.title).toBe('Retreat 2026');
-  });
-
-  it('don’t open in the editor', () => {
+  it('have slide operations like any presentation, but no Reflow (their slides are pictures)', () => {
     const id = slideshow();
     s().select(id);
+    s().setPresentationText(id, 'New words');
+    expect(slides(id).map((sl) => sl.id)).toEqual(['s1', 's2']);
+    const copy = s().duplicateSlide(id, 's1');
+    expect(slides(id).find((sl) => sl.id === copy)?.source?.picture).toBe('pic1');
+    s().deleteSlides(id, ['s2']);
+    expect(slides(id).map((sl) => sl.source?.picture)).toEqual(['pic1', 'pic1']);
     s().openEditor('s1');
-    expect(s().mode).toBe('show');
+    expect(s().mode).toBe('edit');
   });
 
-  it('offer only showing, copying, labels, transitions and media on their slides', () => {
+  it('take their PowerPoint file along when their slides are copied', () => {
+    const id = slideshow();
+    s().copySlides(id, ['s1']);
+    expect(s().slideClipboard?.[0].source).toMatchObject({ picture: 'pic1', file: 'file1' });
+    const other = s().createPresentation({ title: 'Mixed' }, 'Hello');
+    s().pasteSlides(other, null);
+    expect(slides(other).at(-1)?.source?.file).toBe('file1');
+  });
+
+  it('offer slide editing in their menus, without text styles', () => {
     const id = slideshow();
     s().select(id);
     const p = s().presentations[id];
     const labels = slideMenu(p, p.groups[0].slides[0], p.groups[0], { index: 0 })
       .filter((e) => e && e !== '-')
       .map((e) => (e as { label: string }).label);
-    expect(labels).toEqual(['Show Slide', 'Copy', 'Label', 'Transition', 'Media']);
-    s().setUI({ selectedSlideIds: ['s1'] });
+    expect(labels).toEqual(
+      expect.arrayContaining(['Edit Slide', 'Cut', 'Copy', 'Duplicate', 'Insert Blank Slide', 'Delete Slide', 'Label']),
+    );
+    expect(labels).not.toContain('Copy Text Style');
     const on = enabledCommands({ kind: 'slides', presentation: p, ids: ['s1'] });
-    expect([...on].filter((c) => ['cut', 'copy', 'paste', 'duplicate', 'delete'].includes(c))).toEqual(['copy']);
+    expect([...on]).toEqual(expect.arrayContaining(['cut', 'copy', 'duplicate', 'delete']));
   });
 
   it('keep their pictures and files, which Lumen bundles carry with them', () => {
     const id = slideshow();
     const p = s().presentations[id];
-    expect(isReadOnly(p)).toBe(true);
+    expect(isSlideshow(p)).toBe(true);
+    expect(deckFileOf(p, p.groups[0].slides[0])).toBe('file1');
     expect(ownFiles(p).map((f) => f.id)).toEqual(['pic1', 'pic2', 'file1', 'model1']);
     const file = presentationFile(s(), id);
     expect(file.files?.map((f) => f.id)).toEqual(['pic1', 'pic2', 'file1', 'model1']);
@@ -132,6 +118,6 @@ describe('imported PowerPoint and Keynote presentations', () => {
     expect(p.source?.fileId).toBeUndefined();
     const none = withoutMissingFiles(s().presentations[id], () => false);
     expect(none.source).toBeUndefined();
-    expect(isReadOnly(none)).toBe(false);
+    expect(isSlideshow(none)).toBe(false);
   });
 });

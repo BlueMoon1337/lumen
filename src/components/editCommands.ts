@@ -15,7 +15,6 @@ import type { Presentation } from '../types';
 import { isAsking, onAskChange } from './Ask';
 import type { ContextEntries } from './ContextMenu';
 import { deleteLibrary, deletePlaylist, deletePresentation, deleteSlides, removePlaylistItem } from './deleting';
-import { isReadOnly } from '../slideshows';
 import { readClipboard } from './fileCommands';
 import { openSearch } from './toolbarState';
 import { shortcut } from './ui';
@@ -235,7 +234,21 @@ export type EditContext =
   | { kind: 'playlist'; itemId: string }
   | { kind: 'collections' }
   | { kind: 'slides'; presentation: Presentation; ids: string[] }
+  | { kind: 'canvas'; commands: CanvasCommands }
   | { kind: 'none' };
+
+/** What Edit's commands do to the things selected on a slide editor's canvas (a PowerPoint slide's shapes). */
+export interface CanvasCommands {
+  enabled(): EditCommand[];
+  run(cmd: EditCommand): void;
+}
+
+let canvas: CanvasCommands | null = null;
+
+/** A slide editor says what Edit's commands do while the focus is on its canvas (null: nothing selected there). */
+export function setCanvasCommands(commands: CanvasCommands | null) {
+  canvas = commands;
+}
 
 /** The selected slides of a presentation, in order; in Edit mode, at least the slide being edited. */
 export function selectedSlides(s: AppState, p: Presentation): string[] {
@@ -260,6 +273,7 @@ export function editContext(): EditContext {
       : { kind: 'none' };
   if (scope === 'playlist') return s.selectedPlaylistItemId ? { kind: 'playlist', itemId: s.selectedPlaylistItemId } : { kind: 'none' };
   if (scope === 'collections') return { kind: 'collections' };
+  if (scope === 'canvas' && canvas && s.mode === 'edit') return { kind: 'canvas', commands: canvas };
   const p = s.selectedPresentationId ? s.presentations[s.selectedPresentationId] : undefined;
   if (!p || p.hidden || (s.mode !== 'show' && s.mode !== 'edit')) return { kind: 'none' };
   return { kind: 'slides', presentation: p, ids: selectedSlides(s, p) };
@@ -296,18 +310,15 @@ export function enabledCommands(ctx: EditContext): Set<EditCommand> {
       break;
     case 'slides': {
       const any = ctx.ids.length > 0;
-      if (isReadOnly(ctx.presentation)) {
-        // A PowerPoint or Keynote presentation's slides can be copied, not changed.
-        if (any) on.add('copy').add('deselect-all');
-        if (ctx.presentation.groups.some((g) => g.slides.length)) on.add('select-all');
-        break;
-      }
       if (any) on.add('cut').add('copy').add('copy-style').add('duplicate').add('delete').add('deselect-all');
       if (s.slideClipboard?.length) on.add('paste').add('paste-plain');
       if (any && s.styleClipboard) on.add('paste-style');
       if (ctx.presentation.groups.some((g) => g.slides.length)) on.add('select-all');
       break;
     }
+    case 'canvas':
+      for (const cmd of ctx.commands.enabled()) on.add(cmd);
+      break;
   }
   return on;
 }
@@ -371,6 +382,8 @@ export function runIn(cmd: EditCommand, ctx: EditContext) {
       return;
     case 'slides':
       return runOnSlides(cmd, ctx.presentation, ctx.ids);
+    case 'canvas':
+      return ctx.commands.run(cmd);
   }
 }
 

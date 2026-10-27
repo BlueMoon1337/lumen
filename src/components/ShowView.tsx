@@ -13,7 +13,7 @@ import { getSequence } from '../lyrics';
 import { layerOf, useStore } from '../store';
 import { inkFor, resolveTheme, slideTheme } from '../theme';
 import type { ColorLabel, Playlist, Presentation, SequenceEntry, Slide, Theme } from '../types';
-import { isReadOnly, READ_ONLY_NOTICE, slideWords } from '../slideshows';
+import { isSlideshow, slideWords } from '../slideshows';
 import { SlidePreview } from './Canvas';
 import { openContextMenu, openPopupBelow } from './ContextMenu';
 import { clickSlide, selectForMenu } from './editCommands';
@@ -212,16 +212,14 @@ function PresentationBar({ presentation: p, playlistItemId }: { presentation: Pr
       <span className="pres-theme" title="Theme">
         <Icon name="theme" size={13} /> {themeName}
       </span>
-      {isReadOnly(p) ? (
-        <span className="pres-chip" title={READ_ONLY_NOTICE}>
-          <Icon name="lock" size={13} /> {p.source?.kind === 'keynote' ? 'Keynote' : 'PowerPoint'}
+      {isSlideshow(p) ? (
+        <span className="pres-chip" title={`Imported from ${p.source?.fileName}`}>
+          <Icon name="slides" size={13} /> {p.source?.kind === 'keynote' ? 'Keynote' : 'PowerPoint'}
         </span>
       ) : (
-        <>
-          <IconButton icon="reflow" title="Reflow (edit as text)" onClick={() => (pick(), s.setUI({ mode: 'reflow' }))} />
-          <IconButton icon="edit" title="Edit slides" onClick={() => (pick(), s.openEditor())} />
-        </>
+        <IconButton icon="reflow" title="Reflow (edit as text)" onClick={() => (pick(), s.setUI({ mode: 'reflow' }))} />
       )}
+      <IconButton icon="edit" title="Edit slides" onClick={() => (pick(), s.openEditor())} />
     </div>
   );
 }

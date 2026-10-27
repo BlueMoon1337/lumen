@@ -1,5 +1,6 @@
 /** Importing PowerPoint and Keynote files: see src/slideshows.ts. */
 import type { Deck } from './deck';
+import { loadDeckImages, renderDeckSlide } from './deckRender';
 import { parsePptx } from './import/pptx';
 import { readZip } from './import/zip';
 import { putMediaBlob } from './media';
@@ -34,6 +35,8 @@ export interface ImportedSlideshow {
   /** The original file, and Lumen's model of it, to keep. */
   file?: Blob;
   model?: Deck;
+  /** Keynote: its PowerPoint export, which the slides are edited from. */
+  pptx?: Blob;
 }
 
 const SLIDE_GROUP_COLOR = '#5f6368';
@@ -55,11 +58,17 @@ export async function createSlideshow(data: ImportedSlideshow): Promise<string> 
     source.modelId = uid();
     await putMediaBlob(source.modelId, new Blob([JSON.stringify(data.model)], { type: 'application/json' }));
   }
+  if (data.pptx) {
+    source.pptxId = uid();
+    await putMediaBlob(source.pptxId, data.pptx);
+  }
+  // The PowerPoint file each slide is edited from.
+  const file = source.kind === 'keynote' ? source.pptxId : source.fileId;
   const slideOf = (sl: ImportedSlide): Slide => ({
     id: uid(),
     text: '',
     notes: sl.notes || undefined,
-    source: { picture: pictures.get(sl.number)!, text: sl.text, number: sl.number },
+    source: { picture: pictures.get(sl.number)!, text: sl.text, number: sl.number, ...(file ? { file } : {}) },
   });
   const byNumber = new Map(data.slides.map((sl) => [sl.number, sl]));
   const used = new Set<number>();
@@ -97,7 +106,6 @@ const PICTURE_H = 1080;
 export async function readPowerPoint(file: File, progress?: (done: number, total: number) => void): Promise<ImportedSlideshow> {
   const bytes = new Uint8Array(await file.arrayBuffer());
   const deck = parsePptx(bytes);
-  const { loadDeckImages, renderDeckSlide } = await import('./deckRender');
   const images = await loadDeckImages(
     deck,
     readZip(bytes, (n) => n.startsWith('ppt/media/')),
@@ -148,9 +156,20 @@ export async function readKeynote(file: File, progress?: (done: number, total: n
       sections: [],
       slides,
       file,
+      pptx: deck.pptx ? await keynotePptx(deck.id) : undefined,
     };
   } finally {
     void desktop.keynoteDone(deck.id);
+  }
+}
+
+/** Keynote's PowerPoint export, if it could be read. */
+async function keynotePptx(id: string): Promise<Blob | undefined> {
+  try {
+    const bytes = await window.lumenDesktop!.keynotePptx(id);
+    return new Blob([bytes], { type: 'application/vnd.openxmlformats-officedocument.presentationml.presentation' });
+  } catch {
+    return undefined;
   }
 }
 

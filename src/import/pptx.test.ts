@@ -181,6 +181,14 @@ describe('PowerPoint files', () => {
     expect(body.text!.paragraphs[1].bullet?.text).toBe('➢');
   });
 
+  it('marks the design’s shapes and which placeholder each shape fills', () => {
+    const band = shapes(first.elements).find((e) => e.w === 1920 && e.h === 40);
+    expect(band?.template).toBe(true);
+    expect(withText(first.elements, 'Hello World')).toMatchObject({ placeholder: 'title' });
+    expect(withText(first.elements, 'Hello World')?.template).toBeUndefined();
+    expect(withText(first.elements, 'First point')?.placeholder).toBe('body');
+  });
+
   it('numbers automatic bullets', () => {
     const list = withText(third.elements, 'One')!;
     expect(list.text!.paragraphs.map((p) => p.bullet?.text)).toEqual(['1.', '2.', '3.']);

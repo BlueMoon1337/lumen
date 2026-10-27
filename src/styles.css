@@ -5934,3 +5934,145 @@ h3.looks-name {
   margin: 0;
   font-size: 13px;
 }
+
+/* ---- Editing PowerPoint and Keynote slides (DeckEditor) ---- */
+
+.deck-overlay {
+  position: absolute;
+  cursor: default;
+  touch-action: none;
+}
+
+.deck-frame {
+  pointer-events: auto;
+}
+
+.handle.rotate {
+  left: 50%;
+  top: -24px;
+  border-radius: 50%;
+  cursor: grab;
+}
+
+.handle.rotate::after {
+  content: '';
+  position: absolute;
+  left: 50%;
+  top: 100%;
+  width: 1px;
+  height: 15px;
+  background: var(--blue);
+}
+
+.deck-text-edit {
+  position: absolute;
+  z-index: 3;
+  outline: 1px solid var(--blue);
+}
+
+.deck-text-box {
+  position: absolute;
+  left: 0;
+  top: 0;
+  display: flex;
+  flex-direction: column;
+  box-sizing: border-box;
+  transform-origin: 0 0;
+}
+
+.deck-text-content {
+  outline: none;
+  cursor: text;
+  min-height: 1em;
+  overflow-wrap: break-word;
+}
+
+.deck-loading,
+.deck-note {
+  position: absolute;
+  display: grid;
+  place-items: center;
+  color: rgba(255, 255, 255, 0.75);
+  font-size: 13px;
+  pointer-events: none;
+}
+
+.deck-note {
+  display: block;
+  text-align: center;
+  font-size: 12px;
+}
+
+.deck-problem > div {
+  max-width: 70%;
+  text-align: center;
+  display: grid;
+  gap: 12px;
+  justify-items: center;
+}
+
+.deck-shape-pop {
+  width: 220px;
+  display: grid;
+  gap: 2px;
+}
+
+.deck-shape-choice {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 6px 8px;
+  border: 0;
+  border-radius: 5px;
+  background: none;
+  color: var(--text-1);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.deck-shape-choice:hover {
+  background: var(--hover, rgba(255, 255, 255, 0.08));
+}
+
+.deck-nums {
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  gap: 6px;
+  margin-bottom: 8px;
+}
+
+.deck-num {
+  display: grid;
+  gap: 2px;
+  font-size: 11px;
+  color: var(--text-3);
+}
+
+.deck-num input {
+  width: 100%;
+  min-width: 0;
+}
+
+.deck-arrange {
+  display: flex;
+  width: 100%;
+}
+
+.deck-arrange button {
+  flex: 1;
+  font-size: 11px;
+}
+
+.deck-swatches {
+  flex-wrap: wrap;
+}
+
+.deck-swatches .swatch {
+  width: 16px;
+  height: 16px;
+  padding: 0;
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  border-radius: 3px;
+  cursor: pointer;
+}

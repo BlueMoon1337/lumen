@@ -35,13 +35,15 @@ import {
   exportPresentation,
   exportSlideImagesCommand,
   exportText,
+  failed,
   importFileCommand,
   newLibrary,
   newPlaylist,
 } from './fileCommands';
 import { shortcut, type IconName } from './ui';
 import { setTransitionFor, TargetTransitionPicker, transitionState, type TransitionTarget } from './TransitionPicker';
-import { isReadOnly } from '../slideshows';
+import { insertBlankSlide } from '../deckSlides';
+import { isSlideshow } from '../slideshows';
 
 const st = () => useStore.getState();
 
@@ -195,16 +197,6 @@ export function slideMenu(
   const many = ids.length > 1 ? ` ${ids.length} Slides` : '';
   // In Edit mode a new slide becomes the one on the canvas.
   const select = (id: string | null) => inEdit && id && s.setUI({ editSlideId: id, editTextSelected: false });
-  // A PowerPoint or Keynote slide can be shown, copied, labelled and given a transition or media cue.
-  if (isReadOnly(p))
-    return [
-      opts.index != null && { label: 'Show Slide', action: () => s.goLive(p.id, opts.index!, opts.playlistItemId) },
-      { label: `Copy${many}`, shortcut: shortcut('C'), action: () => s.copySlides(p.id, ids) },
-      '-',
-      { label: 'Label', swatch: slide.label?.color, submenu: () => labelEntries(p, slide, ids, opts.anchor) },
-      { label: 'Transition', submenu: () => transitionEntries({ presentationId: p.id, scope: { slideId: slide.id } }) },
-      { label: 'Media', submenu: () => mediaCueEntries(p, slide) },
-    ];
   return [
     opts.index != null && { label: 'Show Slide', action: () => s.goLive(p.id, opts.index!, opts.playlistItemId) },
     !inEdit && { label: 'Edit Slide', action: () => s.openEditor(slide.id) },
@@ -218,11 +210,18 @@ export function slideMenu(
       action: () => select(s.pasteSlides(p.id, ids[ids.length - 1])),
     },
     { label: `Duplicate${many}`, shortcut: shortcut('D'), action: () => select(s.duplicateSlides(p.id, ids)[0] ?? null) },
-    { label: 'Insert Blank Slide', action: () => select(s.addSlide(p.id, slide.id)) },
+    {
+      label: 'Insert Blank Slide',
+      // In a PowerPoint or Keynote presentation, a blank slide with the same design.
+      action: () =>
+        isSlideshow(p)
+          ? void insertBlankSlide(p.id, slide.id).then(select, failed('Couldn’t add a slide'))
+          : select(s.addSlide(p.id, slide.id)),
+    },
     { label: many ? `Delete${many}` : 'Delete Slide', shortcut: '⌫', danger: true, action: () => deleteSlides(p.id, ids) },
     '-',
-    ...styleEntries(p, slide, group, ids),
-    '-',
+    // A picture slide's text is edited on the slide itself, not with text styles.
+    ...(slide.source ? [] : [...styleEntries(p, slide, group, ids), '-' as const]),
     { label: 'Group', swatch: group.color, submenu: () => slideGroupEntries(p, slide, group) },
     { label: 'Label', swatch: slide.label?.color, submenu: () => labelEntries(p, slide, ids, opts.anchor) },
     { label: 'Transition', submenu: () => transitionEntries({ presentationId: p.id, scope: { slideId: slide.id } }) },
@@ -246,24 +245,6 @@ function mediaCueEntries(p: Presentation, slide: Slide): ContextEntries {
 export function groupMenu(p: Presentation, group: Group): ContextEntries {
   const s = st();
   const scope: SlideScope = { groupId: group.id };
-  if (isReadOnly(p))
-    return [
-      {
-        label: 'Rename Group…',
-        action: () => openPopupAtMenu(<NamePopup title="Group" initial={group} onSave={(v) => s.updateGroup(p.id, group.id, v)} />),
-      },
-      {
-        label: 'Color',
-        swatch: group.color,
-        submenu: LABEL_SWATCHES.map((c) => ({
-          label: c.name,
-          swatch: c.color,
-          checked: group.color === c.color,
-          action: () => s.updateGroup(p.id, group.id, { color: c.color }),
-        })),
-      },
-      { label: 'Transition', submenu: () => transitionEntries({ presentationId: p.id, scope }) },
-    ];
   return [
     {
       label: 'Rename Group…',
@@ -293,14 +274,20 @@ export function groupMenu(p: Presentation, group: Group): ContextEntries {
     {
       label: 'Add Slide to Group',
       action: () => {
-        const id = s.addSlide(p.id, group.slides.at(-1)?.id);
+        const last = group.slides.at(-1)?.id ?? null;
+        if (isSlideshow(p)) return void insertBlankSlide(p.id, last).then((id) => id && s.openEditor(id), failed('Couldn’t add a slide'));
+        const id = s.addSlide(p.id, last);
         if (id) s.openEditor(id);
       },
     },
     { label: 'Duplicate Group', action: () => s.duplicateGroup(p.id, group.id) },
     '-',
-    { label: 'Paste Text Style to Group', disabled: !s.styleClipboard, action: () => s.pasteTextStyle(p.id, scope) },
-    { label: 'Clear Text Style', disabled: !group.slides.some((sl) => sl.style), action: () => s.clearTextStyle(p.id, scope) },
+    !isSlideshow(p) && { label: 'Paste Text Style to Group', disabled: !s.styleClipboard, action: () => s.pasteTextStyle(p.id, scope) },
+    !isSlideshow(p) && {
+      label: 'Clear Text Style',
+      disabled: !group.slides.some((sl) => sl.style),
+      action: () => s.clearTextStyle(p.id, scope),
+    },
     { label: 'Transition', submenu: () => transitionEntries({ presentationId: p.id, scope }) },
     '-',
     { label: group.slides.length > 1 ? 'Delete Group…' : 'Delete Group', danger: true, action: () => deleteGroup(p.id, group.id) },
@@ -313,17 +300,17 @@ export function groupMenu(p: Presentation, group: Group): ContextEntries {
 export function presentationMenu(p: Presentation, playlistItemId?: string): ContextEntries {
   const s = st();
   const open = () => s.select(p.id, playlistItemId ?? null);
-  const ro = isReadOnly(p);
+  const pictures = isSlideshow(p);
   return [
     { label: 'Open', action: open },
-    !ro && {
+    {
       label: 'Edit Slides',
       action: () => {
         open();
         s.openEditor();
       },
     },
-    !ro && {
+    !pictures && {
       label: 'Reflow',
       action: () => {
         open();
@@ -387,7 +374,11 @@ export function presentationMenu(p: Presentation, playlistItemId?: string): Cont
         },
       ],
     },
-    !ro && { label: 'Paste Text Style to All Slides', disabled: !s.styleClipboard, action: () => s.pasteTextStyle(p.id, 'presentation') },
+    !pictures && {
+      label: 'Paste Text Style to All Slides',
+      disabled: !s.styleClipboard,
+      action: () => s.pasteTextStyle(p.id, 'presentation'),
+    },
     '-',
     {
       label: 'Rename…',
