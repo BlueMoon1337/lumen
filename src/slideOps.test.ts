@@ -56,11 +56,28 @@ describe('ungrouping', () => {
     expect(canUngroup({ ...p, ...first }, p.groups[0].slides[0].id)).toBe(false);
   });
 
-  it('does nothing for a slide that doesn’t start its group (it’s already with the slide before)', () => {
-    const p = pres('[Verse 1]\na\n\nb');
+  it('greys out a slide already in the group of the slide before it, the group carrying on after it', () => {
+    const p = pres('[Verse 1]\na\n\nb\n\nc\n\n[Chorus]\nd\n\n[Verse 1]');
     const b = p.groups[0].slides[1].id;
-    expect(canUngroup(p, b)).toBe(false);
-    expect(ungroup(p, b).groups).toBe(p.groups);
+    expect(canUngroup(p, b)).toBe(true);
+    const next = ungroup(p, b);
+    expect(names(next)).toEqual(['Verse 1:a', ':b', 'Verse 1:c', 'Chorus:d', 'Verse 1:a', ':b', 'Verse 1:c']);
+    expect(next.groups[1]).toMatchObject({ name: '', color: '#5f6368' });
+    // Ungrouping it again joins it back to the group before it.
+    const again = ungroup({ ...p, ...next }, b);
+    expect(names(again).slice(0, 3)).toEqual(['Verse 1:a', 'Verse 1:b', 'Verse 1:c']);
+  });
+
+  it('greys the last slide of a group without leaving an empty group after it', () => {
+    const p = pres('[Verse 1]\na\n\nb');
+    const next = ungroup(p, p.groups[0].slides[1].id);
+    expect(next.groups.map((g) => [g.name, g.slides.length])).toEqual([
+      ['Verse 1', 1],
+      ['', 1],
+    ]);
+    // A slide in a grey group can't go any greyer.
+    const grey = { ...p, ...ungroup(p, p.groups[0].slides[0].id) };
+    expect(canUngroup(grey, p.groups[0].slides[1].id)).toBe(false);
   });
 
   it('works from the store', () => {

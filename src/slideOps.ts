@@ -42,34 +42,57 @@ export function assignGroup(p: Presentation, slideId: string, preset: ColorLabel
 /** The look of slides in no group: no name, grey. */
 export const NO_GROUP: ColorLabel = { name: '', color: '#5f6368' };
 
+const isUngrouped = (g: Pick<Group, 'name'>) => g.name === NO_GROUP.name;
+
 /**
- * Whether Ungroup does anything for a slide: it starts a group (a later slide in a group is
- * already with the slide before it) that isn't already the unnamed first group.
+ * Whether Ungroup does anything for a slide: a group's first slide can join the group before
+ * (the first group goes grey), and a slide inside a named group can go grey on its own.
  */
 export function canUngroup(p: Presentation, slideId: string): boolean {
-  const gi = p.groups.findIndex((g) => g.slides[0]?.id === slideId);
+  const gi = p.groups.findIndex((g) => g.slides.some((sl) => sl.id === slideId));
   if (gi < 0) return false;
-  return gi > 0 || p.groups[0].name !== NO_GROUP.name;
+  const g = p.groups[gi];
+  if (g.slides[0].id === slideId) return gi > 0 || !isUngrouped(g);
+  return !isUngrouped(g);
 }
 
 /**
- * Ungroup, as in ProPresenter: the slide (with the rest of its group) joins the group of the
- * slide before it. The first slide's group has none before it, so it becomes unnamed and grey.
+ * Ungroup, as in ProPresenter. On a group's first slide, the group joins the group of the slide
+ * before it (the first group, with none before it, goes grey). On a slide already in the group
+ * of the slide before it, that slide goes grey on its own: out of the group, which carries on
+ * after it with the slides that follow.
  */
 export function ungroup(p: Presentation, slideId: string): Pick<Presentation, 'groups' | 'arrangement'> {
-  const gi = p.groups.findIndex((g) => g.slides[0]?.id === slideId);
-  if (gi < 0) return { groups: p.groups, arrangement: p.arrangement };
+  const same = { groups: p.groups, arrangement: p.arrangement };
+  const gi = p.groups.findIndex((g) => g.slides.some((sl) => sl.id === slideId));
+  if (gi < 0 || !canUngroup(p, slideId)) return same;
   const old = p.groups[gi];
-  if (gi === 0) {
+  const at = old.slides.findIndex((sl) => sl.id === slideId);
+  if (at === 0 && gi === 0) {
     const groups = p.groups.map((g, i) => (i === 0 ? { ...g, ...NO_GROUP } : g));
     return { groups, arrangement: p.arrangement };
   }
-  const before = p.groups[gi - 1];
-  const groups = p.groups
-    .map((g, i) => (i === gi - 1 ? { ...before, slides: [...before.slides, ...old.slides] } : g))
-    .filter((g) => g.id !== old.id);
-  // Its slides play wherever the group before it does now; the group itself is gone from the arrangement.
-  const arrangement = p.arrangement.filter((id) => id !== old.id);
+  if (at === 0) {
+    const before = p.groups[gi - 1];
+    const groups = p.groups
+      .map((g, i) => (i === gi - 1 ? { ...before, slides: [...before.slides, ...old.slides] } : g))
+      .filter((g) => g.id !== old.id);
+    // Its slides play wherever the group before it does now; the group itself is gone from the arrangement.
+    return { groups, arrangement: p.arrangement.filter((id) => id !== old.id) };
+  }
+  // A grey group of just this slide, and the rest of the group after it.
+  const grey: Group = { id: uid(), ...NO_GROUP, slides: [old.slides[at]] };
+  const restSlides = old.slides.slice(at + 1);
+  const rest: Group | null = restSlides.length ? { id: uid(), name: old.name, color: old.color, slides: restSlides } : null;
+  const groups = [
+    ...p.groups.slice(0, gi),
+    { ...old, slides: old.slides.slice(0, at) },
+    grey,
+    ...(rest ? [rest] : []),
+    ...p.groups.slice(gi + 1),
+  ];
+  // Wherever the old group plays, the slide and the rest of the group still follow it.
+  const arrangement = p.arrangement.flatMap((id) => (id === old.id ? [id, grey.id, ...(rest ? [rest.id] : [])] : [id]));
   return { groups, arrangement };
 }
 
