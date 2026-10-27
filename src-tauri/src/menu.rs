@@ -1,5 +1,5 @@
-//! The menu bar, with ProPresenter's Edit, Presentation, Screens and View menus (see edit.rs,
-//! presentation.rs, screens.rs and view.rs); their commands run in the operator window.
+//! The menu bar, with ProPresenter's Edit, Presentation, Screens, View and Window menus (see
+//! edit.rs, presentation.rs, screens.rs, view.rs and window.rs); their commands run in the operator window.
 //!
 //! The File menu is ProPresenter's: New Presentation, Playlist and Library, and Import and Export
 //! submenus. Its commands also run in the operator window.
@@ -12,6 +12,7 @@ use crate::edit::{self, EditMenu};
 use crate::presentation::{self, PresentationMenu};
 use crate::screens::{self, ScreensMenu};
 use crate::view::{self, ViewMenu};
+use crate::window::{self, WindowMenu};
 
 const COMMANDS: [&str; 14] = [
     "new-presentation",
@@ -84,7 +85,7 @@ fn file_menu(app: &AppHandle) -> tauri::Result<(Vec<MenuItemKind<Wry>>, FileMenu
 
 /// The platform's standard menus (so copy and paste work in text fields) plus Screens, before Window.
 /// Edit's Undo and Redo are Lumen's own, in place of the standard ones that only undo typing.
-pub fn build(app: &AppHandle) -> tauri::Result<(Menu<Wry>, ScreensMenu, EditMenu, PresentationMenu, ViewMenu, FileMenu)> {
+pub fn build(app: &AppHandle) -> tauri::Result<(Menu<Wry>, ScreensMenu, EditMenu, PresentationMenu, ViewMenu, WindowMenu, FileMenu)> {
     let (screens, screens_menu) = screens::build(app)?;
     let menu = Menu::default(app)?;
     let at = menu.items()?.len().saturating_sub(2);
@@ -124,6 +125,23 @@ pub fn build(app: &AppHandle) -> tauri::Result<(Menu<Wry>, ScreensMenu, EditMenu
     let at = named("Screens")?.map_or(0, |at| at + 1);
     menu.insert(&view, at)?;
 
+    // Window: Lumen's, in place of the standard one (keeping its id, so macOS fills it in).
+    let (window, window_menu) = window::build(app)?;
+    let standard = menu
+        .items()?
+        .iter()
+        .position(|item| matches!(item, MenuItemKind::Submenu(sub) if sub.id() == tauri::menu::WINDOW_SUBMENU_ID));
+    match standard {
+        Some(at) => {
+            menu.remove_at(at)?;
+            menu.insert(&window, at)?;
+        }
+        None => {
+            let at = named("View")?.map_or(0, |at| at + 1);
+            menu.insert(&window, at)?;
+        }
+    }
+
     // File: Lumen's commands above the standard Close Window (and Quit). Linux has no standard
     // File menu, so it gets one, ending in Quit.
     let (items, file) = file_menu(app)?;
@@ -145,13 +163,17 @@ pub fn build(app: &AppHandle) -> tauri::Result<(Menu<Wry>, ScreensMenu, EditMenu
             menu.insert(&Submenu::with_items(app, "File", true, &items)?, 0)?;
         }
     }
-    Ok((menu, screens_menu, edit_menu, presentation_menu, view_menu, file))
+    Ok((menu, screens_menu, edit_menu, presentation_menu, view_menu, window_menu, file))
 }
 
 pub fn on_event(app: &AppHandle, event: MenuEvent) {
     let id = event.id().as_ref();
     if id == "quit" {
         app.exit(0);
+    } else if window::is_command(id) {
+        window::run(app, id);
+    } else if window::is_output_command(id) {
+        window::open_output(app, id);
     } else if edit::COMMANDS.contains(&id) {
         if !edit::forward_to_panel(app, id) {
             let _ = app.emit_to("main", "menu", id);

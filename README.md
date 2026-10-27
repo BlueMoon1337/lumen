@@ -77,6 +77,7 @@ npm run format       # Prettier
 | Screens menu: Audience (Enable, Live ▸, Edit Looks…), Stage (Enable, Edit Layouts…), Configure Screens…, Start Capture, Capture Settings…                                              | Same, in the menu bar and under **More ▸ Screens**, with the same keys. See Looks, Stage layouts and Capture below.                                                                                                                                |
 | View menu: Show, Presentation Editor, Reflow Editor, Bibles, Continuous Playlist, Slide View ▸                                                                                         | Same, in the menu bar and under **More ▸ View**, with ProPresenter's Control-key shortcuts. See The View menu below.                                                                                                                               |
 | Grid / Easy / Table buttons under the slides                                                                                                                                           | Same. Easy View shows just the words, large; Table View a row per slide with its picture and words.                                                                                                                                                |
+| Window menu: Minimize, Zoom, Fill, Center, Move & Resize ▸, Full Screen Tile ▸, Bring All to Front, New Windowed Output ▸, the windows                                                 | Same in the desktop app (on a Mac, macOS supplies Fill through Full Screen Tile, as it does for ProPresenter). New Windowed Output is under **More ▸ Window** in a browser too.                                                                    |
 | Right-click menus                                                                                                                                                                      | Same: slides, group headers, the Edit canvas, library and playlist items, playlists, headers and media each have one. See Slides, groups and labels below.                                                                                         |
 | Copy Style / Paste Style (⌥⌘C / ⌥⌘V)                                                                                                                                                   | Same: right-click a slide, or the Text tab's Copy Style and Paste Style buttons. Paste onto one slide, a group, or every slide.                                                                                                                    |
 | Group and Label (right-click a slide), Edit Groups…                                                                                                                                    | Same. Picking a group starts it at that slide. Labels are colored tags on the thumbnails. **Edit Groups & Labels…** sets the lists.                                                                                                                |
@@ -302,6 +303,20 @@ In the desktop app it's in the menu bar, after Screens; in a browser it's under 
 
 The three views are also the buttons under the slides. In a continuous playlist, clicking a slide shows it and selects its presentation; picking a presentation in the sidebar scrolls to it, and the same song twice in a playlist lights up only where it was shown from. In a browser, ⌃E, ⌃R and ⌃B do nothing while you type in a text field (⌃E is end of line on a Mac); the desktop app's menu takes them everywhere, as ProPresenter's does.
 
+## The Window menu
+
+| Item                  | What it does                                                                                                                                                                         |
+| --------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| Minimize (⌘M), Zoom   | The window in front                                                                                                                                                                  |
+| Fill, Center          | Fills the screen (without going fullscreen), or centres the window on it                                                                                                             |
+| Move & Resize ▸       | **Halves** and **Quarters** of the screen; **Arrange** puts the window in front and the next one side by side, one above the other, or four in quarters; **Return to Previous Size** |
+| Full Screen Tile ▸    | (Mac) Left or Right of Screen, sharing a full-screen space with another app                                                                                                          |
+| Bring All to Front    | Every Lumen window in front of other apps                                                                                                                                            |
+| New Windowed Output ▸ | Opens a window showing a screen, listed under Audience and Stage. Move it, resize it, capture it with streaming software; close it when done                                         |
+| The windows           | Lumen's windows, the one in front checked; pick one to bring it forward                                                                                                              |
+
+On a Mac, Fill, Center, Move & Resize, Full Screen Tile, Remove Window from Set and the window list are macOS's own (macOS 15 and later), with its keys, as for ProPresenter. On Windows and Linux Lumen does them itself. Lumen's window can't get smaller than 1000 × 640, so a half or a quarter of a small screen is as close as it can get. In the desktop app the same items are under **More ▸ Window**; in a browser, which can't move its own window, that has just New Windowed Output, which opens a pop-up window.
+
 ## The Screens menu
 
 In the desktop app it's in the menu bar; in a browser it's under **More ▸ Screens**.
@@ -517,6 +532,7 @@ src/
     ControlApp     window layout per mode and keyboard shortcuts
     fileCommands   the File menu: New, Import and Export, saving through the desktop app or downloads
     presentationCommands  the Presentation menu: its commands, function keys and desktop menu state
+    windowCommands the Window menu: New Windowed Output, and More ▸ Window
     viewCommands   the View menu: modes, Continuous Playlist and Slide View, their keys and desktop menu state
     screensCommands  the Screens menu: its commands and keys, and the desktop menu's checkmarks and looks
     LooksDialog    the Looks window (Edit Looks…)
@@ -556,6 +572,7 @@ src-tauri/          the desktop app (Tauri, Rust)
   src/camera.rs    lets the web views open cameras (Video Input)
   src/menu.rs      menu bar: File (New, Import, Export), and where the other menus go
   src/view.rs      the View menu
+  src/window.rs    the Window menu: moving and arranging windows, New Windowed Output, the window list
   src/screens.rs   the Screens menu, with the looks listed under Live
   src/capture.rs   capture files: Save To's folders, writing the recording as it comes
   src/presentation.rs  the Presentation menu, with the operator's clear groups listed in Clear Groups

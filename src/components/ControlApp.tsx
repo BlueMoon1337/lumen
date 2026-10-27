@@ -29,6 +29,7 @@ import { ReflowView } from './ReflowView';
 import { ScreenConfigDialog } from './ScreenConfig';
 import { useScreensCommands } from './screensCommands';
 import { useViewCommands } from './viewCommands';
+import { useWindowCommands } from './windowCommands';
 import { ShowView } from './ShowView';
 import { StageLayoutsEditor } from './StageLayoutsEditor';
 import { Sidebar } from './Sidebar';
@@ -296,6 +297,7 @@ export default function ControlApp() {
   const openScreens = useCallback(() => setDialog('screens'), [setDialog]);
   useScreensCommands();
   useViewCommands();
+  useWindowCommands();
   useEffect(() => {
     void registerFonts(fonts);
   }, [fonts]);

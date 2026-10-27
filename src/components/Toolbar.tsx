@@ -12,6 +12,7 @@ import { fileEntries } from './fileCommands';
 import { presentationEntries } from './presentationCommands';
 import { screensEntries } from './screensCommands';
 import { viewEntries } from './viewCommands';
+import { windowEntries } from './windowCommands';
 import { useElapsed } from './CaptureDialog';
 import { stopCapture, useCapture } from '../capture';
 import { FontSelect } from './FontSelect';
@@ -393,6 +394,7 @@ function openMoreMenu(button: HTMLElement, { onBible, onSettings }: { onBible: (
     { label: 'Presentation', submenu: presentationEntries },
     { label: 'Screens', submenu: screensEntries },
     { label: 'View', submenu: viewEntries },
+    { label: 'Window', submenu: windowEntries },
     '-',
     { label: 'Bible…', action: onBible },
     { label: 'Settings & Shortcuts…', action: onSettings },

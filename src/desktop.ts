@@ -60,6 +60,8 @@ export function installDesktopBridge() {
     setEditState: (state) => void invoke('set_edit_state', { state }),
     setPresentationState: (state) => void invoke('set_presentation_state', { state }),
     setViewState: (state) => void invoke('set_view_state', { state }),
+    setWindowState: (state) => void invoke('set_window_state', { state }),
+    runWindowCommand: (id) => invoke('run_window_command', { id }),
     openFiles: async (options) => {
       const opened = await invoke<{ folder: string | null; files: { name: string; path: string }[] }>('open_files', { options });
       const files = await Promise.all(

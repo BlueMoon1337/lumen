@@ -56,6 +56,10 @@ export interface DesktopBridge {
   writeClipboardText(text: string): Promise<void>;
   /** Turns Edit's items on and off (by command id) and sets Check Spelling While Typing. */
   setEditState(state: { enabled: string[]; spellCheck: boolean }): void;
+  /** Lists the screens under Window ▸ New Windowed Output. */
+  setWindowState(state: { screens: { id: string; name: string; kind: ScreenKind }[] }): void;
+  /** Runs a Window menu command (Minimize, Fill, Move & Resize…) on the window in front. */
+  runWindowCommand(id: string): Promise<void>;
   /** The View menu's checkmarks, and its editors on or off. */
   setViewState(state: { presentation: boolean; continuousPlaylist: boolean; slideView: string }): void;
   /** Turns the Presentation menu's items on and off, and lists the clear groups in Clear Groups. */
@@ -194,8 +198,38 @@ function desired(): { host: OutputHost; route: string; title: string }[] {
   }));
 }
 
+/**
+ * Window ▸ New Windowed Output: extra windows that show a screen, whether or not that kind of
+ * screen is on, until they're closed. A window you can move, resize or capture.
+ */
+export const useWindowedOutputs = create<{ windows: { key: string; screenId: string }[] }>(() => ({ windows: [] }));
+let windowedSeq = 0;
+
+/** The route a windowed output shows: the screen's (first) output, filling the window. */
+export const windowedRoute = (screenId: string) => `screen?screen=${encodeURIComponent(screenId)}`;
+
+export function openWindowedOutput(screenId: string) {
+  const screen = useStore.getState().screens.screens.find((sc) => sc.id === screenId);
+  if (!screen) return;
+  const key = `windowed-${++windowedSeq}`;
+  if (desktop()) useWindowedOutputs.setState((w) => ({ windows: [...w.windows, { key, screenId }] }));
+  else {
+    const win = window.open(
+      `${location.pathname}${location.search}#/${windowedRoute(screenId)}`,
+      `lumen-${key}`,
+      'popup,width=960,height=540',
+    );
+    if (!win) notify('The browser blocked the window. Allow pop-ups for Lumen, then try again.', 'error');
+  }
+}
+
 function desktopRequests(): DesktopOutputRequest[] {
-  return desired().map(({ host, route, title }) => ({ key: host.key, route, title, displayId: host.display?.id }));
+  const screens = useStore.getState().screens.screens;
+  const windowed = useWindowedOutputs.getState().windows.flatMap(({ key, screenId }) => {
+    const screen = screens.find((sc) => sc.id === screenId);
+    return screen ? [{ key, route: windowedRoute(screenId), title: `${screen.name} — Lumen` }] : [];
+  });
+  return [...desired().map(({ host, route, title }) => ({ key: host.key, route, title, displayId: host.display?.id })), ...windowed];
 }
 
 /** Open browser output windows, with the placement and address each was opened with, and the kinds of screen they show. */
@@ -291,7 +325,17 @@ export function startScreenManager(): () => void {
     useDisplays.setState({ access: 'desktop' });
     void bridge.getDisplays().then((d) => useDisplays.setState({ displays: d }));
     cleanups.push(bridge.onDisplaysChanged(setDisplays));
-    cleanups.push(bridge.onOutputsChanged((openHosts) => useDisplays.setState({ openHosts })));
+    // A windowed output closed by hand is gone for good (one that hasn't opened yet isn't).
+    const seen = new Set<string>();
+    cleanups.push(
+      bridge.onOutputsChanged((openHosts) => {
+        useDisplays.setState({ openHosts });
+        const { windows } = useWindowedOutputs.getState();
+        openHosts.forEach((key) => seen.add(key));
+        const closed = windows.filter((w) => seen.has(w.key) && !openHosts.includes(w.key));
+        if (closed.length) useWindowedOutputs.setState({ windows: windows.filter((w) => !closed.includes(w)) });
+      }),
+    );
     // Outputs follow the setup and the connected displays, so screens come up as soon as an HDMI cable goes in.
     let lastPlan = '';
     const sync = () => {
@@ -305,6 +349,7 @@ export function startScreenManager(): () => void {
     sync();
     cleanups.push(useStore.subscribe(sync));
     cleanups.push(useDisplays.subscribe(sync));
+    cleanups.push(useWindowedOutputs.subscribe(sync));
   } else {
     // A browser can't reopen windows by itself, so screens start switched off after a reload.
     const s = useStore.getState();

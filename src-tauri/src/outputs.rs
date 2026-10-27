@@ -120,6 +120,7 @@ pub async fn set_outputs(app: AppHandle, outputs: Vec<OutputRequest>) -> Result<
         }
     }
     tell_operator(&app);
+    crate::window::refresh_windows(&app);
     Ok(())
 }
 
@@ -161,10 +162,14 @@ fn build(
 }
 
 pub fn on_window_event(window: &Window, event: &WindowEvent) {
+    let app = window.app_handle();
+    // Window lists the open windows, with a checkmark on the one in front.
+    if matches!(event, WindowEvent::Focused(_) | WindowEvent::Destroyed) {
+        crate::window::refresh_windows(app);
+    }
     if !matches!(event, WindowEvent::Destroyed) {
         return;
     }
-    let app = window.app_handle();
     if window.label() == "main" {
         // Closing the controls closes the outputs too, and with them the app.
         for (label, w) in app.webview_windows() {

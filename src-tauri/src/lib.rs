@@ -14,6 +14,7 @@ mod outputs;
 mod presentation;
 mod screens;
 mod view;
+mod window;
 
 use tauri::window::Color;
 use tauri::{Manager, WebviewUrl, WebviewWindowBuilder};
@@ -34,6 +35,8 @@ pub fn run() {
             outputs::open_outputs,
             screens::set_menu_state,
             view::set_view_state,
+            window::set_window_state,
+            window::run_window_command,
             edit::set_undo_state,
             edit::set_edit_state,
             presentation::set_presentation_state,
@@ -54,7 +57,7 @@ pub fn run() {
         .setup(|app| {
             let handle = app.handle();
             icon::load(handle);
-            let (menu, screens, edit, presentation, view, file) = menu::build(handle)?;
+            let (menu, screens, edit, presentation, view, window, file) = menu::build(handle)?;
             app.set_menu(menu)?;
             #[cfg(target_os = "macos")]
             edit::attach_text_menus();
@@ -62,6 +65,7 @@ pub fn run() {
             app.manage(edit);
             app.manage(presentation);
             app.manage(view);
+            app.manage(window);
             app.manage(file);
 
             let main = WebviewWindowBuilder::new(app, "main", WebviewUrl::default())
@@ -81,6 +85,7 @@ pub fn run() {
             camera::enable(&main.build()?);
 
             displays::watch(handle.clone());
+            window::refresh_windows(handle);
             Ok(())
         })
         .on_menu_event(menu::on_event)
