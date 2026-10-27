@@ -89,6 +89,9 @@ export interface DesktopBridge {
     slides: { text: string; notes: string; skipped: boolean }[];
   }>;
   keynoteImage(id: string, index: number): Promise<ArrayBuffer>;
+  /** Settings ▸ Open at Login: whether Lumen starts when the operator logs in, and changing it. */
+  openAtLogin(): Promise<boolean>;
+  setOpenAtLogin(on: boolean): Promise<void>;
   keynotePptx(id: string): Promise<ArrayBuffer>;
   keynoteDone(id: string): Promise<void>;
   /** The View menu's checkmarks, and its editors on or off. */

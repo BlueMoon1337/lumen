@@ -14,6 +14,7 @@ mod menu;
 mod outputs;
 mod presentation;
 mod screens;
+mod startup;
 mod updates;
 mod view;
 mod window;
@@ -27,6 +28,8 @@ pub fn run() {
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_clipboard_manager::init())
         .plugin(tauri_plugin_updater::Builder::new().build())
+        // Settings ▸ Open at Login (a launch agent on macOS, the plugin's default).
+        .plugin(tauri_plugin_autostart::Builder::new().build())
         .manage(updates::Updates::default())
         .manage(outputs::Outputs::default())
         .manage(files::ExportFolder::default())
@@ -68,6 +71,8 @@ pub fn run() {
             keynote::keynote_image,
             keynote::keynote_pptx,
             keynote::keynote_done,
+            startup::open_at_login,
+            startup::set_open_at_login,
         ])
         .setup(|app| {
             let handle = app.handle();

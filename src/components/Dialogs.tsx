@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { checkForUpdates, useUpdates } from '../updates';
 import { DEFAULT_APP_ICON } from '../appIcons';
 import { addFontFiles, importFiles } from '../commands';
@@ -22,6 +22,39 @@ const HIGHLIGHTS = [
 const IS_MAC = /Mac|iPhone|iPad/.test(navigator.platform);
 const MOD = IS_MAC ? '⌘' : 'Ctrl';
 const ALT = IS_MAC ? '⌥' : 'Alt';
+
+/**
+ * Settings ▸ Startup: open Lumen when the computer starts (when the operator logs in). The
+ * system keeps the setting, so it's read from there rather than from Lumen's own settings.
+ */
+function StartupSection() {
+  const bridge = window.lumenDesktop!;
+  const [on, setOn] = useState<boolean | null>(null);
+  useEffect(() => {
+    void bridge
+      .openAtLogin()
+      .then(setOn)
+      .catch(() => setOn(false));
+  }, [bridge]);
+  const change = async (next: boolean) => {
+    setOn(next);
+    try {
+      await bridge.setOpenAtLogin(next);
+    } catch (e) {
+      setOn(!next);
+      void alertDialog({ title: 'Open at Login', message: e instanceof Error ? e.message : String(e) });
+    }
+  };
+  return (
+    <section className="settings-section">
+      <h4>Startup</h4>
+      <label className="check-row">
+        <input type="checkbox" checked={!!on} disabled={on === null} onChange={(e) => void change(e.target.checked)} />
+        Open Lumen when {IS_MAC ? 'you log in to this Mac' : 'you sign in to this computer'}
+      </label>
+    </section>
+  );
+}
 
 /** Settings ▸ Updates: this version, whether there's a newer one, and the Update button. */
 function UpdatesSection() {
@@ -110,6 +143,7 @@ export function SettingsDialog({ onClose, onScreens }: { onClose: () => void; on
   return (
     <Dialog title="Settings" onClose={onClose}>
       {window.lumenDesktop && <UpdatesSection />}
+      {window.lumenDesktop && <StartupSection />}
       <section className="settings-section">
         <h4>Presenting</h4>
         <div className="field-row">
