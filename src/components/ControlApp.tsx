@@ -101,6 +101,15 @@ function useShortcuts(enabled: boolean) {
         ArrowUp: () => s.bibleStep(-1),
         PageUp: () => s.bibleStep(-1),
       };
+      // Up and down: through the library or playlist list being worked in, or to the slide above or below.
+      if ((e.key === 'ArrowDown' || e.key === 'ArrowUp') && !e.shiftKey && (s.mode === 'show' || s.mode === 'bible')) {
+        const by = e.key === 'ArrowDown' ? 1 : -1;
+        if (moveInList(by)) return void e.preventDefault();
+        if (s.mode === 'show') {
+          e.preventDefault();
+          return void moveToSlideBelow(by);
+        }
+      }
       const action = s.mode === 'show' ? navigation[e.key] : s.mode === 'bible' ? bibleSteps[e.key] : undefined;
       if (action) {
         e.preventDefault();
@@ -112,6 +121,56 @@ function useShortcuts(enabled: boolean) {
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
   }, [enabled]);
+}
+
+/**
+ * With a library or playlist list being worked in (it has the focus), the arrow keys pick the
+ * item above or below, as clicking it would. False when no list has the focus.
+ */
+function moveInList(by: 1 | -1): boolean {
+  const list = document.activeElement?.closest<HTMLElement>('.item-list[data-edit-scope]');
+  if (!list) return false;
+  const rows = [...list.querySelectorAll<HTMLElement>('.item-row:not(.playlist-header)')];
+  if (!rows.length) return true;
+  const at = rows.findIndex((r) => r.classList.contains('selected'));
+  const next = rows[at < 0 ? (by > 0 ? 0 : rows.length - 1) : Math.max(0, Math.min(rows.length - 1, at + by))];
+  if (next && next !== rows[at]) {
+    next.click();
+    next.scrollIntoView({ block: 'nearest' });
+  }
+  return true;
+}
+
+/**
+ * Down (or up) from the slide on screen, or the one selected, to the slide directly below (or
+ * above) it in the grid, shown as clicking it would. In a one-column view (Table) that's simply
+ * the next slide. Past the last row (or before the first) it carries on as the next (previous)
+ * slide would, so a playlist still moves on to its next item.
+ */
+function moveToSlideBelow(by: 1 | -1) {
+  const s = useStore.getState();
+  const view = document.querySelector('main.center') ?? document;
+  const slides = [...view.querySelectorAll<HTMLElement>('.slide-thumb[data-slide-id], .slide-row[data-slide-id]')];
+  const from = slides.find((el) => el.classList.contains('live')) ?? slides.find((el) => el.classList.contains('selected'));
+  if (!from) return by > 0 ? s.next() : s.prev();
+  const r = from.getBoundingClientRect();
+  const middle = r.left + r.width / 2;
+  // The nearest row in that direction, then the slide in it nearest straight below (above).
+  const ahead = slides
+    .map((el) => ({ el, r: el.getBoundingClientRect() }))
+    .filter(({ r: o }) => (by > 0 ? o.top >= r.bottom - 4 : o.bottom <= r.top + 4));
+  if (!ahead.length) {
+    const last = by > 0 ? slides.at(-1) === from : slides[0] === from;
+    if (last) by > 0 ? s.next() : s.prev();
+    return;
+  }
+  const rowTop = by > 0 ? Math.min(...ahead.map((a) => a.r.top)) : Math.max(...ahead.map((a) => a.r.top));
+  const row = ahead.filter((a) => Math.abs(a.r.top - rowTop) < 4);
+  const target = row.reduce((best, a) =>
+    Math.abs(a.r.left + a.r.width / 2 - middle) < Math.abs(best.r.left + best.r.width / 2 - middle) ? a : best,
+  );
+  target.el.click();
+  target.el.scrollIntoView({ block: 'nearest' });
 }
 
 /**

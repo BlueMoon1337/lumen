@@ -512,33 +512,34 @@ Was blind, but now I see.
 
 ## Keyboard
 
-| Key                            | Action                                                                                          |
-| ------------------------------ | ----------------------------------------------------------------------------------------------- |
-| `→` `↓` `Space` `PgDn`         | Next slide                                                                                      |
-| `←` `↑` `PgUp`                 | Previous slide                                                                                  |
-| `C`, `V`, `B`, …               | Jump to the next group starting with that letter                                                |
-| `F1`                           | Clear all                                                                                       |
-| `F2` / `F3` / `F4`             | Clear slide / media / logo                                                                      |
-| `F5` / `F6` / `F7`             | Clear audio / messages / announcements                                                          |
-| `F12`                          | Clear to logo: everything off but the logo                                                      |
-| `⌘←` / `⌘→`                    | Previous / next background from the media bin (its playlist, if it was started from one)        |
-| `⇧⌘N`                          | New slide                                                                                       |
-| `⌘L` / `⇧⌘L` / `⌥⌘L`           | Show the triggered presentation / announcement; reveal the selected presentation in its library |
-| `⌘0`                           | Show the selected slide on the stage screens only                                               |
-| `⌘1` / `⌘2` (Ctrl on Windows)  | Audience / Stage screens on or off (browsers may keep these for switching tabs)                 |
-| `⌥⌘1` (Ctrl+Alt+1)             | Configure Screens                                                                               |
-| `⇧⌘1` (Ctrl+Shift+1)           | Edit Looks                                                                                      |
-| `⌘4` (Ctrl+4)                  | Edit stage layouts                                                                              |
-| `⌃S` / `⌃E` / `⌃R` / `⌃B`      | Show / Presentation Editor / Reflow Editor / Bibles (Control on a Mac too)                      |
-| `⌘Z` / `⇧⌘Z` (Ctrl+Z / Ctrl+Y) | Undo / redo                                                                                     |
-| `⌘X` `⌘C` `⌘V` `⌘D` (Ctrl)     | Cut, copy, paste, duplicate the selected slides (any mode)                                      |
-| `⌘A` / `⇧⌘A`                   | Select all / deselect all slides                                                                |
-| `⌥⇧⌘V`                         | Paste and match style                                                                           |
-| `⌘F`                           | Search                                                                                          |
-| `⌘N` (Ctrl+N)                  | New presentation (in a browser, only where the browser lets the key through)                    |
-| `⇧⌘I` (Ctrl+Shift+I)           | Import a file                                                                                   |
-| `Delete` / `⌫`                 | Delete the selected slides, presentation, playlist item, or library                             |
-| `⌥⌘C` / `⌥⌘V` (Ctrl+Alt+C/V)   | Copy / paste the selected slides' text style                                                    |
+| Key                            | Action                                                                                                                                                                                                           |
+| ------------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `→` `Space` `PgDn`             | Next slide                                                                                                                                                                                                       |
+| `←` `PgUp`                     | Previous slide                                                                                                                                                                                                   |
+| `↓` / `↑`                      | The slide directly below / above the one on screen in the grid (the next / previous in Table View). With a library or playlist list clicked (its selection is pink then, grey otherwise), the item below / above |
+| `C`, `V`, `B`, …               | Jump to the next group starting with that letter                                                                                                                                                                 |
+| `F1`                           | Clear all                                                                                                                                                                                                        |
+| `F2` / `F3` / `F4`             | Clear slide / media / logo                                                                                                                                                                                       |
+| `F5` / `F6` / `F7`             | Clear audio / messages / announcements                                                                                                                                                                           |
+| `F12`                          | Clear to logo: everything off but the logo                                                                                                                                                                       |
+| `⌘←` / `⌘→`                    | Previous / next background from the media bin (its playlist, if it was started from one)                                                                                                                         |
+| `⇧⌘N`                          | New slide                                                                                                                                                                                                        |
+| `⌘L` / `⇧⌘L` / `⌥⌘L`           | Show the triggered presentation / announcement; reveal the selected presentation in its library                                                                                                                  |
+| `⌘0`                           | Show the selected slide on the stage screens only                                                                                                                                                                |
+| `⌘1` / `⌘2` (Ctrl on Windows)  | Audience / Stage screens on or off (browsers may keep these for switching tabs)                                                                                                                                  |
+| `⌥⌘1` (Ctrl+Alt+1)             | Configure Screens                                                                                                                                                                                                |
+| `⇧⌘1` (Ctrl+Shift+1)           | Edit Looks                                                                                                                                                                                                       |
+| `⌘4` (Ctrl+4)                  | Edit stage layouts                                                                                                                                                                                               |
+| `⌃S` / `⌃E` / `⌃R` / `⌃B`      | Show / Presentation Editor / Reflow Editor / Bibles (Control on a Mac too)                                                                                                                                       |
+| `⌘Z` / `⇧⌘Z` (Ctrl+Z / Ctrl+Y) | Undo / redo                                                                                                                                                                                                      |
+| `⌘X` `⌘C` `⌘V` `⌘D` (Ctrl)     | Cut, copy, paste, duplicate the selected slides (any mode)                                                                                                                                                       |
+| `⌘A` / `⇧⌘A`                   | Select all / deselect all slides                                                                                                                                                                                 |
+| `⌥⇧⌘V`                         | Paste and match style                                                                                                                                                                                            |
+| `⌘F`                           | Search                                                                                                                                                                                                           |
+| `⌘N` (Ctrl+N)                  | New presentation (in a browser, only where the browser lets the key through)                                                                                                                                     |
+| `⇧⌘I` (Ctrl+Shift+I)           | Import a file                                                                                                                                                                                                    |
+| `Delete` / `⌫`                 | Delete the selected slides, presentation, playlist item, or library                                                                                                                                              |
+| `⌥⌘C` / `⌥⌘V` (Ctrl+Alt+C/V)   | Copy / paste the selected slides' text style                                                                                                                                                                     |
 
 Clickers that send arrow keys or Page Up/Down work out of the box. In Edit mode, the arrow keys nudge the selected text box (Shift for 10px), Enter starts typing, and Escape deselects.
 

@@ -971,6 +971,18 @@ body.resizing-y * {
   background: #353535;
 }
 
+/* The list being worked in (clicked, or moved through with the arrow keys) shows its selection in pink. */
+.item-list:focus-within .item-row.selected {
+  border-color: var(--pink);
+  background: var(--pink);
+  color: #fff;
+}
+
+.item-list:focus-within .item-row.selected .item-icon,
+.item-list:focus-within .item-row.selected .row-actions .icon-btn {
+  color: #fff;
+}
+
 .item-icon {
   display: grid;
   place-items: center;
