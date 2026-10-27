@@ -42,6 +42,7 @@ pub fn run() {
             window::run_window_command,
             updates::app_version,
             updates::has_update_token,
+            updates::update_blocker,
             updates::set_update_token,
             updates::check_update,
             updates::install_update,

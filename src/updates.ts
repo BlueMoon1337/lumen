@@ -23,6 +23,8 @@ export interface UpdateState {
   /** While installing: bytes received, and the total if known. */
   progress: { received: number; total: number | null } | null;
   checkedAt: number | null;
+  /** Why updates can't install here ("translocated"), if they can't. */
+  blocker: string | null;
 }
 
 export const useUpdates = create<UpdateState>(() => ({
@@ -33,6 +35,7 @@ export const useUpdates = create<UpdateState>(() => ({
   error: null,
   progress: null,
   checkedAt: null,
+  blocker: null,
 }));
 
 const CHECK_EVERY_MS = 6 * 60 * 60 * 1000;
@@ -83,9 +86,9 @@ export function startUpdateChecks(): () => void {
   const bridge = window.lumenDesktop;
   if (!bridge) return () => {};
   let alive = true;
-  void Promise.all([bridge.appVersion(), bridge.hasUpdateToken()]).then(([version, hasToken]) => {
+  void Promise.all([bridge.appVersion(), bridge.hasUpdateToken(), bridge.updateBlocker()]).then(([version, hasToken, blocker]) => {
     if (!alive) return;
-    useUpdates.setState({ version, hasToken });
+    useUpdates.setState({ version, hasToken, blocker });
   });
   const first = window.setTimeout(() => void checkForUpdates({ quiet: true }), 15_000);
   const every = window.setInterval(() => void checkForUpdates({ quiet: true }), CHECK_EVERY_MS);

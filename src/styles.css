@@ -5750,3 +5750,29 @@ h3.looks-name {
 .btn.link:hover:not(:disabled) {
   color: var(--text);
 }
+
+.update-blocked {
+  padding: 10px 12px;
+  border: 1px solid #7c5a12;
+  border-radius: 8px;
+  background: rgba(245, 158, 11, 0.1);
+  font-size: 13px;
+  line-height: 1.45;
+}
+
+.update-blocked .update-steps {
+  margin-top: 8px;
+}
+
+.update-command {
+  display: block;
+  margin: 6px 0;
+  padding: 6px 8px;
+  border-radius: 5px;
+  background: #111;
+  font-family: ui-monospace, Menlo, monospace;
+  font-size: 12px;
+  user-select: all;
+  -webkit-user-select: all;
+  word-break: break-all;
+}

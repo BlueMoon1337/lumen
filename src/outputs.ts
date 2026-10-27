@@ -70,6 +70,8 @@ export interface DesktopBridge {
   /** Downloads and installs the update found, then restarts Lumen. */
   installUpdate(): Promise<void>;
   onUpdateProgress(cb: (p: { received: number; total: number | null }) => void): () => void;
+  /** Why updates can't install here: "translocated" when macOS runs Lumen from a read-only copy. */
+  updateBlocker(): Promise<string | null>;
   /** The View menu's checkmarks, and its editors on or off. */
   setViewState(state: { presentation: boolean; continuousPlaylist: boolean; slideView: string }): void;
   /** Turns the Presentation menu's items on and off, and lists the clear groups in Clear Groups. */

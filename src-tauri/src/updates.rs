@@ -33,6 +33,22 @@ fn token(app: &AppHandle) -> Option<String> {
     (!token.is_empty()).then_some(token)
 }
 
+/// macOS runs an app downloaded from the internet, and not notarized, from a temporary read-only
+/// copy ("App Translocation") until the download mark is taken off it. An update can't replace
+/// that copy, so the Update window explains how to take the mark off.
+fn translocated() -> bool {
+    cfg!(target_os = "macos")
+        && std::env::current_exe()
+            .map(|p| p.to_string_lossy().contains("/AppTranslocation/"))
+            .unwrap_or(false)
+}
+
+/// Why updates can't be installed here, if they can't: "translocated" (see above).
+#[tauri::command]
+pub fn update_blocker() -> Option<&'static str> {
+    translocated().then_some("translocated")
+}
+
 /// Lumen's version, as built.
 #[tauri::command]
 pub fn app_version(app: AppHandle) -> String {
@@ -207,6 +223,12 @@ struct Progress {
 /// Lumen. Reports progress as `update-progress` events.
 #[tauri::command]
 pub async fn install_update(app: AppHandle, updates: tauri::State<'_, Updates>) -> Result<(), String> {
+    if translocated() {
+        return Err(
+            "macOS is running Lumen from a temporary read-only copy, so it can’t be updated. Follow the steps above, then try again."
+                .into(),
+        );
+    }
     let update = updates.0.lock().unwrap().take().ok_or("Check for updates first.")?;
     let mut received = 0u64;
     let progress = app.clone();

@@ -62,7 +62,7 @@ The desktop app's **Update** button (in the toolbar, next to Settings; also **Lu
 
 The update files are signed with a private key kept as the repository secret `TAURI_SIGNING_PRIVATE_KEY` (**Settings ▸ Secrets and variables ▸ Actions**); its public half is `plugins.updater.pubkey` in `src-tauri/tauri.conf.json`, and Lumen refuses any update not signed with it. Keep a copy of the private key somewhere safe: without it, no new version can be published to apps that already have this public key.
 
-The apps from a release are ad-hoc signed, not notarized, so the first time you open one downloaded with a browser, macOS asks: right-click it and choose **Open** (or **System Settings ▸ Privacy & Security ▸ Open Anyway**). Updates installed by the Update button don't ask again. An app you build yourself with `npm run desktop:build` can update itself the same way.
+The apps from a release are ad-hoc signed, not notarized, so the first time you open one downloaded with a browser, macOS asks: right-click it and choose **Open** (or **System Settings ▸ Privacy & Security ▸ Open Anyway**). Updates installed by the Update button don't ask again. If the Update window says macOS is running Lumen from a temporary, read-only copy (App Translocation, for an app downloaded with a browser), quit Lumen, make sure it's in Applications, run `xattr -dr com.apple.quarantine /Applications/Lumen.app` in Terminal once, and open it again. An app you build yourself with `npm run desktop:build` can update itself the same way.
 
 ### Other scripts
 

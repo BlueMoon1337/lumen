@@ -6,6 +6,28 @@ import { Dialog } from './ui';
 
 const REPOSITORY = 'BlueMoon1337/lumen';
 const TOKEN_PAGE = 'https://github.com/settings/personal-access-tokens/new';
+const UNQUARANTINE = 'xattr -dr com.apple.quarantine /Applications/Lumen.app';
+
+/** macOS is running Lumen from a read-only copy (App Translocation): how to stop it, once. */
+function TranslocatedNotice() {
+  return (
+    <div className="update-blocked">
+      <b>macOS is running Lumen from a temporary, read-only copy, so updates can’t install.</b> It does that to apps downloaded from the
+      internet until they’re cleared. Once:
+      <ol className="update-steps">
+        <li>Quit Lumen. Make sure Lumen is in your Applications folder (drag it there from the disk image if you opened it from there).</li>
+        <li>
+          Open Terminal (Applications ▸ Utilities), paste this and press Return:
+          <code className="update-command">{UNQUARANTINE}</code>
+          <button type="button" className="btn small" onClick={() => void window.lumenDesktop?.writeClipboardText(UNQUARANTINE)}>
+            Copy Command
+          </button>
+        </li>
+        <li>Open Lumen from Applications and click Update again.</li>
+      </ol>
+    </div>
+  );
+}
 
 /** Pasting the read-only GitHub token Lumen downloads updates with. */
 function TokenForm({ onDone, replacing }: { onDone?: () => void; replacing: boolean }) {
@@ -109,6 +131,7 @@ export function UpdateDialog({ onClose }: { onClose: () => void }) {
               )}
             </p>
           )}
+          {u.blocker === 'translocated' && <TranslocatedNotice />}
           {u.status === 'error' && <p className="update-error">{u.error}</p>}
           {(u.status === 'available' || u.status === 'installing') && u.found && (
             <div className="update-found">
@@ -137,7 +160,7 @@ export function UpdateDialog({ onClose }: { onClose: () => void }) {
             </button>
             <span className="dialog-actions-spacer" />
             {u.status === 'available' || u.status === 'installing' ? (
-              <button className="btn primary" disabled={busy} onClick={() => void install()}>
+              <button className="btn primary" disabled={busy || !!u.blocker} onClick={() => void install()}>
                 {busy ? 'Installing…' : 'Install and Restart'}
               </button>
             ) : (

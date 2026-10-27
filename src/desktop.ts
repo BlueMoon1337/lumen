@@ -68,6 +68,7 @@ export function installDesktopBridge() {
     checkUpdate: () => invoke('check_update'),
     installUpdate: () => invoke('install_update'),
     onUpdateProgress: (cb) => subscribe('update-progress', cb),
+    updateBlocker: () => invoke<string | null>('update_blocker'),
     openFiles: async (options) => {
       const opened = await invoke<{ folder: string | null; files: { name: string; path: string }[] }>('open_files', { options });
       const files = await Promise.all(
