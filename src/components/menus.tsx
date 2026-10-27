@@ -16,6 +16,7 @@ import {
 } from '../transitions';
 import type { Group, Library, MediaItem, Playlist, PlaylistItem, Presentation, Slide, SlideTransition, VideoPlayback } from '../types';
 import { ColorPickerPanel } from './ColorPicker';
+import { QuickEdit } from './EditView';
 import { NamePopup, openPopupAtMenu, openPopupBelow, type ContextEntries } from './ContextMenu';
 import { LabelPopup } from './LabelPopup';
 import {
@@ -202,6 +203,9 @@ export function slideMenu(
   // In Edit mode a new slide becomes the one on the canvas.
   const select = (id: string | null) => inEdit && id && s.setUI({ editSlideId: id, editTextSelected: false });
   return [
+    // ProPresenter's Quick Edit: type on the slide, larger, without leaving Show (text slides).
+    !inEdit &&
+      !slide.source && { label: 'Quick Edit', action: () => openPopupAtMenu(<QuickEdit presentationId={p.id} slideId={slide.id} />) },
     opts.index != null && { label: 'Show Slide', action: () => s.goLive(p.id, opts.index!, opts.playlistItemId) },
     !inEdit && { label: 'Edit Slide', action: () => s.openEditor(slide.id) },
     '-',

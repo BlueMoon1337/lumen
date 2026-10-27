@@ -6216,3 +6216,29 @@ h3.looks-name {
   aspect-ratio: 1;
   height: auto;
 }
+
+/* ---- Quick Edit (a slide's right-click menu) ---- */
+
+.quick-edit {
+  display: grid;
+  gap: 8px;
+}
+
+.quick-edit-slide {
+  position: relative;
+  overflow: hidden;
+  border-radius: 4px;
+  background: #000;
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.12);
+}
+
+.quick-edit .slide-box {
+  outline: 1px dashed rgba(255, 255, 255, 0.35);
+}
+
+.quick-edit-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}

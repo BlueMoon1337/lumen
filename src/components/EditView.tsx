@@ -20,7 +20,7 @@ import { useStore } from '../store';
 import { applyStyles, inkFor, resolveTheme, slideTheme, toFrameBackground } from '../theme';
 import type { Category, Group, MediaItem, Presentation, Slide, TextStyle, Theme, ThemeBackground } from '../types';
 import { BackgroundFill, CANVAS_H, CANVAS_W, MediaStill, slideBoxStyle, SlidePreview, SlideText, slideTextStyle } from './Canvas';
-import { NamePopup, openContextMenu, openPopupBelow } from './ContextMenu';
+import { closePopup, NamePopup, openContextMenu, openPopupBelow } from './ContextMenu';
 import { deleteSlide } from './deleting';
 import { clickSlide, selectForMenu } from './editCommands';
 import { FontSelect } from './FontSelect';
@@ -328,6 +328,87 @@ function TextEditor({
           }
         }}
       />
+    </div>
+  );
+}
+
+const QUICK_W = 720;
+
+/**
+ * Quick Edit, as in ProPresenter: the slide, larger, with its text to type in place, without
+ * leaving Show. The words go on the slide as they're typed (one step for Undo), shrinking to
+ * fit as the slide's do. Escape or a click elsewhere closes it.
+ */
+export function QuickEdit({ presentationId, slideId }: { presentationId: string; slideId: string }) {
+  const p = useStore((s) => s.presentations[presentationId]);
+  const slide = p ? findSlide(p, slideId)?.slide : undefined;
+  const base = useBaseTheme(p!);
+  const editorRef = useRef<HTMLDivElement>(null);
+  const measureRef = useRef<HTMLDivElement>(null);
+  const [size, setSize] = useState<number | null>(null);
+  const theme = p && slide ? slideTheme(base, p, slide) : null;
+  const scale = QUICK_W / CANVAS_W;
+
+  // Start with the slide's words, the caret at the end (after the menu it opens from has given the focus back).
+  useEffect(() => {
+    const el = editorRef.current;
+    if (!el || !slide) return;
+    el.innerText = slide.text;
+    const t = window.setTimeout(() => {
+      el.focus();
+      const range = document.createRange();
+      range.selectNodeContents(el);
+      range.collapse(false);
+      window.getSelection()?.removeAllRanges();
+      window.getSelection()?.addRange(range);
+    }, 0);
+    return () => window.clearTimeout(t);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // The size the slide's text fits at (measured from the slide drawn underneath), for the words being typed.
+  useLayoutEffect(() => {
+    const content = measureRef.current?.querySelector<HTMLElement>('.slide-content');
+    const px = parseFloat(content?.style.fontSize ?? '');
+    if (px && px !== size) setSize(px);
+  });
+
+  if (!p || !slide || !theme) return null;
+  const fill = toFrameBackground(slide.background ?? theme.background);
+  return (
+    <div
+      className="quick-edit"
+      onKeyDown={(e) => e.key === 'Escape' && e.currentTarget.closest<HTMLElement>('.floating-popup') && closePopup()}
+    >
+      <div className="quick-edit-slide" style={{ width: QUICK_W, height: (CANVAS_H * QUICK_W) / CANVAS_W }}>
+        <div className="edit-slide-inner" style={{ width: CANVAS_W, height: CANVAS_H, transform: `scale(${scale})` }}>
+          <div className="fill checker" />
+          {slide.media ? <MediaStill mediaId={slide.media} /> : fill && <BackgroundFill bg={fill} />}
+          <div ref={measureRef} className="fill" style={{ visibility: 'hidden' }}>
+            <SlideText text={slide.text} caption={slide.caption} theme={theme} />
+          </div>
+          <div className="slide-box" style={slideBoxStyle(theme)}>
+            <div
+              ref={editorRef}
+              className="slide-content text-editing"
+              contentEditable="plaintext-only"
+              suppressContentEditableWarning
+              spellCheck={useStore.getState().settings.spellcheck !== false}
+              style={slideTextStyle(theme, size ?? theme.fontSize)}
+              onInput={(e) =>
+                useStore.getState().updateSlide(presentationId, slideId, { text: (e.currentTarget.innerText ?? '').replace(/\n+$/, '') })
+              }
+              onKeyDown={(e) => e.stopPropagation()}
+            />
+          </div>
+        </div>
+      </div>
+      <div className="quick-edit-bar">
+        <span className="muted small-print">Typing changes the slide (also on screen, if it’s live).</span>
+        <button className="btn" onClick={closePopup}>
+          Done
+        </button>
+      </div>
     </div>
   );
 }
