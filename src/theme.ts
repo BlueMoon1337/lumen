@@ -21,8 +21,19 @@ export function applyStyles(theme: Theme, ...styles: (TextStyle | undefined)[]):
   return out;
 }
 
+/** Themes with a presentation's own background, kept so the same inputs give the same theme. */
+const withBackground = new WeakMap<Theme, WeakMap<ThemeBackground, Theme>>();
+
+/** Theme, then the presentation's background and formatting, then the slide's formatting. */
 export function slideTheme(theme: Theme, p: Presentation | undefined, slide: Slide | undefined): Theme {
-  return applyStyles(theme, p?.style, slide?.style);
+  const styled = applyStyles(theme, p?.style, slide?.style);
+  const bg = p?.background;
+  if (!bg) return styled;
+  let byBg = withBackground.get(styled);
+  if (!byBg) withBackground.set(styled, (byBg = new WeakMap()));
+  let out = byBg.get(bg);
+  if (!out) byBg.set(bg, (out = { ...styled, background: bg }));
+  return out;
 }
 
 export function toFrameBackground(bg: ThemeBackground): FrameBackground | null {

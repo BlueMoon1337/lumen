@@ -88,6 +88,11 @@ export interface Presentation {
   /** Show the copyright line on the first and last slides. */
   showCopyright?: boolean;
   themeId?: string;
+  /**
+   * The presentation's own background, in place of the theme's (a slide's own still wins). New
+   * presentations start with none: transparent, so they go over whatever media is playing.
+   */
+  background?: ThemeBackground;
   /** Formatting applied to every slide, under any per-slide formatting. */
   style?: TextStyle;
   /** Overrides the global transition; a slide's own transition overrides this. */

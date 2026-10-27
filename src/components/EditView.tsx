@@ -663,6 +663,36 @@ function PresentationTab({ presentation: p }: { presentation: Presentation }) {
             <LibraryOptions />
           </select>
         </Field>
+        <Field label="Background">
+          <span className="pair">
+            <select
+              value={!p.background ? 'theme' : p.background.type === 'none' ? 'none' : 'own'}
+              onChange={(e) =>
+                update({
+                  background:
+                    e.target.value === 'theme'
+                      ? undefined
+                      : e.target.value === 'none'
+                        ? { type: 'none', color: '#000000', color2: '#000000' }
+                        : { type: 'color', color: '#000000', color2: '#000000' },
+                })
+              }
+              aria-label="Presentation background"
+            >
+              <option value="none">None (transparent)</option>
+              <option value="own">Color</option>
+              <option value="theme">Theme’s</option>
+            </select>
+            {p.background && p.background.type !== 'none' && (
+              <input
+                type="color"
+                value={p.background.color}
+                onChange={(e) => update({ background: { type: 'color', color: e.target.value, color2: e.target.value } })}
+                aria-label="Background color"
+              />
+            )}
+          </span>
+        </Field>
         <Field label="Size">
           <input value="1920 × 1080" disabled />
         </Field>
@@ -916,9 +946,9 @@ function SlideTab({ presentation: p, slide, group }: { presentation: Presentatio
               onChange={(on) =>
                 updateSlide({
                   background: on
-                    ? base.background.type === 'none'
+                    ? (p.background ?? base.background).type === 'none'
                       ? { type: 'color', color: '#202124', color2: '#202124' }
-                      : { ...base.background }
+                      : { ...(p.background ?? base.background) }
                     : undefined,
                 })
               }

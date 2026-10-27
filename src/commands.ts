@@ -42,14 +42,27 @@ export async function importLumenFile(file: File, category: Category): Promise<L
   };
 }
 
-/** Creates an empty presentation in a library and opens it in Reflow for typing lyrics. */
+/**
+ * File ▸ New Presentation, as in ProPresenter: one blank slide in a group called "Group", with no
+ * background (transparent, so it shows over whatever media is playing), open in the editor.
+ */
 export function newPresentation(category: Category = 'song'): string {
   const s = useStore.getState();
-  const id = s.createPresentation({ title: category === 'song' ? 'Untitled Song' : 'Untitled', category });
+  const group: Group = { id: uid(), name: 'Group', color: NEW_GROUP_COLOR, slides: [{ id: uid(), text: '' }] };
+  const id = s.createPresentation({
+    title: category === 'song' ? 'Untitled Song' : 'Untitled',
+    category,
+    groups: [group],
+    arrangement: [group.id],
+    background: { type: 'none', color: '#000000', color2: '#000000' },
+  });
   s.select(id);
-  s.setUI({ mode: 'reflow', sidebar: 'library', libraryCategory: category });
+  s.setUI({ mode: 'edit', sidebar: 'library', libraryCategory: category, editSlideId: group.slides[0].id, editTextSelected: false });
   return id;
 }
+
+/** A new presentation's group: grey, as ProPresenter's. */
+const NEW_GROUP_COLOR = '#5f6368';
 
 const baseName = (file: File) => file.name.replace(/\.[^.]+$/, '');
 const extension = (file: File) => file.name.toLowerCase().match(/\.([^.]+)$/)?.[1] ?? '';

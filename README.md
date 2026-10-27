@@ -209,7 +209,7 @@ The right-click menu of a selected slide works on all the selected slides too (*
 
 In the desktop app it's in the menu bar; in a browser it's under **More ▸ File**.
 
-- **New Presentation** (⌘N) opens a new, empty presentation in Reflow, in the open library.
+- **New Presentation** (⌘N) makes a presentation in the open library with one blank slide in a group called "Group", on no background (transparent, so it shows over whatever media is playing), and opens it in Edit mode, as ProPresenter does. Its **Background** in the Presentation tab can be None (transparent), a color, or the theme's; a slide's own background still wins.
 - **New Playlist** and **New Library** ask for a name. Libraries can be renamed (double-click) and deleted like playlists, and a presentation can be moved between them by dragging it onto one or from its **Library** menu.
 - **Import ▸**
   - **File…** (⇧⌘I): ProPresenter `.pro` presentations and `.proplaylist` playlists, `.txt` lyrics, `.rvbible` Bibles, and Lumen's own exports. Songs go into the open library.
