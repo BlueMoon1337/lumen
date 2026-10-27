@@ -57,8 +57,8 @@ function Tool({
   );
 }
 
-/** Update: lit, with a dot, when a newer Lumen is ready to install. */
-function UpdateTool() {
+/** Settings, with a dot when a newer Lumen is ready to install (its Update button is in Settings). */
+function SettingsTool({ onClick }: { onClick: () => void }) {
   const u = useUpdates();
   const ready = u.status === 'available' || u.status === 'installing';
   return (
@@ -66,17 +66,14 @@ function UpdateTool() {
       <button
         type="button"
         className={`tool-btn ${ready ? 'update-ready' : ''}`}
-        title={ready && u.found ? `Lumen ${u.found.version} is available. Click to install it.` : 'Check for updates'}
-        onClick={() => {
-          useStore.getState().setUI({ dialog: 'update' });
-          if (!ready) void checkForUpdates();
-        }}
+        title={ready && u.found ? `Settings · Lumen ${u.found.version} is available` : 'Settings'}
+        onClick={onClick}
       >
         <span className="tool-icon">
-          <Icon name="download" size={20} />
+          <Icon name="gear" size={20} />
           {ready && <span className="update-dot" />}
         </span>
-        <span className="tool-label">Update</span>
+        <span className="tool-label">Settings</span>
       </button>
     </div>
   );
@@ -195,13 +192,8 @@ export function Toolbar({ onSettings, onScreens }: { onSettings: () => void; onS
         <ScreenTool kind="audience" label="Audience" onConfigure={onScreens} />
         <ScreenTool kind="stage" label="Stage" onConfigure={onScreens} />
       </div>
-      {window.lumenDesktop && (
-        <div className="tool-group">
-          <UpdateTool />
-        </div>
-      )}
       <div className="tool-group">
-        <Tool icon="gear" label="Settings" onClick={onSettings} />
+        <SettingsTool onClick={onSettings} />
       </div>
     </header>
   );

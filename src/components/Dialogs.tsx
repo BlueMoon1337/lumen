@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { checkForUpdates, useUpdates } from '../updates';
 import { DEFAULT_APP_ICON } from '../appIcons';
 import { addFontFiles, importFiles } from '../commands';
 import { cssFamilyFor, faceName, FONT_ACCEPT, isFontInstalled } from '../fonts';
@@ -16,6 +17,46 @@ import { Dialog, IconButton, pickFiles } from './ui';
 const IS_MAC = /Mac|iPhone|iPad/.test(navigator.platform);
 const MOD = IS_MAC ? '⌘' : 'Ctrl';
 const ALT = IS_MAC ? '⌥' : 'Alt';
+
+/** Settings ▸ Updates: this version, whether there's a newer one, and the Update button. */
+function UpdatesSection() {
+  const u = useUpdates();
+  const ready = u.status === 'available' || u.status === 'installing';
+  const status =
+    u.hasToken === false
+      ? 'Set up updates to get new versions of Lumen with one click.'
+      : u.status === 'checking'
+        ? 'Checking for updates…'
+        : ready && u.found
+          ? `Lumen ${u.found.version} is available.`
+          : u.status === 'none'
+            ? 'Lumen is up to date.'
+            : u.status === 'error'
+              ? 'The last check for updates didn’t work.'
+              : '';
+  return (
+    <section className="settings-section">
+      <h4>Updates</h4>
+      <div className="settings-update">
+        <div>
+          <div>
+            <b>Lumen</b> <span className="muted">Version {u.version ?? '…'}</span>
+          </div>
+          {status && <div className={`small-print ${ready ? 'update-available' : 'muted'}`}>{status}</div>}
+        </div>
+        <button
+          className={`btn ${ready ? 'primary' : ''}`}
+          onClick={() => {
+            useStore.getState().setUI({ dialog: 'update' });
+            if (!ready) void checkForUpdates();
+          }}
+        >
+          {ready ? 'Update…' : u.hasToken === false ? 'Set Up Updates…' : 'Check for Updates…'}
+        </button>
+      </div>
+    </section>
+  );
+}
 
 export function SettingsDialog({ onClose, onScreens }: { onClose: () => void; onScreens: () => void }) {
   const settings = useStore((s) => s.settings);
@@ -63,6 +104,7 @@ export function SettingsDialog({ onClose, onScreens }: { onClose: () => void; on
 
   return (
     <Dialog title="Settings" onClose={onClose}>
+      {window.lumenDesktop && <UpdatesSection />}
       <section className="settings-section">
         <h4>Presenting</h4>
         <div className="field-row">

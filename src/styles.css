@@ -5776,3 +5776,14 @@ h3.looks-name {
   -webkit-user-select: all;
   word-break: break-all;
 }
+
+.settings-update {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.update-available {
+  color: var(--pink);
+}

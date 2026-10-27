@@ -48,10 +48,10 @@ An app you build runs on your own computer. Before it can be handed to other Mac
 
 ### Updates
 
-The desktop app's **Update** button (in the toolbar, next to Settings; also **Lumen ▸ Check for Updates…** on a Mac, **Help ▸ Check for Updates…** elsewhere, and **More ▸ Check for Updates…**) installs new versions of Lumen without building anything:
+The desktop app's **Update** button (at the top of **Settings**; also **Lumen ▸ Check for Updates…** on a Mac, **Help ▸ Check for Updates…** elsewhere, and **More ▸ Check for Updates…**) installs new versions of Lumen without building anything:
 
 1. The first time, it asks for a GitHub token, because the repository is private. Make a [fine-grained token](https://github.com/settings/personal-access-tokens/new) with access to **Only select repositories ▸ lumen** and **Contents: Read-only**, and paste it in. Lumen keeps it in a file in its settings folder, on this computer only.
-2. Lumen looks for a newer release when it starts and every six hours. When there is one, the Update button lights up with a dot.
+2. Lumen looks for a newer release when it starts and every six hours. When there is one, the **Settings** button gets a pink dot, and Settings says which version is ready.
 3. Click it to see what's new, then **Install and Restart**. Lumen downloads the new version, checks its signature, replaces itself and starts again. Your library, playlists and settings are kept.
 
 **Publishing a release.** Releases are built by GitHub Actions (`.github/workflows/release.yml`) for macOS (one app for Apple silicon and Intel) and Windows:
