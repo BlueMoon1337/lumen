@@ -159,47 +159,58 @@ export function MediaSidebar() {
   const playlists = useStore((s) => s.mediaPlaylists);
   const camera = useStore((s) => !!s.live.videoInput);
   const { setUI } = useStore.getState();
+  // Each section folds away under its header, as the Library and Playlist ones do.
+  const [mediaOpen, setMediaOpen] = useState(true);
+  const [playlistsOpen, setPlaylistsOpen] = useState(true);
+  const [inputsOpen, setInputsOpen] = useState(true);
   return (
     <aside className="media-sidebar">
-      <SectionHeader title="Media" onAdd={() => void importInto()} addTitle="Import media" />
-      {FILTERS.map((f) => (
-        <div
-          key={f.value}
-          className={`collection-row ${filter === f.value ? 'selected' : ''}`}
-          onClick={() => setUI({ mediaFilter: f.value })}
-        >
-          <span className="collection-icon media">
-            <Icon name={f.icon} size={14} />
-          </span>
-          <span className="list-label">{f.label}</span>
-          <span className="count">{f.value === 'all' ? media.length : media.filter((m) => m.kind === f.value).length}</span>
-        </div>
-      ))}
-      <div className="section-header">
-        <span className="section-title">Playlists</span>
-        <span className="section-actions">
-          <button
-            type="button"
-            className="icon-btn"
-            title="New media playlist"
-            aria-label="New media playlist"
-            onClick={(e) => newMediaPlaylist(e.currentTarget)}
+      <SectionHeader
+        title="Media"
+        onAdd={() => void importInto()}
+        addTitle="Import media"
+        collapsed={!mediaOpen}
+        onToggle={() => setMediaOpen(!mediaOpen)}
+      />
+      {mediaOpen &&
+        FILTERS.map((f) => (
+          <div
+            key={f.value}
+            className={`collection-row ${filter === f.value ? 'selected' : ''}`}
+            onClick={() => setUI({ mediaFilter: f.value })}
           >
-            <Icon name="plus" />
-          </button>
-        </span>
-      </div>
-      {playlists.map((pl) => (
-        <MediaPlaylistRow key={pl.id} playlist={pl} />
-      ))}
-      <SectionHeader title="Video Inputs" />
-      <div className={`collection-row ${filter === 'inputs' ? 'selected' : ''}`} onClick={() => setUI({ mediaFilter: 'inputs' })}>
-        <span className="collection-icon media">
-          <Icon name="video" size={14} />
-        </span>
-        <span className="list-label">Cameras & Capture</span>
-        {camera && <span className="live-dot" title="Live" />}
-      </div>
+            <span className="collection-icon media">
+              <Icon name={f.icon} size={14} />
+            </span>
+            <span className="list-label">{f.label}</span>
+            <span className="count">{f.value === 'all' ? media.length : media.filter((m) => m.kind === f.value).length}</span>
+          </div>
+        ))}
+      <SectionHeader title="Playlists" collapsed={!playlistsOpen} onToggle={() => setPlaylistsOpen(!playlistsOpen)}>
+        <button
+          type="button"
+          className="icon-btn"
+          title="New media playlist"
+          aria-label="New media playlist"
+          onClick={(e) => {
+            setPlaylistsOpen(true);
+            newMediaPlaylist(e.currentTarget);
+          }}
+        >
+          <Icon name="plus" />
+        </button>
+      </SectionHeader>
+      {playlistsOpen && playlists.map((pl) => <MediaPlaylistRow key={pl.id} playlist={pl} />)}
+      <SectionHeader title="Video Inputs" collapsed={!inputsOpen} onToggle={() => setInputsOpen(!inputsOpen)} />
+      {inputsOpen && (
+        <div className={`collection-row ${filter === 'inputs' ? 'selected' : ''}`} onClick={() => setUI({ mediaFilter: 'inputs' })}>
+          <span className="collection-icon media">
+            <Icon name="video" size={14} />
+          </span>
+          <span className="list-label">Cameras & Capture</span>
+          {camera && <span className="live-dot" title="Live" />}
+        </div>
+      )}
     </aside>
   );
 }
