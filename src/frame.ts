@@ -4,6 +4,7 @@ import { adjacentPlaylistItem, type AppState } from './store';
 import { copyrightLine, resolveTheme, slideTheme, toFrameBackground } from './theme';
 import { effectiveTransition, mediaTransitionOf, transitionDuration } from './transitions';
 import { screenLook } from './looks';
+import { slideWords } from './slideshows';
 import { layoutFor } from './stageLayouts';
 import type { FrameBackground, OutputFrame, Presentation, SequenceEntry, SlidePicture } from './types';
 
@@ -22,7 +23,7 @@ export function buildFrame(s: AppState): OutputFrame {
     const following = seq[ref.index + 1];
     if (following) {
       next = {
-        text: following.slide.text,
+        text: slideWords(following.slide),
         label: label(p, following.group.name),
         notes: following.slide.notes,
         presentation: p,
@@ -33,7 +34,13 @@ export function buildFrame(s: AppState): OutputFrame {
       const np = item && s.presentations[item.presentationId];
       const first = np ? getSequence(np)[0] : undefined;
       if (np && first)
-        next = { text: first.slide.text, label: label(np, first.group.name), notes: first.slide.notes, presentation: np, entry: first };
+        next = {
+          text: slideWords(first.slide),
+          label: label(np, first.group.name),
+          notes: first.slide.notes,
+          presentation: np,
+          entry: first,
+        };
     }
   }
 
@@ -48,6 +55,7 @@ export function buildFrame(s: AppState): OutputFrame {
           footer: showCredit ? copyrightLine(p, s.settings) : undefined,
           theme,
           background: entry.slide.background,
+          picture: entry.slide.source?.picture,
         }
       : null;
   // Media from the media bin replaces slide backgrounds; so does a camera, which shows underneath.
@@ -81,6 +89,7 @@ export function buildFrame(s: AppState): OutputFrame {
           caption: aEntry.slide.caption,
           theme: aTheme,
           background: withLoop(toFrameBackground(aEntry.slide.background ?? aTheme.background)),
+          picture: aEntry.slide.source?.picture,
         }
       : null;
 
@@ -98,15 +107,16 @@ export function buildFrame(s: AppState): OutputFrame {
           theme: slideTheme(resolveTheme(s, q), q, e.slide),
           background: e.slide.background,
           media: e.slide.media,
+          picture: e.slide.source?.picture,
         }
       : null;
   const stage =
     sp && sEntry
       ? {
           title: sp.title,
-          current: sEntry.slide.text,
+          current: slideWords(sEntry.slide),
           currentLabel: label(sp, sEntry.group.name),
-          next: sNext?.slide.text ?? null,
+          next: sNext ? slideWords(sNext.slide) : null,
           nextLabel: sNext ? label(sp, sNext.group.name) : null,
           notes: sEntry.slide.notes ?? null,
           nextNotes: sNext?.slide.notes ?? null,
@@ -115,7 +125,7 @@ export function buildFrame(s: AppState): OutputFrame {
         }
       : {
           title: p?.title ?? null,
-          current: entry ? entry.slide.text : null,
+          current: entry ? slideWords(entry.slide) : null,
           currentLabel: p && entry ? label(p, entry.group.name) : null,
           next: next?.text ?? null,
           nextLabel: next?.label ?? null,

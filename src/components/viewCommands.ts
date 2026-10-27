@@ -4,6 +4,7 @@
  * the keys run these.
  */
 import { useEffect } from 'react';
+import { isReadOnly } from '../slideshows';
 import { useStore, type AppState, type Mode } from '../store';
 import type { Settings } from '../types';
 import { isTypingTarget } from '../util';
@@ -20,9 +21,11 @@ const SLIDE_VIEWS: Record<string, Settings['slideView']> = {
 };
 
 const hasPresentation = (s: AppState) => !!s.selectedPresentationId && !!s.presentations[s.selectedPresentationId];
+/** A presentation that can be edited: not a PowerPoint or Keynote one. */
+const editable = (s: AppState) => hasPresentation(s) && !isReadOnly(s.presentations[s.selectedPresentationId!]);
 
 export function canRunView(id: string, s: AppState = st()): boolean {
-  return id === 'view-edit' || id === 'view-reflow' ? hasPresentation(s) : id in MODES || id in SLIDE_VIEWS || id === 'continuous-playlist';
+  return id === 'view-edit' || id === 'view-reflow' ? editable(s) : id in MODES || id in SLIDE_VIEWS || id === 'continuous-playlist';
 }
 
 export function runViewCommand(id: string): boolean {
@@ -57,7 +60,7 @@ export function useViewCommands() {
       const sync = () => {
         const s = st();
         const state = {
-          presentation: hasPresentation(s),
+          presentation: editable(s),
           continuousPlaylist: !!s.settings.continuousPlaylist,
           slideView: s.settings.slideView,
         };

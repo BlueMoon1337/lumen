@@ -89,7 +89,7 @@ npm run format       # Prettier
 | Screen picker, transport, and Audio / Stage / Timers / Messages / Props tabs                                                                                                           | Same. The Audio tab is the audio bin.                                                                                                                                                                                                                                                                                                                             |
 | Edit: slide list with group headers, Objects, canvas with rulers, Presentation / Slide inspector                                                                                       | Same. Drag or resize the text box, double-click to type on the slide. The Text tab formats one slide.                                                                                                                                                                                                                                                             |
 | Reflow                                                                                                                                                                                 | Type the whole song as text with `[Verse 1]` headers.                                                                                                                                                                                                                                                                                                             |
-| File menu: New Presentation, New Playlist, New Library, Import ▸, Export ▸                                                                                                             | Same, in the desktop app's menu bar and under **More ▸ File**. Import has File…, Library…, Media…, Text from Clipboard… and Import Bible…; Export has Presentation…, Presentation Bundle…, Text…, Slide Images…, Playlist… and Themes…. No Print.                                                                                                                 |
+| File menu: New Presentation, New Playlist, New Library, Import ▸, Export ▸                                                                                                             | Same, in the desktop app's menu bar and under **More ▸ File**. Import has File…, Library…, Media…, PowerPoint or Keynote…, Text from Clipboard… and Import Bible…; Export has Presentation…, Presentation Bundle…, Text…, Slide Images…, Playlist… and Themes…. No Print.                                                                                         |
 | Edit menu: Undo, Redo, Cut, Copy ▸, Paste ▸, Duplicate, Delete, Select All, Deselect All, Search, Spelling and Grammar ▸, Transformations ▸                                            | Same, in the menu bar and under **More**. In a text field they work on its text; elsewhere on the selected slides (⌘-click and ⇧-click select more), or the presentation or playlist item selected in the sidebar.                                                                                                                                                |
 | Presentation menu: New Slide, Next/Previous Slide and Background, Clear Groups ▸, the Clear items, Clear to Logo, Show Triggered…, Reveal in Library, Show Slide on Stage Screens Only | Same, in the menu bar and under **More**, with the same function keys. Clear Logo (F4) stands where ProPresenter has Clear Props.                                                                                                                                                                                                                                 |
 | Screens menu: Audience (Enable, Live ▸, Edit Looks…), Stage (Enable, Edit Layouts…), Configure Screens…, Start Capture, Capture Settings…                                              | Same, in the menu bar and under **More ▸ Screens**, with the same keys. See Looks, Stage layouts and Capture below.                                                                                                                                                                                                                                               |
@@ -123,6 +123,7 @@ npm run format       # Prettier
 - **Messages** on the audience screen, with `{countdown}` and `{clock}` tokens.
 - **Stage display** showing the current and next slide, notes, clock, timer, and a flashing message to the stage.
 - **ProPresenter import** of `.pro` presentations, `.proplaylist` playlists and `.rvbible` Bibles (see below).
+- **PowerPoint and Keynote import** into their own library, read-only for now (see below).
 - **Bible mode**, laid out like ProPresenter's (see Bible below), from imported Bibles (offline) or public-domain translations via [bible-api.com](https://bible-api.com).
 - **File menu** like ProPresenter's: new presentations, playlists and libraries; import songs, folders, media, text from the clipboard and Bibles; export presentations, bundles, text, slide images, playlists and themes (see The File menu below).
 - **Edit menu** like ProPresenter's, for text fields and for slides: select several slides (⌘-click, ⇧-click, Select All) and cut, copy, paste (or paste and match style), duplicate or delete them, or copy and paste their text style (see The Edit menu below).
@@ -232,13 +233,14 @@ In the desktop app it's in the menu bar; in a browser it's under **More ▸ File
 - **New Presentation** (⌘N) makes a presentation in the open library with one blank slide in a group called "Group", on no background (transparent, so it shows over whatever media is playing), and opens it in Edit mode, as ProPresenter does. Its **Background** in the Presentation tab can be None (transparent), a color, or the theme's; a slide's own background still wins.
 - **New Playlist** and **New Library** ask for a name. Libraries can be renamed (double-click) and deleted like playlists, and a presentation can be moved between them by dragging it onto one or from its **Library** menu.
 - **Import ▸**
-  - **File…** (⇧⌘I): ProPresenter `.pro` presentations and `.proplaylist` playlists, `.txt` lyrics, `.rvbible` Bibles, and Lumen's own exports. Songs go into the open library.
+  - **File…** (⇧⌘I): ProPresenter `.pro` presentations and `.proplaylist` playlists, `.txt` lyrics, `.rvbible` Bibles, PowerPoint `.pptx` and Keynote `.key` files, and Lumen's own exports. Songs go into the open library; PowerPoint and Keynote presentations into the PowerPoint & Keynote library.
   - **Library…**: choose a folder (a ProPresenter library folder, or any folder of `.pro` and `.txt` files). It becomes a new library named after the folder.
   - **Media…**: images (iPhone HEIC photos become JPEG) and videos to the media bin, and audio to the Audio tab.
+  - **PowerPoint or Keynote…**: `.pptx` and `.key` presentations (see Importing PowerPoint and Keynote).
   - **Text from Clipboard…**: the copied text in a window, with a title, a library, and where new slides start: at blank lines, or every 1, 2 or 4 lines. `[Chorus]`-style headers make groups. **Paste** reads the clipboard again.
   - **Import Bible…**: a ProPresenter `.rvbible`, for Bible mode.
 - **Export ▸** (the first four export the selected presentation; right-click a presentation for them too)
-  - **Presentation…**: a `.lumen` file with its slides and the theme it uses.
+  - **Presentation…**: a `.lumen` file with its slides and the theme it uses. A PowerPoint or Keynote presentation always exports as a bundle, since its slides are pictures.
   - **Presentation Bundle…**: a `.lumenbundle` with the images and videos its slides and theme use as well.
   - **Text…**: the words as `.txt`, with `[Group]` headers, which imports back.
   - **Slide Images…**: every slide as it looks on screen, as JPEG or PNG at 1280×720, 1920×1080 or 3840×2160. The desktop app asks for a folder; a browser downloads a `.zip`.
@@ -431,6 +433,17 @@ Use **File ▸ Import ▸ File…** (⇧⌘I), the import buttons in the Library
 
 Songs already in your library (same title and slides) are reused rather than duplicated, so re-importing is safe. ProPresenter 6 files (`.pro6`) aren't supported yet. Bible text and media stay on the computer; library backups don't include them. Check that your licence covers projecting the translations you import.
 
+## Importing PowerPoint and Keynote
+
+Use **File ▸ Import ▸ PowerPoint or Keynote…**, **Import ▸ File…**, or drag `.pptx` and `.key` files onto the sidebar. They go into the **PowerPoint & Keynote** library (it's made again if you deleted it), whichever library is open.
+
+- **PowerPoint (`.pptx`)**, from PowerPoint, Google Slides or Keynote's export, on any computer. Lumen reads the file and draws each slide as a 1920×1080 picture: the slide master's and layout's shapes, backgrounds (colors, gradients, pictures), shapes and drawn outlines, groups, pictures with their crops, and text with its fonts, sizes, colors, bullets and numbering, spacing and alignment. Animations, videos, charts and SmartArt aren't drawn, and fonts the computer doesn't have fall back to similar ones (install the presentation's fonts for the closest match). A slide that isn't 16:9 sits in the middle on black.
+- **Keynote (`.key`)**, in the Mac desktop app with Keynote installed. Lumen asks Keynote to export the slides as pictures; the first time, macOS asks whether Lumen may control Keynote (change it later in **System Settings ▸ Privacy & Security ▸ Automation**). Elsewhere, export from Keynote with **File ▸ Export To ▸ PowerPoint** and import that.
+
+Each slide keeps its words (top to bottom), which **Search** finds and the stage display's Current and Next Slide Text show, and its speaker notes as the slide's notes for the stage. PowerPoint's sections become groups; otherwise the slides are in one group. Hidden (skipped) slides are left out. PowerPoint 97–2003 `.ppt` files can't be read; save them as `.pptx` first.
+
+**Read-only for now.** These presentations can't be edited, reflowed or restyled, and their slides can't be added, deleted or pasted over; Edit and Reflow are off, and Lumen says so if you try. You can still show them, rename them and their groups, move them between libraries, label slides, give slides, groups or the whole presentation transitions, add media cues, copy slides into other presentations, and put them in playlists. The original file, and for PowerPoint Lumen's model of every shape and text box, are kept with the presentation, ready for editing in a later version.
+
 ## Bible
 
 Click **Bible** in the toolbar. The slides area turns into ProPresenter's Bible view; the library, playlist and live panel stay where they are.
@@ -533,7 +546,11 @@ src/
   bible.ts         imported and online Bibles: storage, reference parsing (local + English book names), lookups
   bibleSlides.ts   Bible mode's slides: verses into the template's boxes, references, verse numbers, parallel translations
   versification.ts chapter and verse counts of the 66 books, for online translations
-  commands.ts      new presentation, file import (ProPresenter files, lyrics, Bibles and Lumen's own)
+  commands.ts      new presentation, file import (ProPresenter files, lyrics, Bibles, slideshows and Lumen's own)
+  slideshows.ts    PowerPoint and Keynote presentations: read-only, their slides' words, the files they keep
+  slideshowImport.ts  importing them: drawing PowerPoint slides, having Keynote export its slides, the library
+  deck.ts          Lumen's model of a PowerPoint deck: shapes, pictures and text, resolved from masters and layouts
+  deckRender.ts    draws a deck's slides onto a canvas (shapes, gradients, pictures, wrapped text, bullets)
   fileFormats.ts   Lumen's export files (.lumen, .lumenbundle, .lumenplaylist, .lumenthemes): writing, reading, importing
   slideImages.ts   drawing slides onto a canvas for Export ▸ Slide Images
   looks.ts         looks: which layers each audience screen shows, its theme and mask
@@ -541,6 +558,7 @@ src/
   updates.ts       the Update button's state: checking at start-up and every six hours, installing
   capture.ts       Screens ▸ Capture: drawing an audience screen onto a canvas, its sound, recording to a file
   import/          readers for ProPresenter .pro (protobuf + RTF), .proplaylist and .rvbible (zip of USX books),
+                   PowerPoint .pptx (pptx.ts, with a small XML reader in xml.ts),
                    and a zip reader that tolerates ProPresenter's Zip64 layout
   frame.ts         derives the OutputFrame from the store
   sync.ts          sends frames from the operator window to output windows (desktop app events or BroadcastChannel)
@@ -598,6 +616,7 @@ src-tauri/          the desktop app (Tauri, Rust)
   src/window.rs    the Window menu: moving and arranging windows, New Windowed Output, the window list
   src/screens.rs   the Screens menu, with the looks listed under Live
   src/capture.rs   capture files: Save To's folders, writing the recording as it comes
+  src/keynote.rs   Keynote files (macOS): has Keynote export the slides as pictures, with their words and notes
   src/presentation.rs  the Presentation menu, with the operator's clear groups listed in Clear Groups
   src/edit.rs      the Edit menu: its items on and off, Undo and Redo named after the next step, macOS's own
                    Spelling and Grammar and Transformations, and Edit's commands for a Save or Open panel in front

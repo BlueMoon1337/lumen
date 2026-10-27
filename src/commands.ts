@@ -7,13 +7,14 @@ import { parseRvBible } from './import/rvbible';
 import { colorForGroup, getSequence } from './lyrics';
 import { undoBatch } from './history';
 import { putMediaBlob } from './media';
-import { dismiss, notify } from './notices';
+import { dismiss, notify, renotify } from './notices';
+import { createSlideshow, readKeynote, readPowerPoint, slideshowLibrary } from './slideshowImport';
 import { useStore } from './store';
 import type { Category, FontMeta, Group, PlaylistItem } from './types';
 import { uid } from './util';
 
 /** File types File ▸ Import ▸ File… and drag-and-drop accept. */
-export const IMPORT_ACCEPT = '.pro,.proplaylist,.txt,.rvbible,.lumen,.lumenbundle,.lumenplaylist,.lumenthemes,text/plain';
+export const IMPORT_ACCEPT = '.pro,.proplaylist,.txt,.rvbible,.lumen,.lumenbundle,.lumenplaylist,.lumenthemes,.pptx,.key,text/plain';
 
 export interface LumenImportResult {
   presentationIds: string[];
@@ -28,7 +29,7 @@ export async function importLumenFile(file: File, category: Category): Promise<L
   const { file: data, blobs } = readLumenFile(new Uint8Array(await file.arrayBuffer()));
   const s = useStore.getState();
   const plan = planImport(s, data, blobs, category);
-  for (const m of plan.media) await putMediaBlob(m.id, new Blob([blobs.get(m.id)!.slice()], { type: m.mime }));
+  for (const m of [...plan.media, ...plan.files]) await putMediaBlob(m.id, new Blob([blobs.get(m.id)!.slice()], { type: m.mime }));
   if (plan.media.length) s.addMedia(plan.media);
   if (plan.themes.length) s.addThemes(plan.themes);
   if (plan.presentations.length) s.addPresentations(plan.presentations);
@@ -232,7 +233,7 @@ export function importFiles(files: File[], category: Category = useStore.getStat
 async function importAll(files: File[], category: Category) {
   if (!files.length) return;
   const working =
-    files.length > 3 || files.some((f) => ['rvbible', 'proplaylist', 'lumenbundle', 'lumenplaylist'].includes(extension(f)))
+    files.length > 3 || files.some((f) => ['rvbible', 'proplaylist', 'lumenbundle', 'lumenplaylist', 'pptx', 'key'].includes(extension(f)))
       ? notify(`Importing ${files.length} file${files.length === 1 ? '' : 's'}…`, 'info', 0)
       : null;
   const s = useStore.getState();
@@ -245,6 +246,7 @@ async function importAll(files: File[], category: Category) {
   let media = 0;
   let reused = 0;
   let lastId: string | null = null;
+  let lastCategory = category;
   let openPlaylist: string | null = null;
 
   for (const file of files) {
@@ -289,6 +291,19 @@ async function importAll(files: File[], category: Category) {
           media += r.media;
           break;
         }
+        case 'pptx':
+        case 'key': {
+          // PowerPoint and Keynote presentations go in their own library, whichever is open.
+          const progress = (done: number, total: number) =>
+            working && renotify(working, `Importing ${file.name}: slide ${done} of ${total}…`);
+          const data = extension(file) === 'pptx' ? await readPowerPoint(file, progress) : await readKeynote(file, progress);
+          lastId = await createSlideshow(data);
+          lastCategory = slideshowLibrary();
+          presentations++;
+          break;
+        }
+        case 'ppt':
+          throw new Error('PowerPoint 97–2003 files (.ppt) can’t be read. Open it in PowerPoint and save it as .pptx');
         case 'pro6':
           throw new Error('ProPresenter 6 files are not supported yet');
         default:
@@ -309,7 +324,7 @@ async function importAll(files: File[], category: Category) {
     if (first?.type === 'presentation') st.select(first.presentationId, first.id);
   } else if (lastId) {
     s.select(lastId);
-    s.setUI({ sidebar: 'library', libraryCategory: category, mode: 'show' });
+    s.setUI({ sidebar: 'library', libraryCategory: lastCategory, mode: 'show' });
   }
   const plural = (n: number, word: string) => `${n} ${word}${n === 1 ? '' : 's'}`;
   const done = [

@@ -69,6 +69,14 @@ export function installDesktopBridge() {
     installUpdate: () => invoke('install_update'),
     onUpdateProgress: (cb) => subscribe('update-progress', cb),
     updateBlocker: () => invoke<string | null>('update_blocker'),
+    ...(/Mac/.test(ua)
+      ? {
+          keynoteExport: (name: string, data: Uint8Array) =>
+            invoke('keynote_export', data, { headers: { 'x-file-name': encodeURIComponent(name) } }),
+        }
+      : {}),
+    keynoteImage: (id, index) => invoke<ArrayBuffer>('keynote_image', { id, index }),
+    keynoteDone: (id) => invoke('keynote_done', { id }),
     openFiles: async (options) => {
       const opened = await invoke<{ folder: string | null; files: { name: string; path: string }[] }>('open_files', { options });
       const files = await Promise.all(

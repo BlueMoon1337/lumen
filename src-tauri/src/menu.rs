@@ -14,7 +14,7 @@ use crate::screens::{self, ScreensMenu};
 use crate::view::{self, ViewMenu};
 use crate::window::{self, WindowMenu};
 
-const COMMANDS: [&str; 15] = [
+const COMMANDS: [&str; 16] = [
     "check-updates",
     "new-presentation",
     "new-playlist",
@@ -22,6 +22,7 @@ const COMMANDS: [&str; 15] = [
     "import-file",
     "import-library",
     "import-media",
+    "import-slideshow",
     "import-clipboard",
     "import-bible",
     "export-presentation",
@@ -48,6 +49,7 @@ fn file_menu(app: &AppHandle) -> tauri::Result<(Vec<MenuItemKind<Wry>>, FileMenu
             &item("import-file", "File…", Some("Shift+CmdOrCtrl+I"))?,
             &item("import-library", "Library…", None)?,
             &item("import-media", "Media…", None)?,
+            &item("import-slideshow", "PowerPoint or Keynote…", None)?,
             &item("import-clipboard", "Text from Clipboard…", None)?,
             &PredefinedMenuItem::separator(app)?,
             &item("import-bible", "Import Bible…", None)?,

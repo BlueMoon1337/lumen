@@ -75,6 +75,7 @@ function StageObjectView({ o, frame, now, samples }: { o: StageObject; frame: Ou
             theme={picture.theme}
             background={picture.background}
             media={picture.media}
+            picture={picture.picture}
           />
         ) : (
           samples && <div className="stage-obj-sample">{kind.sample}</div>

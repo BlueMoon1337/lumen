@@ -12,6 +12,7 @@
 import { unzipSync, zipSync, type Zippable } from 'fflate';
 import { presentationToText } from './lyrics';
 import type { AppState } from './store';
+import { ownFiles, withoutMissingFiles } from './slideshows';
 import type { Category, MediaItem, Playlist, PlaylistItem, Presentation, Theme } from './types';
 import { uid } from './util';
 
@@ -23,6 +24,11 @@ export interface LumenFile {
   themes: Theme[];
   /** Media the slides and themes use. A zipped file has each one's file at media/<id>. */
   media: MediaItem[];
+  /**
+   * Files presentations keep for themselves: an imported PowerPoint's or Keynote's slide pictures,
+   * original file and model. A zipped file has each at media/<id>, as media.
+   */
+  files?: { id: string; mime: string }[];
   playlist?: { name: string; items: PlaylistItem[] };
 }
 
@@ -60,6 +66,7 @@ function fileFor(s: Library, kind: LumenFile['kind'], presentations: Presentatio
     presentations: structuredClone(presentations),
     themes: structuredClone(themes),
     media: s.media.filter((m) => used.has(m.id)),
+    files: [...new Map(presentations.flatMap(ownFiles).map((f) => [f.id, f])).values()],
   };
 }
 
@@ -88,7 +95,7 @@ export const encodeJson = (file: LumenFile) => new TextEncoder().encode(JSON.str
 /** A zipped file: lumen.json and the media files (stored as they are: photos and videos don't compress). */
 export function zipFile(file: LumenFile, blobs: Map<string, Uint8Array>): Uint8Array {
   const entries: Zippable = { [JSON_NAME]: encodeJson(file) };
-  for (const m of file.media) {
+  for (const m of [...file.media, ...(file.files ?? [])]) {
     const data = blobs.get(m.id);
     if (data) entries[mediaPath(m.id)] = [data, { level: 0 }];
   }
@@ -127,6 +134,8 @@ export interface ImportPlan {
   themeIds: Map<string, string>;
   /** Media to add (their files are in the bundle). */
   media: MediaItem[];
+  /** Presentations' own files to store (their files are in the bundle). */
+  files: { id: string; mime: string }[];
   /** The presentations to create, with the themes and media they point at sorted out. */
   presentations: Presentation[];
   /** File presentation id → its new id. */
@@ -157,8 +166,13 @@ export function planImport(s: Library, file: LumenFile, blobs: Map<string, Uint8
   const keep = (id: string | undefined) => (id && known.has(id) ? id : undefined);
   for (const t of themes) if (t.background.mediaId && !keep(t.background.mediaId)) t.background = { ...t.background, mediaId: undefined };
 
+  // Presentations' own files: those in the bundle, or already kept by the library's.
+  const files = (file.files ?? []).filter((f) => blobs.has(f.id));
+  const stored = new Set([...files.map((f) => f.id), ...Object.values(s.presentations).flatMap((p) => ownFiles(p).map((f) => f.id))]);
+
   const presentationIds = new Map<string, string>();
-  const presentations = file.presentations.map((p): Presentation => {
+  const presentations = file.presentations.map((original): Presentation => {
+    const p = withoutMissingFiles(original, (id) => stored.has(id));
     const id = uid();
     presentationIds.set(p.id, id);
     const { hidden: _hidden, ...rest } = p;
@@ -186,7 +200,7 @@ export function planImport(s: Library, file: LumenFile, blobs: Map<string, Uint8
       return id ? [{ id: uid(), type: 'presentation', presentationId: id }] : [];
     }),
   };
-  return { themes, themeIds, media, presentations, presentationIds, playlist };
+  return { themes, themeIds, media, files, presentations, presentationIds, playlist };
 }
 
 /** A file name from a title: no characters file systems refuse, not too long. */

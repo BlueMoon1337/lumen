@@ -7,6 +7,7 @@
 import { zipSync } from 'fflate';
 import { create } from 'zustand';
 import { IMPORT_ACCEPT, importFiles, newPresentation } from '../commands';
+import { isReadOnly } from '../slideshows';
 import {
   EXTENSIONS,
   encodeJson,
@@ -53,7 +54,7 @@ export async function saveBytes(name: string, data: Uint8Array, kind: string, ex
 /** The stored files of the media a Lumen file uses, for zipping with it. */
 async function mediaBlobs(file: LumenFile): Promise<Map<string, Uint8Array>> {
   const blobs = new Map<string, Uint8Array>();
-  for (const m of file.media) {
+  for (const m of [...file.media, ...(file.files ?? [])]) {
     const blob = await getMediaBlob(m.id);
     if (blob) blobs.set(m.id, new Uint8Array(await blob.arrayBuffer()));
   }
@@ -104,7 +105,7 @@ export async function newLibrary() {
 
 /** Import ▸ File…: ProPresenter songs and playlists, lyrics, Bibles, and Lumen's own exports. */
 export async function importFileCommand(category: Category = st().libraryCategory) {
-  const files = await pickFiles(IMPORT_ACCEPT, true, 'Songs, Playlists, Lyrics and Bibles');
+  const files = await pickFiles(IMPORT_ACCEPT, true, 'Songs, Playlists, Lyrics, Bibles and Slideshows');
   if (files.length) await importFiles(files, category);
 }
 
@@ -127,6 +128,12 @@ export async function importLibraryCommand() {
     await importFiles(files, id);
     st().setUI({ sidebar: 'library', libraryCategory: id, mode: 'show' });
   });
+}
+
+/** Import ▸ PowerPoint or Keynote…: slideshows, into the PowerPoint & Keynote library. */
+export async function importSlideshowCommand() {
+  const files = await pickFiles('.pptx,.key', true, 'PowerPoint and Keynote Presentations');
+  if (files.length) await importFiles(files);
 }
 
 /** Import ▸ Media…: images and videos to the media bin (the open media playlist too), audio to the Audio tab. */
@@ -178,10 +185,14 @@ function presentationOrSay(id?: string) {
   return p;
 }
 
-/** Export ▸ Presentation…: a .lumen file of its slides and theme (no media files). */
+/**
+ * Export ▸ Presentation…: a .lumen file of its slides and theme (no media files). A PowerPoint or
+ * Keynote presentation's slides are pictures, so it's always a bundle.
+ */
 export async function exportPresentation(id?: string) {
   const p = presentationOrSay(id);
   if (!p) return;
+  if (isReadOnly(p)) return exportBundle(p.id);
   const file = presentationFile(st(), p.id);
   await saveBytes(
     `${safeFileName(p.title)}.${EXTENSIONS.presentation}`,
@@ -282,6 +293,7 @@ const COMMANDS: Record<string, () => unknown> = {
   'import-file': () => importFileCommand(),
   'import-library': importLibraryCommand,
   'import-media': importMediaCommand,
+  'import-slideshow': importSlideshowCommand,
   'import-clipboard': importClipboardCommand,
   'import-bible': importBibleCommand,
   'export-presentation': () => exportPresentation(),
@@ -306,6 +318,7 @@ export function importEntries(): ContextEntries {
     { label: 'File…', shortcut: shortcut('I', false, true), action: () => void importFileCommand() },
     { label: 'Library…', action: () => void importLibraryCommand() },
     { label: 'Media…', action: () => void importMediaCommand() },
+    { label: 'PowerPoint or Keynote…', action: () => void importSlideshowCommand() },
     { label: 'Text from Clipboard…', action: () => void importClipboardCommand() },
     '-',
     { label: 'Import Bible…', action: () => void importBibleCommand() },

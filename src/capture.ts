@@ -292,6 +292,16 @@ export class ScreenRenderer {
     };
   }
 
+  /** An imported slide's picture, once loaded. */
+  private picture(mediaId: string): Pick<Shown, 'draw'> {
+    return {
+      draw: (ctx) => {
+        const src = this.source(mediaId, false);
+        if (src) drawContain(ctx, src);
+      },
+    };
+  }
+
   /** Words drawn once into a picture of their own, since fitting them takes a while. */
   private text(key: string, theme: Theme, text: string, caption?: string): Shown {
     const id = JSON.stringify([text, caption, theme]);
@@ -340,7 +350,9 @@ export class ScreenRenderer {
     f.slide.set(
       slide
         ? (() => {
-            const words = this.text(slide.key, lookTheme ?? slide.theme, slide.text, slide.caption);
+            const words = slide.picture
+              ? this.picture(slide.picture)
+              : this.text(slide.key, lookTheme ?? slide.theme, slide.text, slide.caption);
             return {
               key: slide.key,
               draw: (c: Ctx) => {
@@ -358,7 +370,7 @@ export class ScreenRenderer {
       a
         ? (() => {
             const bg = a.background ? this.fill(a.background) : null;
-            const words = this.text(`a:${a.key}`, a.theme, a.text, a.caption);
+            const words = a.picture ? this.picture(a.picture) : this.text(`a:${a.key}`, a.theme, a.text, a.caption);
             return {
               key: a.key,
               draw: (c: Ctx) => {

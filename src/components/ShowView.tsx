@@ -13,6 +13,7 @@ import { getSequence } from '../lyrics';
 import { layerOf, useStore } from '../store';
 import { inkFor, resolveTheme, slideTheme } from '../theme';
 import type { ColorLabel, Playlist, Presentation, SequenceEntry, Slide, Theme } from '../types';
+import { isReadOnly, READ_ONLY_NOTICE, slideWords } from '../slideshows';
 import { SlidePreview } from './Canvas';
 import { openContextMenu, openPopupBelow } from './ContextMenu';
 import { clickSlide, selectForMenu } from './editCommands';
@@ -211,8 +212,16 @@ function PresentationBar({ presentation: p, playlistItemId }: { presentation: Pr
       <span className="pres-theme" title="Theme">
         <Icon name="theme" size={13} /> {themeName}
       </span>
-      <IconButton icon="reflow" title="Reflow (edit as text)" onClick={() => (pick(), s.setUI({ mode: 'reflow' }))} />
-      <IconButton icon="edit" title="Edit slides" onClick={() => (pick(), s.openEditor())} />
+      {isReadOnly(p) ? (
+        <span className="pres-chip" title={READ_ONLY_NOTICE}>
+          <Icon name="lock" size={13} /> {p.source?.kind === 'keynote' ? 'Keynote' : 'PowerPoint'}
+        </span>
+      ) : (
+        <>
+          <IconButton icon="reflow" title="Reflow (edit as text)" onClick={() => (pick(), s.setUI({ mode: 'reflow' }))} />
+          <IconButton icon="edit" title="Edit slides" onClick={() => (pick(), s.openEditor())} />
+        </>
+      )}
     </div>
   );
 }
@@ -472,9 +481,16 @@ const SlideThumb = memo(function SlideThumb({
     >
       <div className="slide-thumb-canvas">
         {easy ? (
-          <div className="easy-text">{slide.text || slide.caption}</div>
+          <div className="easy-text">{slideWords(slide) || slide.caption}</div>
         ) : (
-          <SlidePreview text={slide.text} caption={slide.caption} theme={theme} background={slide.background} media={slide.media} />
+          <SlidePreview
+            text={slide.text}
+            caption={slide.caption}
+            theme={theme}
+            background={slide.background}
+            media={slide.media}
+            picture={slide.source?.picture}
+          />
         )}
         <MediaBadge presentationId={presentationId} slide={slide} />
         <TransitionBadge presentationId={presentationId} slide={slide} />
@@ -548,10 +564,17 @@ function SlideRow({
         {indexInGroup === 0 ? group.name : ''}
       </span>
       <span className="slide-row-thumb">
-        <SlidePreview text={slide.text} caption={slide.caption} theme={theme} background={slide.background} media={slide.media} />
+        <SlidePreview
+          text={slide.text}
+          caption={slide.caption}
+          theme={theme}
+          background={slide.background}
+          media={slide.media}
+          picture={slide.source?.picture}
+        />
       </span>
       <span className="slide-row-text">
-        {slide.text || <span className="muted">(blank)</span>}
+        {slideWords(slide) || <span className="muted">(blank)</span>}
         <span className="slide-row-tags">
           {slide.label && <LabelTag label={slide.label} />}
           <MediaBadge presentationId={presentationId} slide={slide} />

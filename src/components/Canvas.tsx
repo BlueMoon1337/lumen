@@ -114,9 +114,11 @@ export function captionBoxTheme(theme: Theme, box: ThemeTextBox): Theme {
 
 /**
  * A slide's text in its theme. The caption sits under the text, or in the theme's
- * own caption box (a Bible template's Reference box), each shrinking to fit.
+ * own caption box (a Bible template's Reference box), each shrinking to fit. An imported
+ * PowerPoint or Keynote slide is its picture instead.
  */
-export function SlideText({ text, caption, theme }: { text: string; caption?: string; theme: Theme }) {
+export function SlideText({ text, caption, theme, picture }: { text: string; caption?: string; theme: Theme; picture?: string }) {
+  if (picture) return <SlideImage mediaId={picture} />;
   if (!theme.captionBox) return <FittedText text={text} caption={caption} theme={theme} />;
   return (
     <>
@@ -428,7 +430,12 @@ export function OutputView({
         <Transition itemKey={frame?.slide?.key ?? null} duration={slideFx.ms} effect={slideFx}>
           {frame?.slide && (
             <>
-              <SlideText text={frame.slide.text} caption={frame.slide.caption} theme={slideTheme(frame.slide.theme)} />
+              <SlideText
+                text={frame.slide.text}
+                caption={frame.slide.caption}
+                theme={slideTheme(frame.slide.theme)}
+                picture={frame.slide.picture}
+              />
               {frame.slide.footer && <div className="slide-footer">{frame.slide.footer}</div>}
             </>
           )}
@@ -440,7 +447,12 @@ export function OutputView({
           {frame?.announcement && (
             <>
               {alphaKey === 'off' && frame.announcement.background && <BackgroundFill bg={frame.announcement.background} />}
-              <SlideText text={frame.announcement.text} caption={frame.announcement.caption} theme={frame.announcement.theme} />
+              <SlideText
+                text={frame.announcement.text}
+                caption={frame.announcement.caption}
+                theme={frame.announcement.theme}
+                picture={frame.announcement.picture}
+              />
             </>
           )}
         </Transition>,
@@ -510,6 +522,7 @@ export function SlidePreview({
   theme,
   background,
   media,
+  picture,
 }: {
   text: string;
   caption?: string;
@@ -517,6 +530,8 @@ export function SlidePreview({
   background?: ThemeBackground;
   /** The slide's media cue, shown behind it as it will be on screen. */
   media?: string;
+  /** An imported slide's picture. */
+  picture?: string;
 }) {
   const fill = toFrameBackground(background ?? theme.background);
   return (
@@ -529,9 +544,15 @@ export function SlidePreview({
       ) : (
         fill && <BackgroundFill bg={fill} />
       )}
-      <SlideText text={text} caption={caption} theme={theme} />
+      <SlideText text={text} caption={caption} theme={theme} picture={picture} />
     </ScaledCanvas>
   );
+}
+
+/** An imported slide's picture, fitted to the slide. */
+function SlideImage({ mediaId }: { mediaId: string }) {
+  const media = useMedia(mediaId);
+  return media ? <img className="media-fill slide-picture" src={media.url} alt="" draggable={false} /> : null;
 }
 
 /** A still of an image or video (half a second in), for thumbnails: nothing plays. */

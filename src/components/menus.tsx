@@ -41,6 +41,7 @@ import {
 } from './fileCommands';
 import { shortcut, type IconName } from './ui';
 import { setTransitionFor, TargetTransitionPicker, transitionState, type TransitionTarget } from './TransitionPicker';
+import { isReadOnly } from '../slideshows';
 
 const st = () => useStore.getState();
 
@@ -194,6 +195,16 @@ export function slideMenu(
   const many = ids.length > 1 ? ` ${ids.length} Slides` : '';
   // In Edit mode a new slide becomes the one on the canvas.
   const select = (id: string | null) => inEdit && id && s.setUI({ editSlideId: id, editTextSelected: false });
+  // A PowerPoint or Keynote slide can be shown, copied, labelled and given a transition or media cue.
+  if (isReadOnly(p))
+    return [
+      opts.index != null && { label: 'Show Slide', action: () => s.goLive(p.id, opts.index!, opts.playlistItemId) },
+      { label: `Copy${many}`, shortcut: shortcut('C'), action: () => s.copySlides(p.id, ids) },
+      '-',
+      { label: 'Label', swatch: slide.label?.color, submenu: () => labelEntries(p, slide, ids, opts.anchor) },
+      { label: 'Transition', submenu: () => transitionEntries({ presentationId: p.id, scope: { slideId: slide.id } }) },
+      { label: 'Media', submenu: () => mediaCueEntries(p, slide) },
+    ];
   return [
     opts.index != null && { label: 'Show Slide', action: () => s.goLive(p.id, opts.index!, opts.playlistItemId) },
     !inEdit && { label: 'Edit Slide', action: () => s.openEditor(slide.id) },
@@ -235,6 +246,24 @@ function mediaCueEntries(p: Presentation, slide: Slide): ContextEntries {
 export function groupMenu(p: Presentation, group: Group): ContextEntries {
   const s = st();
   const scope: SlideScope = { groupId: group.id };
+  if (isReadOnly(p))
+    return [
+      {
+        label: 'Rename Group…',
+        action: () => openPopupAtMenu(<NamePopup title="Group" initial={group} onSave={(v) => s.updateGroup(p.id, group.id, v)} />),
+      },
+      {
+        label: 'Color',
+        swatch: group.color,
+        submenu: LABEL_SWATCHES.map((c) => ({
+          label: c.name,
+          swatch: c.color,
+          checked: group.color === c.color,
+          action: () => s.updateGroup(p.id, group.id, { color: c.color }),
+        })),
+      },
+      { label: 'Transition', submenu: () => transitionEntries({ presentationId: p.id, scope }) },
+    ];
   return [
     {
       label: 'Rename Group…',
@@ -284,16 +313,17 @@ export function groupMenu(p: Presentation, group: Group): ContextEntries {
 export function presentationMenu(p: Presentation, playlistItemId?: string): ContextEntries {
   const s = st();
   const open = () => s.select(p.id, playlistItemId ?? null);
+  const ro = isReadOnly(p);
   return [
     { label: 'Open', action: open },
-    {
+    !ro && {
       label: 'Edit Slides',
       action: () => {
         open();
         s.openEditor();
       },
     },
-    {
+    !ro && {
       label: 'Reflow',
       action: () => {
         open();
@@ -357,7 +387,7 @@ export function presentationMenu(p: Presentation, playlistItemId?: string): Cont
         },
       ],
     },
-    { label: 'Paste Text Style to All Slides', disabled: !s.styleClipboard, action: () => s.pasteTextStyle(p.id, 'presentation') },
+    !ro && { label: 'Paste Text Style to All Slides', disabled: !s.styleClipboard, action: () => s.pasteTextStyle(p.id, 'presentation') },
     '-',
     {
       label: 'Rename…',

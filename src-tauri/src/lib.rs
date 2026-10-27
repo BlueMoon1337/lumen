@@ -9,6 +9,7 @@ mod displays;
 mod edit;
 mod files;
 mod icon;
+mod keynote;
 mod menu;
 mod outputs;
 mod presentation;
@@ -31,6 +32,7 @@ pub fn run() {
         .manage(files::ExportFolder::default())
         .manage(files::OpenedFiles::default())
         .manage(capture::Capture::default())
+        .manage(keynote::KeynoteExports::default())
         .on_permission_request(camera::on_permission_request)
         .invoke_handler(tauri::generate_handler![
             displays::get_displays,
@@ -62,6 +64,9 @@ pub fn run() {
             capture::capture_write,
             capture::capture_close,
             capture::choose_capture_folder,
+            keynote::keynote_export,
+            keynote::keynote_image,
+            keynote::keynote_done,
         ])
         .setup(|app| {
             let handle = app.handle();

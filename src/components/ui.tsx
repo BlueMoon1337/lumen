@@ -31,6 +31,7 @@ const paths = {
   layers: 'M12 3l9 5-9 5-9-5zM3 13l9 5 9-5',
   lines: 'M4 6h16M4 10h16M4 14h16M4 18h10',
   clock: 'M12 21a9 9 0 1 0 0-18 9 9 0 0 0 0 18zM12 7v5l3 2',
+  lock: 'M6 11h12v10H6zM8 11V7a4 4 0 0 1 8 0v4',
   person: 'M12 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8zM5 21v-1a6 6 0 0 1 6-6h2a6 6 0 0 1 6 6v1',
   grid: 'M4 4h7v7H4zM13 4h7v7h-7zM4 13h7v7H4zM13 13h7v7h-7z',
   chevronDown: 'M6 9l6 6 6-6',

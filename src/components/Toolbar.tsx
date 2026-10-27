@@ -16,6 +16,7 @@ import { windowEntries } from './windowCommands';
 import { useElapsed } from './CaptureDialog';
 import { stopCapture, useCapture } from '../capture';
 import { checkForUpdates, useUpdates } from '../updates';
+import { isReadOnly, READ_ONLY_NOTICE, slideWords } from '../slideshows';
 import { FontSelect } from './FontSelect';
 import { useToolbarPop, type PopoverName } from './toolbarState';
 import { Icon, IconButton, Popover, shortcut, type IconName } from './ui';
@@ -29,9 +30,12 @@ function Tool({
   onMouseDown,
   children,
   glyph,
+  title,
 }: {
   icon?: IconName;
   label: string;
+  /** Says why it's off, say (on the tool, since a disabled button shows no tooltip). */
+  title?: string;
   active?: boolean;
   disabled?: boolean;
   onClick: (e: MouseEvent<HTMLButtonElement>) => void;
@@ -40,7 +44,7 @@ function Tool({
   glyph?: ReactNode;
 }) {
   return (
-    <div className="tool">
+    <div className="tool" title={title}>
       <button
         type="button"
         className={`tool-btn ${active ? 'active' : ''}`}
@@ -136,6 +140,7 @@ function ScreenTool({ kind, label, onConfigure }: { kind: ScreenKind; label: str
 export function Toolbar({ onSettings, onScreens }: { onSettings: () => void; onScreens: () => void }) {
   const mode = useStore((s) => s.mode);
   const hasSelection = useStore((s) => !!s.selectedPresentationId && !!s.presentations[s.selectedPresentationId]);
+  const readOnly = useStore((s) => isReadOnly(s.selectedPresentationId ? s.presentations[s.selectedPresentationId] : null));
   const showMediaBin = useStore((s) => s.showMediaBin);
   const pop = useToolbarPop((s) => s.pop);
   const close = useCallback(() => useToolbarPop.setState({ pop: null }), []);
@@ -167,8 +172,22 @@ export function Toolbar({ onSettings, onScreens }: { onSettings: () => void; onS
       </div>
       <div className="tool-group">
         <Tool icon="play" label="Show" active={mode === 'show'} onClick={() => setMode('show')} />
-        <Tool icon="edit" label="Edit" active={mode === 'edit'} disabled={!hasSelection} onClick={() => setMode('edit')} />
-        <Tool icon="reflow" label="Reflow" active={mode === 'reflow'} disabled={!hasSelection} onClick={() => setMode('reflow')} />
+        <Tool
+          icon="edit"
+          label="Edit"
+          active={mode === 'edit'}
+          disabled={!hasSelection || readOnly}
+          title={readOnly ? READ_ONLY_NOTICE : undefined}
+          onClick={() => setMode('edit')}
+        />
+        <Tool
+          icon="reflow"
+          label="Reflow"
+          active={mode === 'reflow'}
+          disabled={!hasSelection || readOnly}
+          title={readOnly ? READ_ONLY_NOTICE : undefined}
+          onClick={() => setMode('reflow')}
+        />
         <Tool icon="bible" label="Bible" active={mode === 'bible'} onClick={() => setMode(mode === 'bible' ? 'show' : 'bible')} />
         <Tool
           icon="more"
@@ -211,7 +230,7 @@ function SearchPopover({ onDone }: { onDone: () => void }) {
       if (p.hidden) continue;
       if (p.title.toLowerCase().includes(q)) out.push({ id: p.id, title: p.title });
       else {
-        const line = p.groups.flatMap((g) => g.slides.flatMap((s) => s.text.split('\n'))).find((l) => l.toLowerCase().includes(q));
+        const line = p.groups.flatMap((g) => g.slides.flatMap((s) => slideWords(s).split('\n'))).find((l) => l.toLowerCase().includes(q));
         if (line) out.push({ id: p.id, title: p.title, line });
       }
     }

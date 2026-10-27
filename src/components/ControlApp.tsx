@@ -38,6 +38,7 @@ import { Sidebar } from './Sidebar';
 import { DEFAULT_PANES, setPaneSize, Splitter } from './Splitter';
 import { ThemeEditorDialog } from './ThemeEditor';
 import { Toolbar } from './Toolbar';
+import { isReadOnly, ownFiles } from '../slideshows';
 
 // Record edits for undo from the start, before any view reads the store's actions.
 installHistory();
@@ -287,10 +288,20 @@ export default function ControlApp() {
   const appIcon = useStore((s) => s.settings.appIcon);
 
   useEffect(() => startFrameSync(), []);
+  // PowerPoint and Keynote presentations can't be edited: choosing one leaves the editors.
+  useEffect(
+    () =>
+      useStore.subscribe((s) => {
+        const p = s.selectedPresentationId ? s.presentations[s.selectedPresentationId] : null;
+        if ((s.mode === 'edit' || s.mode === 'reflow') && isReadOnly(p)) s.setUI({ mode: 'show' });
+      }),
+    [],
+  );
   useEffect(() => {
-    // Deleted media keeps its file for Undo until now.
-    const { media, fonts } = useStore.getState();
-    void deleteUnusedBlobs(new Set([...media.map((m) => m.id), ...fonts.map((f) => f.id)])).catch(() => {});
+    // Deleted media keeps its file for Undo until now. Imported slideshows keep theirs while they're here.
+    const { media, fonts, presentations } = useStore.getState();
+    const own = Object.values(presentations).flatMap((p) => ownFiles(p).map((f) => f.id));
+    void deleteUnusedBlobs(new Set([...media.map((m) => m.id), ...fonts.map((f) => f.id), ...own])).catch(() => {});
   }, []);
   useUndoKeys();
   useFileCommands();

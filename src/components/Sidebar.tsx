@@ -2,6 +2,7 @@ import { useMemo, useState, type DragEvent } from 'react';
 import { importFiles, newPresentation } from '../commands';
 import { useStore } from '../store';
 import type { Category } from '../types';
+import { slideWords } from '../slideshows';
 import { openContextMenu, type ContextEntries } from './ContextMenu';
 import { deleteLibrary, deletePlaylist, deletePresentation, removePlaylistItem } from './deleting';
 import { importFileCommand, newLibrary, newPlaylist } from './fileCommands';
@@ -249,7 +250,8 @@ function LibraryItems() {
     return Object.values(presentations)
       .filter((p) => p.category === category && !p.hidden)
       .filter(
-        (p) => !q || p.title.toLowerCase().includes(q) || p.groups.some((g) => g.slides.some((sl) => sl.text.toLowerCase().includes(q))),
+        (p) =>
+          !q || p.title.toLowerCase().includes(q) || p.groups.some((g) => g.slides.some((sl) => slideWords(sl).toLowerCase().includes(q))),
       )
       .sort((a, b) => a.title.localeCompare(b.title));
   }, [presentations, category, filter]);

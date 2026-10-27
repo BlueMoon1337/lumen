@@ -157,6 +157,7 @@ export function EditOutline({ presentation: p, showObjects }: { presentation: Pr
                         theme={slideTheme(base, p, sl)}
                         background={sl.background}
                         media={sl.media}
+                        picture={sl.source?.picture}
                       />
                       <MediaBadge presentationId={p.id} slide={sl} />
                       <TransitionBadge presentationId={p.id} slide={sl} />

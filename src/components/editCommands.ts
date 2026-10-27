@@ -15,6 +15,7 @@ import type { Presentation } from '../types';
 import { isAsking, onAskChange } from './Ask';
 import type { ContextEntries } from './ContextMenu';
 import { deleteLibrary, deletePlaylist, deletePresentation, deleteSlides, removePlaylistItem } from './deleting';
+import { isReadOnly } from '../slideshows';
 import { readClipboard } from './fileCommands';
 import { openSearch } from './toolbarState';
 import { shortcut } from './ui';
@@ -295,6 +296,12 @@ export function enabledCommands(ctx: EditContext): Set<EditCommand> {
       break;
     case 'slides': {
       const any = ctx.ids.length > 0;
+      if (isReadOnly(ctx.presentation)) {
+        // A PowerPoint or Keynote presentation's slides can be copied, not changed.
+        if (any) on.add('copy').add('deselect-all');
+        if (ctx.presentation.groups.some((g) => g.slides.length)) on.add('select-all');
+        break;
+      }
       if (any) on.add('cut').add('copy').add('copy-style').add('duplicate').add('delete').add('deselect-all');
       if (s.slideClipboard?.length) on.add('paste').add('paste-plain');
       if (any && s.styleClipboard) on.add('paste-style');

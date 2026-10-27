@@ -72,6 +72,16 @@ export interface DesktopBridge {
   onUpdateProgress(cb: (p: { received: number; total: number | null }) => void): () => void;
   /** Why updates can't install here: "translocated" when macOS runs Lumen from a read-only copy. */
   updateBlocker(): Promise<string | null>;
+  /**
+   * Has Keynote export a Keynote file's slides as pictures (Mac only; src-tauri/src/keynote.rs).
+   * Read the `images` pictures (one per slide not skipped) with keynoteImage, then call keynoteDone.
+   */
+  keynoteExport?(
+    name: string,
+    data: Uint8Array,
+  ): Promise<{ id: string; width: number; height: number; images: number; slides: { text: string; notes: string; skipped: boolean }[] }>;
+  keynoteImage(id: string, index: number): Promise<ArrayBuffer>;
+  keynoteDone(id: string): Promise<void>;
   /** The View menu's checkmarks, and its editors on or off. */
   setViewState(state: { presentation: boolean; continuousPlaylist: boolean; slideView: string }): void;
   /** Turns the Presentation menu's items on and off, and lists the clear groups in Clear Groups. */

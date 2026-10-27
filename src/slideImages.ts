@@ -192,11 +192,13 @@ export function drawCover(ctx: Ctx, image: CanvasImageSource) {
   ctx.drawImage(image, (CANVAS_W - w) / 2, (CANVAS_H - h) / 2, w, h);
 }
 
+const imageOf = async (images: Map<string, CanvasImageSource | null>, id: string) => {
+  if (!images.has(id)) images.set(id, await mediaImage(id));
+  return images.get(id) ?? null;
+};
+
 async function drawBackground(ctx: Ctx, bg: ThemeBackground, media: string | undefined, images: Map<string, CanvasImageSource | null>) {
-  const image = async (id: string) => {
-    if (!images.has(id)) images.set(id, await mediaImage(id));
-    return images.get(id) ?? null;
-  };
+  const image = (id: string) => imageOf(images, id);
   // A slide's media cue shows behind it, as in its thumbnail.
   const mediaId = media ?? (bg.type === 'media' ? bg.mediaId : undefined);
   if (mediaId) {
@@ -227,12 +229,15 @@ export async function loadFonts(themes: Theme[]) {
 export async function drawSlide(
   ctx: Ctx,
   theme: Theme,
-  slide: Pick<Slide, 'text' | 'caption' | 'background' | 'media'>,
+  slide: Pick<Slide, 'text' | 'caption' | 'background' | 'media' | 'source'>,
   images = new Map<string, CanvasImageSource | null>(),
 ) {
   ctx.clearRect(0, 0, CANVAS_W, CANVAS_H);
   await drawBackground(ctx, slide.background ?? theme.background, slide.media, images);
-  drawWords(ctx, theme, slide.text, slide.caption);
+  // An imported slide is its picture.
+  const picture = slide.source && (await imageOf(images, slide.source.picture));
+  if (picture) drawCover(ctx, picture);
+  else drawWords(ctx, theme, slide.text, slide.caption);
 }
 
 /** A slide's words and caption, in their boxes, on a 1920 × 1080 canvas. */

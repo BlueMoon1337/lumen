@@ -2487,6 +2487,10 @@ body.resizing-y * {
   object-fit: cover;
 }
 
+.slide-picture {
+  object-fit: contain;
+}
+
 .logo-layer {
   background: #000;
 }

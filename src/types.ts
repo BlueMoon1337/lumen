@@ -27,6 +27,35 @@ export interface Slide {
   transition?: SlideTransition;
   /** A media cue: showing the slide starts this image or video on the Media layer, as in ProPresenter. */
   media?: string;
+  /** A slide from a PowerPoint or Keynote file: shown as a picture of itself, in place of text. */
+  source?: SlideSource;
+}
+
+/** An imported slide (see src/slideshows.ts). */
+export interface SlideSource {
+  /** The slide's picture, a stored file (like media). */
+  picture: string;
+  /** Its words, for search and the stage display. */
+  text: string;
+  /** Its number in the file, from 1. */
+  number: number;
+}
+
+/**
+ * The file a presentation was made from (a PowerPoint or Keynote file). Such presentations are
+ * read-only for now; the file and Lumen's model of it (src/deck.ts) are kept for editing later.
+ */
+export interface PresentationSource {
+  kind: 'powerpoint' | 'keynote';
+  fileName: string;
+  /** The original file, stored like media. */
+  fileId?: string;
+  /** Lumen's model of the slides (a Deck, as JSON), stored like media; PowerPoint files only. */
+  modelId?: string;
+  /** The slides' size, in px. */
+  width: number;
+  height: number;
+  importedAt: number;
 }
 
 /** A name with a color: a group preset or a slide label. */
@@ -107,6 +136,8 @@ export interface Presentation {
   destination?: 'announcements';
   /** Moves on to the next slide by itself, e.g. an announcement loop. */
   autoAdvance?: AutoAdvance;
+  /** Made from a PowerPoint or Keynote file: read-only. */
+  source?: PresentationSource;
 }
 
 export interface AutoAdvance {
@@ -598,11 +629,27 @@ export interface SequenceEntry {
 /** Everything an output window needs to draw itself, sent over BroadcastChannel. */
 export interface OutputFrame {
   /** `background` is the slide's own, if it has one (a look's theme doesn't replace it). */
-  slide: { key: string; text: string; caption?: string; footer?: string; theme: Theme; background?: ThemeBackground } | null;
+  slide: {
+    key: string;
+    text: string;
+    caption?: string;
+    footer?: string;
+    theme: Theme;
+    background?: ThemeBackground;
+    /** An imported slide's picture, shown in place of the text. */
+    picture?: string;
+  } | null;
   background: FrameBackground | null;
   message: { key: string; text: string } | null;
   /** The Announcements layer: a slide over the slides, with its own background. */
-  announcement: { key: string; text: string; caption?: string; theme: Theme; background: FrameBackground | null } | null;
+  announcement: {
+    key: string;
+    text: string;
+    caption?: string;
+    theme: Theme;
+    background: FrameBackground | null;
+    picture?: string;
+  } | null;
   /** The Video Input layer: a camera, opened by each window that shows it. */
   videoInput: { deviceId: string } | null;
   logoMediaId: string | null;
@@ -650,6 +697,7 @@ export interface SlidePicture {
   theme: Theme;
   background?: ThemeBackground;
   media?: string;
+  picture?: string;
 }
 
 /** What an audience screen shows under the live look (src/looks.ts). */

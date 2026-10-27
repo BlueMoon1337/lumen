@@ -42,12 +42,12 @@ describe('libraries', () => {
     clearHistory();
 
     s().deleteLibrary(lib);
-    expect(s().libraries.map((l) => l.name)).toEqual(['Songs', 'Scripture', 'Announcements', 'Other']);
+    expect(s().libraries.map((l) => l.name)).toEqual(['Songs', 'Scripture', 'Announcements', 'Other', 'PowerPoint & Keynote']);
     expect(s().presentations[carol]).toBeUndefined();
     expect(s().playlists[0].items.some((it) => it.type === 'presentation' && it.presentationId === carol)).toBe(false);
     expect(s().live.slide).toBeNull();
     // The sidebar moves to a library that's still there.
-    expect(s().libraryCategory).toBe('other');
+    expect(s().libraryCategory).toBe('slideshows');
 
     expect(undo()).toBe('Delete Library (Silent Night)');
     expect(s().libraries.at(-1)).toEqual({ id: lib, name: 'Advent' });
@@ -62,7 +62,14 @@ describe('libraries', () => {
 
   it('come back for presentations whose library is missing', () => {
     const p = { id: 'p', title: 'x', category: 'retreat', groups: [], arrangement: [] } as unknown as Presentation;
-    expect(librariesFor(undefined, { p }).map((l) => l.id)).toEqual(['song', 'scripture', 'announcement', 'other', 'retreat']);
+    expect(librariesFor(undefined, { p }).map((l) => l.id)).toEqual([
+      'song',
+      'scripture',
+      'announcement',
+      'other',
+      'slideshows',
+      'retreat',
+    ]);
     expect(librariesFor([{ id: 'song', name: 'Hymns' }], { p: { ...p, category: 'scripture' } })).toEqual([
       { id: 'song', name: 'Hymns' },
       { id: 'scripture', name: 'Scripture' },
