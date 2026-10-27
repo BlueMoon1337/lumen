@@ -7,6 +7,7 @@ import { DEFAULT_GROUPS, DEFAULT_LABELS, groupPresets, LABEL_SWATCHES, labelPres
 import { useDisplays } from '../outputs';
 import { exportLibrary, isLibraryData, useStore } from '../store';
 import type { ColorLabel } from '../types';
+import { ColorButton } from './ColorPicker';
 import { IconPicker } from './IconChooser';
 import { TransitionButton } from './TransitionPicker';
 import { alertDialog, confirmDialog, confirmThen } from './Ask';
@@ -465,7 +466,7 @@ function PresetList({
     <div className="preset-list">
       {items.map((it, i) => (
         <div key={i} className="preset-row">
-          <input type="color" value={it.color} onChange={(e) => update(i, { color: e.target.value })} aria-label={`${it.name} color`} />
+          <ColorButton value={it.color} onChange={(color) => update(i, { color })} label={`${it.name} color`} />
           <input value={it.name} onChange={(e) => update(i, { name: e.target.value })} aria-label={`${noun} name`} />
           <span className="swatches mini">
             {LABEL_SWATCHES.slice(0, 8).map((c) => (

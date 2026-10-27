@@ -25,6 +25,7 @@ import { deleteSlide } from './deleting';
 import { clickSlide, selectForMenu } from './editCommands';
 import { FontSelect } from './FontSelect';
 import { MenuSelect, type MenuEntry } from './MenuSelect';
+import { ColorButton } from './ColorPicker';
 import { DeckEditor } from './DeckEditor';
 import { canvasMenu, groupMenu, slideMenu } from './menus';
 import { LabelTag, MediaBadge, TransitionBadge, useMediaDrop } from './ShowView';
@@ -799,7 +800,7 @@ function ColorSwatches({ value, onChange }: { value: string; onChange: (color: s
           aria-label={c.name}
         />
       ))}
-      <input type="color" value={value} onChange={(e) => onChange(e.target.value)} aria-label="Custom color" />
+      <ColorButton value={value} onChange={onChange} label="Any color…" />
     </span>
   );
 }

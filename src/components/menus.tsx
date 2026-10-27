@@ -15,6 +15,7 @@ import {
   withChanges,
 } from '../transitions';
 import type { Group, Library, MediaItem, Playlist, PlaylistItem, Presentation, Slide, SlideTransition, VideoPlayback } from '../types';
+import { ColorPickerPanel } from './ColorPicker';
 import { NamePopup, openPopupAtMenu, openPopupBelow, type ContextEntries } from './ContextMenu';
 import { LabelPopup } from './LabelPopup';
 import {
@@ -266,12 +267,20 @@ export function groupMenu(p: Presentation, group: Group): ContextEntries {
     {
       label: 'Color',
       swatch: group.color,
-      submenu: LABEL_SWATCHES.map((c) => ({
-        label: c.name,
-        swatch: c.color,
-        checked: group.color === c.color,
-        action: () => s.updateGroup(p.id, group.id, { color: c.color }),
-      })),
+      submenu: [
+        ...LABEL_SWATCHES.map((c) => ({
+          label: c.name,
+          swatch: c.color,
+          checked: group.color === c.color,
+          action: () => s.updateGroup(p.id, group.id, { color: c.color }),
+        })),
+        '-',
+        {
+          label: 'Any Color…',
+          action: () =>
+            openPopupAtMenu(<ColorPickerPanel value={group.color} onChange={(color) => s.updateGroup(p.id, group.id, { color })} />),
+        },
+      ],
     },
     '-',
     {

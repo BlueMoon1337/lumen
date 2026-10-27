@@ -6145,3 +6145,74 @@ h3.looks-name {
     0 0 0 2px var(--panel),
     0 0 0 4px rgba(255, 255, 255, 0.85);
 }
+
+/* ---- Color picker (ColorPicker.tsx, react-colorful) ---- */
+
+.color-well {
+  width: 26px;
+  height: 20px;
+  flex: none;
+  padding: 0;
+  border: 1px solid rgba(255, 255, 255, 0.35);
+  border-radius: 4px;
+  cursor: pointer;
+}
+
+.color-well:hover {
+  border-color: #fff;
+}
+
+.color-picker {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 10px;
+  width: 220px;
+}
+
+.color-picker .react-colorful {
+  width: 100%;
+  height: 170px;
+}
+
+.color-picker .react-colorful__hue {
+  height: 16px;
+}
+
+.color-picker .react-colorful__pointer {
+  width: 18px;
+  height: 18px;
+}
+
+.color-picker-hex {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12px;
+  color: var(--text-2);
+}
+
+.color-picker-hex input {
+  flex: 1;
+  width: 0;
+  min-width: 0;
+  font-family: ui-monospace, Menlo, monospace;
+}
+
+.color-picker-current {
+  width: 24px;
+  height: 20px;
+  border-radius: 4px;
+  border: 1px solid rgba(255, 255, 255, 0.3);
+}
+
+.color-picker-quick {
+  display: grid;
+  grid-template-columns: repeat(9, 1fr);
+  gap: 5px;
+}
+
+.color-picker-quick .swatch {
+  width: 100%;
+  aspect-ratio: 1;
+  height: auto;
+}
