@@ -25,7 +25,7 @@ npm run dev          # operator UI at http://localhost:5173
 
 The first time Lumen starts, it asks you to choose its icon: the **Projector** (the default, already selected), the blue **Star**, the yellow **Camera** or the black-and-white **Film Camera**. You can change it later in **Settings → App Icon**. The choice applies to the browser tab and, in the desktop app, to the Dock or taskbar.
 
-**Settings → Highlight Color** picks the color of selections, the open library or playlist and buttons that are on: ProPresenter's **Pink** (the default) or macOS's **Blue**.
+**Settings → Highlight Color** picks the color of selections, the open library or playlist and buttons that are on: ProPresenter's **Pink** (the default) or macOS's **Blue**. The dot on a live library or playlist item is lime with pink and orange with blue.
 
 Click **Audience** or **Stage** in the toolbar to open the output windows. In Chrome or Edge, open **Screens → Configure Screens…** (More menu, or right-click Audience) and press **Detect Screens** once: the outputs then open fullscreen on your TV or projector by themselves. In other browsers, drag the window to the projector and double-click it for fullscreen.
 

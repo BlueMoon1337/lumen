@@ -1,7 +1,7 @@
 {
   "name": "lumen-presenter",
   "private": true,
-  "version": "0.2.7",
+  "version": "0.2.8",
   "description": "Live presentation software for worship services and events",
   "type": "module",
   "scripts": {

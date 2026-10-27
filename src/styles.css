@@ -22,6 +22,8 @@
   /* The highlight (selections, the active button) as numbers for see-through shades, and a light tint for text on it. */
   --pink-rgb: 230, 69, 139;
   --pink-soft: #ffd6e7;
+  /* The dot on a library or playlist item that's live: lime with the pink highlight, orange with the blue. */
+  --live-dot: #bae64a;
   --orange: #f7941d;
   --yellow: #f5c518;
   --purple: #9b3b97;
@@ -51,6 +53,7 @@
   --pink: #3478f6;
   --pink-rgb: 52, 120, 246;
   --pink-soft: #d6e4ff;
+  --live-dot: var(--orange);
 }
 
 * {
@@ -162,8 +165,8 @@ kbd {
   width: 8px;
   height: 8px;
   border-radius: 50%;
-  background: var(--orange);
-  box-shadow: 0 0 6px var(--orange);
+  background: var(--live-dot);
+  box-shadow: 0 0 6px var(--live-dot);
   flex: none;
 }
 
