@@ -58,7 +58,7 @@ The desktop app's **Update** button (in the toolbar, next to Settings; also **Lu
 
 1. Raise `version` in `package.json` and `src-tauri/Cargo.toml` (Lumen only offers a release newer than itself).
 2. Push a tag for it (`git tag v0.3.0 && git push origin v0.3.0`), or open **Actions ▸ Release ▸ Run workflow** on GitHub.
-3. The workflow makes the release (its notes are the commits since the last one), builds and signs both apps, and adds `latest.json`, which is what the Update button reads. It takes 15 to 25 minutes.
+3. The workflow makes a draft release (its notes are the commits since the last one), builds and signs both apps into it, then adds `latest.json` (what the Update button reads) and publishes it. It takes 15 to 25 minutes. Releases are immutable once published, so a version that has been published can't be used again: raise it.
 
 The update files are signed with a private key kept as the repository secret `TAURI_SIGNING_PRIVATE_KEY` (**Settings ▸ Secrets and variables ▸ Actions**); its public half is `plugins.updater.pubkey` in `src-tauri/tauri.conf.json`, and Lumen refuses any update not signed with it. Keep a copy of the private key somewhere safe: without it, no new version can be published to apps that already have this public key.
 

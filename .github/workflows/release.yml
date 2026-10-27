@@ -3,7 +3,10 @@
 #
 # Runs when a version tag (v0.3.0) is pushed, or by hand from the Actions tab ("Run workflow"),
 # which tags the version in package.json. Bump "version" in package.json and src-tauri/Cargo.toml
-# first: Lumen only offers a release newer than itself.
+# first: Lumen only offers a release newer than itself, and a published version can't be reused.
+#
+# The release is made as a draft, the builds are added to it, and it's published last with
+# latest.json: with immutable releases on, nothing can be added to a published release.
 #
 # Needs one repository secret, TAURI_SIGNING_PRIVATE_KEY: the private half of the key whose public
 # half is "pubkey" in src-tauri/tauri.conf.json (Settings ▸ Secrets and variables ▸ Actions).
@@ -23,12 +26,13 @@ jobs:
     runs-on: ubuntu-latest
     outputs:
       tag: ${{ steps.release.outputs.tag }}
+      id: ${{ steps.release.outputs.id }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
         with:
           fetch-depth: 0
       - id: release
-        name: Create the release, with the changes since the last one as its notes
+        name: Make a draft release, with the changes since the last one as its notes
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
@@ -38,14 +42,19 @@ jobs:
             exit 1
           fi
           echo "tag=$tag" >> "$GITHUB_OUTPUT"
-          if gh release view "$tag" >/dev/null 2>&1; then
-            echo "$tag already has a release; the builds are added to it."
-            exit 0
+          if gh api "repos/$GITHUB_REPOSITORY/releases/tags/$tag" >/dev/null 2>&1; then
+            echo "::error::$tag is already published. Raise the version in package.json and src-tauri/Cargo.toml."
+            exit 1
           fi
-          previous="$(git tag --list 'v*' --sort=-v:refname | grep -vx "$tag" | head -n 1 || true)"
-          range="${previous:+$previous..}HEAD"
-          git log --no-merges --pretty='- %s' $range > notes.md
-          gh release create "$tag" --title "Lumen $tag" --notes-file notes.md --target "$GITHUB_SHA"
+          # A draft left by a run that failed is used again.
+          id="$(gh api "repos/$GITHUB_REPOSITORY/releases" --paginate --jq ".[] | select(.draft and .tag_name == \"$tag\") | .id" | head -n 1)"
+          if [ -z "$id" ]; then
+            previous="$(git tag --list 'v*' --sort=-v:refname | grep -vx "$tag" | head -n 1 || true)"
+            git log --no-merges --pretty='- %s' ${previous:+$previous..}HEAD > notes.md
+            id="$(gh api "repos/$GITHUB_REPOSITORY/releases" -f tag_name="$tag" -f target_commitish="$GITHUB_SHA" \
+              -f name="Lumen $tag" -F draft=true -F body=@notes.md --jq .id)"
+          fi
+          echo "id=$id" >> "$GITHUB_OUTPUT"
 
   build:
     needs: release
@@ -59,8 +68,8 @@ jobs:
             args: ''
     runs-on: ${{ matrix.os }}
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
         with:
           node-version: 22
           cache: npm
@@ -77,11 +86,24 @@ jobs:
           TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
           TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ''
         with:
-          tagName: ${{ needs.release.outputs.tag }}
-          releaseName: Lumen ${{ needs.release.outputs.tag }}
-          releaseDraft: false
-          prerelease: false
-          includeUpdaterJson: true
+          releaseId: ${{ needs.release.outputs.id }}
+          # latest.json is written once both builds are in (the publish job).
+          includeUpdaterJson: false
           # The update files (and their signatures) are made here only: a build on your own computer
           # has no private key to sign them with.
           args: ${{ matrix.args }} --config '{"bundle":{"createUpdaterArtifacts":true}}'
+
+  publish:
+    needs: [release, build]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+      - name: Add latest.json and publish the release
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          RELEASE_ID: ${{ needs.release.outputs.id }}
+          TAG: ${{ needs.release.outputs.tag }}
+        run: node .github/scripts/latest-json.mjs
