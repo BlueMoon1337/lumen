@@ -530,7 +530,7 @@ export const useStore = create<AppState>()(
         showMediaBin: true,
         mediaFilter: 'all',
         mediaPlaylistId: null,
-        liveTab: 'messages',
+        liveTab: 'audio',
         styleClipboard: null,
         slideClipboard: null,
         dialog: null,
