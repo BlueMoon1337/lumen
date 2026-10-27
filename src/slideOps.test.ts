@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it } from 'vitest';
 import { buildFrame } from './frame';
-import { DEFAULT_GROUPS, groupPresets } from './labels';
-import { getSequence, parseLyrics } from './lyrics';
+import { DEFAULT_GROUPS, groupPresets, OLD_DEFAULT_GROUPS, upgradeGroupPresets } from './labels';
+import { colorForGroup, getSequence, parseLyrics } from './lyrics';
 import {
   assignGroup,
   canUngroup,
@@ -89,9 +89,9 @@ describe('assigning groups', () => {
     const b = p.groups[0].slides[1].id;
     const next = assignGroup(p, b, chorus);
     expect(next.groups.map((g) => [g.name, g.color, g.slides.map((s) => s.text).join('')])).toEqual([
-      ['Verse 1', '#3b82f6', 'a'],
+      ['Verse 1', '#3375c6', 'a'],
       ['Chorus', '#d9485f', 'bc'],
-      ['Bridge', '#9b5de5', 'd'],
+      ['Bridge', '#6c12c4', 'd'],
     ]);
     expect(names(next)).toEqual(['Verse 1:a', 'Chorus:b', 'Chorus:c', 'Bridge:d']);
     // The slides keep their ids (and so their formatting).
@@ -128,10 +128,60 @@ describe('assigning groups', () => {
   });
 
   it('offers ProPresenter-style group presets unless the operator changed them', () => {
-    expect(groupPresets({}).map((g) => g.name)).toContain('Pre-Chorus');
-    expect(groupPresets({}).find((g) => g.name === 'Chorus')?.color).toBe('#d9485f');
+    // ProPresenter's list, in its order, with its colors.
+    expect(groupPresets({}).map((g) => g.name)).toEqual([
+      'Verse',
+      'Verse 1',
+      'Verse 2',
+      'Verse 3',
+      'Verse 4',
+      'Verse 5',
+      'Verse 6',
+      'Chorus',
+      'Chorus 1',
+      'Chorus 2',
+      'Chorus 3',
+      'Chorus 4',
+      'Bridge',
+      'Bridge 1',
+      'Bridge 2',
+      'Bridge 3',
+      'PreChorus',
+      'Tag',
+      'Intro',
+      'Ending',
+      'Outro',
+      'Interlude',
+      'Vamp',
+      'Turnaround',
+      'Blank',
+    ]);
+    expect(groupPresets({}).find((g) => g.name === 'Chorus 2')?.color).toBe('#8c1a3c');
     expect(groupPresets({ groupPresets: [chorus] })).toEqual([chorus]);
-    expect(DEFAULT_GROUPS.length).toBeGreaterThan(10);
+    expect(DEFAULT_GROUPS.length).toBe(25);
+  });
+
+  it('colors typed and imported groups as ProPresenter does, by name or by family', () => {
+    expect(colorForGroup('Verse 3')).toBe('#163b63');
+    expect(colorForGroup('Pre-Chorus')).toBe('#bc3988');
+    expect(colorForGroup('chorus 2')).toBe('#8c1a3c');
+    expect(colorForGroup('Verse 9')).toBe('#3375c6');
+    expect(colorForGroup('Refrain')).toBe('#bb2750');
+    expect(colorForGroup('Something Else')).toBe('#64748b');
+  });
+
+  it('upgrades saved group lists: the old list becomes ProPresenter’s, a changed one gains the missing groups', () => {
+    const old = OLD_DEFAULT_GROUPS.map((name) => ({ name, color: '#123456' }));
+    expect(upgradeGroupPresets(old)).toBeUndefined();
+    const mine = [
+      { name: 'Verse 1', color: '#111111' },
+      { name: 'Spontaneous', color: '#222222' },
+    ];
+    const upgraded = upgradeGroupPresets(mine)!;
+    expect(upgraded.slice(0, 2)).toEqual(mine);
+    expect(upgraded.map((g) => g.name)).toContain('Turnaround');
+    expect(upgraded.filter((g) => g.name === 'Verse 1')).toHaveLength(1);
+    expect(upgradeGroupPresets(undefined)).toBeUndefined();
   });
 });
 

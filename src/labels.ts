@@ -1,10 +1,11 @@
-import { colorForGroup } from './lyrics';
+import { PROPRESENTER_GROUPS } from './lyrics';
 import type { ColorLabel, Settings } from './types';
 
-const named = (name: string): ColorLabel => ({ name, color: colorForGroup(name) });
+/** The groups offered when assigning slides: ProPresenter's, with its colors. Colors match imported and typed lyrics. */
+export const DEFAULT_GROUPS: ColorLabel[] = PROPRESENTER_GROUPS.map((g) => ({ ...g }));
 
-/** The groups offered when assigning slides, like ProPresenter's defaults. Colors match imported and typed lyrics. */
-export const DEFAULT_GROUPS: ColorLabel[] = [
+/** Lumen's group list before it matched ProPresenter's, to recognise saved settings that are just that. */
+export const OLD_DEFAULT_GROUPS = [
   'Verse 1',
   'Verse 2',
   'Verse 3',
@@ -18,7 +19,19 @@ export const DEFAULT_GROUPS: ColorLabel[] = [
   'Interlude',
   'Outro',
   'Ending',
-].map(named);
+];
+
+/**
+ * Saved groups after ProPresenter's list came in: Lumen's old list becomes the new one; a list
+ * someone changed keeps their changes and gains the groups it doesn't have.
+ */
+export function upgradeGroupPresets(saved: ColorLabel[] | undefined): ColorLabel[] | undefined {
+  if (!saved) return undefined;
+  if (saved.length === OLD_DEFAULT_GROUPS.length && saved.every((g, i) => g.name === OLD_DEFAULT_GROUPS[i])) return undefined;
+  const key = (n: string) => n.toLowerCase().replace(/[\s-]+/g, '');
+  const have = new Set(saved.map((g) => key(g.name)));
+  return [...saved, ...DEFAULT_GROUPS.filter((g) => !have.has(key(g.name)))];
+}
 
 /** Slide labels: cues for the operator, shown on the thumbnails. */
 export const DEFAULT_LABELS: ColorLabel[] = [

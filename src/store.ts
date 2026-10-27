@@ -3,6 +3,7 @@ import { persist } from 'zustand/middleware';
 import { deleteBibleText, type BibleMeta } from './bible';
 import { BIBLE_DRAFT_ID, BIBLE_LIVE_ID } from './bibleSlides';
 import { colorForGroup, getSequence, parseLyrics } from './lyrics';
+import { upgradeGroupPresets } from './labels';
 import { deleteMediaBlob, putMediaBlob } from './media';
 import { defaultScreenSetup, newOutput, newScreen, nextScreenName, normalizeScreens } from './screens';
 import { defaultThemes, seedMessages, seedPlaylist, seedPresentations } from './seed';
@@ -1248,7 +1249,7 @@ export const useStore = create<AppState>()(
     },
     {
       name: 'lumen-library',
-      version: 6,
+      version: 7,
       migrate: (persisted, version) => {
         const saved = persisted as Partial<LibraryData>;
         const addTheme = (id: string) => {
@@ -1264,6 +1265,9 @@ export const useStore = create<AppState>()(
         // Version 6 added the PowerPoint & Keynote library, where those presentations are imported.
         if (version < 6 && saved.libraries && !saved.libraries.some((l) => l.id === SLIDESHOW_LIBRARY_ID))
           saved.libraries = [...saved.libraries, { id: SLIDESHOW_LIBRARY_ID, name: SLIDESHOW_LIBRARY_NAME }];
+        // Version 7 matched the group list (and colors) to ProPresenter's.
+        if (version < 7 && saved.settings?.groupPresets)
+          saved.settings = { ...saved.settings, groupPresets: upgradeGroupPresets(saved.settings.groupPresets) };
         return saved as LibraryData;
       },
       // Saved settings from older versions may lack newer keys.

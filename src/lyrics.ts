@@ -1,17 +1,58 @@
 import type { Group, Presentation, SequenceEntry, Slide } from './types';
 import { uid } from './util';
 
-const GROUP_COLORS: [RegExp, string][] = [
-  [/^pre[- ]?chorus/i, '#d4a72c'],
-  [/^chorus|^refrain/i, '#d9485f'],
-  [/^verse/i, '#3b82f6'],
-  [/^bridge/i, '#9b5de5'],
-  [/^tag|^vamp/i, '#14b8a6'],
-  [/^intro|^outro|^ending|^interlude|^instrumental/i, '#6b7280'],
+/** ProPresenter's groups and their colors, in its order: what Lumen offers, and how typed and imported groups are colored. */
+export const PROPRESENTER_GROUPS: { name: string; color: string }[] = [
+  { name: 'Verse', color: '#3375c6' },
+  { name: 'Verse 1', color: '#3375c6' },
+  { name: 'Verse 2', color: '#245894' },
+  { name: 'Verse 3', color: '#163b63' },
+  { name: 'Verse 4', color: '#2b66ae' },
+  { name: 'Verse 5', color: '#1d497c' },
+  { name: 'Verse 6', color: '#0f2c4a' },
+  { name: 'Chorus', color: '#bb2750' },
+  { name: 'Chorus 1', color: '#bb2750' },
+  { name: 'Chorus 2', color: '#8c1a3c' },
+  { name: 'Chorus 3', color: '#5d0e27' },
+  { name: 'Chorus 4', color: '#a42145' },
+  { name: 'Bridge', color: '#6c12c4' },
+  { name: 'Bridge 1', color: '#6c12c4' },
+  { name: 'Bridge 2', color: '#510b93' },
+  { name: 'Bridge 3', color: '#350562' },
+  { name: 'PreChorus', color: '#bc3988' },
+  { name: 'Tag', color: '#bc3932' },
+  { name: 'Intro', color: '#b1a740' },
+  { name: 'Ending', color: '#978f37' },
+  { name: 'Outro', color: '#7d762c' },
+  { name: 'Interlude', color: '#57b059' },
+  { name: 'Vamp', color: '#57b059' },
+  { name: 'Turnaround', color: '#57b059' },
+  { name: 'Blank', color: '#000000' },
+];
+
+/** "Pre-Chorus", "prechorus" and "PreChorus" alike. */
+const groupKey = (name: string) => name.toLowerCase().replace(/[\s-]+/g, '');
+const BY_KEY = new Map(PROPRESENTER_GROUPS.map((g) => [groupKey(g.name), g.color]));
+
+/** Groups not in the list take their family's color: Verse 7 is a verse. */
+const FAMILIES: [RegExp, string][] = [
+  [/^pre[- ]?chorus/i, 'prechorus'],
+  [/^chorus|^refrain/i, 'chorus'],
+  [/^verse/i, 'verse'],
+  [/^bridge/i, 'bridge'],
+  [/^tag/i, 'tag'],
+  [/^intro/i, 'intro'],
+  [/^ending/i, 'ending'],
+  [/^outro/i, 'outro'],
+  [/^interlude|^instrumental/i, 'interlude'],
+  [/^vamp/i, 'vamp'],
+  [/^turnaround/i, 'turnaround'],
 ];
 
 export function colorForGroup(name: string): string {
-  for (const [re, color] of GROUP_COLORS) if (re.test(name.trim())) return color;
+  const exact = BY_KEY.get(groupKey(name.trim()));
+  if (exact) return exact;
+  for (const [re, key] of FAMILIES) if (re.test(name.trim())) return BY_KEY.get(key)!;
   return '#64748b';
 }
 

@@ -105,7 +105,7 @@ export function insertSlides(p: Presentation, afterSlideId: string | null, slide
   let gi = p.groups.findIndex((g) => g.slides.some((sl) => sl.id === afterSlideId));
   if (gi < 0) gi = p.groups.length - 1;
   if (gi < 0) {
-    const group: Group = { id: uid(), name: 'Verse 1', color: '#3b82f6', slides: copies };
+    const group: Group = { id: uid(), name: 'Verse 1', color: '#3375c6', slides: copies };
     return { groups: [group], arrangement: [group.id] };
   }
   const groups = p.groups.map((g, i) => {
