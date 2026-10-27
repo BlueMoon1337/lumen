@@ -1,9 +1,10 @@
 # Builds Lumen for macOS (one app for Apple silicon and Intel) and Windows, signs the update
 # files, and publishes them as a GitHub release that Lumen's Update button installs from.
 #
-# Runs when a version tag (v0.3.0) is pushed, or by hand from the Actions tab ("Run workflow"),
-# which tags the version in package.json. Bump "version" in package.json and src-tauri/Cargo.toml
-# first: Lumen only offers a release newer than itself, and a published version can't be reused.
+# Runs by itself when a push to main changes package.json (or this file) and its version hasn't
+# been released yet; also when a version tag (v0.3.0) is pushed, or by hand from the Actions tab ("Run
+# workflow"). To release, raise "version" in package.json and src-tauri/Cargo.toml: Lumen only
+# offers a release newer than itself, and a published version can't be reused.
 #
 # The release is made as a draft, the builds are added to it, and it's published last with
 # latest.json: with immutable releases on, nothing can be added to a published release.
@@ -15,8 +16,15 @@ name: Release
 
 on:
   push:
+    branches: [main]
+    paths: [package.json, .github/workflows/release.yml]
     tags: ['v*']
   workflow_dispatch:
+
+# One release at a time.
+concurrency:
+  group: release
+  cancel-in-progress: false
 
 permissions:
   contents: write
@@ -43,6 +51,11 @@ jobs:
           fi
           echo "tag=$tag" >> "$GITHUB_OUTPUT"
           if gh api "repos/$GITHUB_REPOSITORY/releases/tags/$tag" >/dev/null 2>&1; then
+            # package.json changed without a new version (a new dependency, say): nothing to release.
+            if [ "${GITHUB_REF_TYPE}" = "branch" ] && [ "${GITHUB_EVENT_NAME}" = "push" ]; then
+              echo "::notice::$tag is already released; nothing to do."
+              exit 0
+            fi
             echo "::error::$tag is already published. Raise the version in package.json and src-tauri/Cargo.toml."
             exit 1
           fi
@@ -58,6 +71,7 @@ jobs:
 
   build:
     needs: release
+    if: needs.release.outputs.id != ''
     strategy:
       fail-fast: false
       matrix:
