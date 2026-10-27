@@ -14,6 +14,11 @@ import { deleteBible, deleteFont, undoHint } from './deleting';
 import { saveBytes } from './fileCommands';
 import { Dialog, IconButton, pickFiles } from './ui';
 
+const HIGHLIGHTS = [
+  { id: 'pink', name: 'Pink', color: '#e6458b' },
+  { id: 'blue', name: 'Blue', color: '#3478f6' },
+] as const;
+
 const IS_MAC = /Mac|iPhone|iPad/.test(navigator.platform);
 const MOD = IS_MAC ? '⌘' : 'Ctrl';
 const ALT = IS_MAC ? '⌥' : 'Alt';
@@ -164,6 +169,24 @@ export function SettingsDialog({ onClose, onScreens }: { onClose: () => void; on
             Edit Groups & Labels…
           </button>
         </div>
+      </section>
+      <section className="settings-section">
+        <h4>Highlight Color</h4>
+        <div className="highlight-choices" role="radiogroup" aria-label="Highlight color">
+          {HIGHLIGHTS.map((h) => (
+            <button
+              key={h.id}
+              role="radio"
+              aria-checked={(settings.highlight ?? 'pink') === h.id}
+              className={`highlight-choice ${(settings.highlight ?? 'pink') === h.id ? 'on' : ''}`}
+              onClick={() => s.updateSettings({ highlight: h.id === 'pink' ? undefined : h.id })}
+            >
+              <span className="highlight-dot" style={{ background: h.color }} />
+              {h.name}
+            </button>
+          ))}
+        </div>
+        <p className="muted small-print">For selections, the open library or playlist, and buttons that are on.</p>
       </section>
       <section className="settings-section">
         <h4>App Icon</h4>

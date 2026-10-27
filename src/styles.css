@@ -19,6 +19,9 @@
   --text-2: #b3b3b3;
   --text-3: #7d7d7d;
   --pink: #e6458b;
+  /* The highlight (selections, the active button) as numbers for see-through shades, and a light tint for text on it. */
+  --pink-rgb: 230, 69, 139;
+  --pink-soft: #ffd6e7;
   --orange: #f7941d;
   --yellow: #f5c518;
   --purple: #9b3b97;
@@ -41,6 +44,13 @@
   font-size: 13px;
   color: var(--text);
   background: var(--stage-bg);
+}
+
+:root[data-highlight='blue'] {
+  /* Settings ▸ Highlight Color ▸ Blue: macOS's own blue in place of the pink. */
+  --pink: #3478f6;
+  --pink-rgb: 52, 120, 246;
+  --pink-soft: #d6e4ff;
 }
 
 * {
@@ -142,7 +152,7 @@ kbd {
   letter-spacing: 0.06em;
   padding: 1px 5px;
   border-radius: 3px;
-  background: rgba(230, 69, 139, 0.2);
+  background: rgba(var(--pink-rgb), 0.2);
   color: #ff8cbc;
   margin-left: 6px;
   flex: none;
@@ -905,7 +915,7 @@ body.resizing-y * {
 }
 
 .collection-row.selected .count {
-  color: #ffd6e7;
+  color: var(--pink-soft);
 }
 
 .collection-icon {
@@ -3065,7 +3075,7 @@ body.resizing-y * {
 
 .icon-choice.selected {
   border-color: var(--pink);
-  background: rgba(230, 69, 139, 0.1);
+  background: rgba(var(--pink-rgb), 0.1);
 }
 
 .icon-choice img {
@@ -3747,7 +3757,7 @@ body.resizing-y * {
 }
 
 .sc-pin-quad {
-  fill: rgba(230, 69, 139, 0.18);
+  fill: rgba(var(--pink-rgb), 0.18);
   stroke: var(--pink);
   stroke-width: 2;
 }
@@ -4064,7 +4074,7 @@ body.resizing-y * {
 
 .sc-cell.on {
   border-color: var(--pink);
-  background: rgba(230, 69, 139, 0.25);
+  background: rgba(var(--pink-rgb), 0.25);
   color: #fff;
 }
 
@@ -6087,4 +6097,37 @@ h3.looks-name {
   border: 1px solid rgba(255, 255, 255, 0.3);
   border-radius: 3px;
   cursor: pointer;
+}
+
+.highlight-choices {
+  display: flex;
+  gap: 18px;
+}
+
+.highlight-choice {
+  display: grid;
+  justify-items: center;
+  gap: 5px;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--text-2);
+  font: inherit;
+  cursor: pointer;
+}
+
+.highlight-dot {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+}
+
+.highlight-choice.on {
+  color: var(--text);
+}
+
+.highlight-choice.on .highlight-dot {
+  box-shadow:
+    0 0 0 2px var(--panel),
+    0 0 0 4px rgba(255, 255, 255, 0.85);
 }

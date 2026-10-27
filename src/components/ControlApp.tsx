@@ -347,6 +347,12 @@ export default function ControlApp() {
   const appIcon = useStore((s) => s.settings.appIcon);
 
   useEffect(() => startFrameSync(), []);
+  // Settings ▸ Highlight Color.
+  const highlight = useStore((s) => s.settings.highlight);
+  useEffect(() => {
+    if (highlight && highlight !== 'pink') document.documentElement.dataset.highlight = highlight;
+    else delete document.documentElement.dataset.highlight;
+  }, [highlight]);
   // PowerPoint and Keynote presentations have no Reflow (their slides are pictures): choosing one leaves it.
   useEffect(
     () =>

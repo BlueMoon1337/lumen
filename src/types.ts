@@ -271,6 +271,8 @@ export interface Settings {
   /** Check Spelling While Typing (Edit ▸ Spelling and Grammar); on when unset. */
   spellcheck?: boolean;
   appIcon?: AppIconId;
+  /** The color of selections and active buttons: ProPresenter's pink (unset) or macOS's blue. */
+  highlight?: 'pink' | 'blue';
   /** The slide transition used unless a presentation or slide sets its own. */
   transition: SlideTransition;
   /** How backgrounds from the media bin come and go; a dissolve when unset. */
