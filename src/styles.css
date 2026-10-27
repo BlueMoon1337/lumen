@@ -24,6 +24,9 @@
   --pink-soft: #ffd6e7;
   /* The dot on a library or playlist item that's live: lime with the pink highlight, orange with the blue. */
   --live-dot: #bae64a;
+  /* Library icons: lime with the pink highlight (with a dark glyph, as white doesn't show on it), orange with the blue. */
+  --library-icon: #bae64a;
+  --library-icon-ink: #1f2a07;
   --orange: #f7941d;
   --yellow: #f5c518;
   --purple: #9b3b97;
@@ -54,6 +57,8 @@
   --pink-rgb: 52, 120, 246;
   --pink-soft: #d6e4ff;
   --live-dot: var(--orange);
+  --library-icon: #f08a24;
+  --library-icon-ink: #fff;
 }
 
 * {
@@ -932,7 +937,8 @@ body.resizing-y * {
 }
 
 .collection-icon.library {
-  background: #f08a24;
+  background: var(--library-icon);
+  color: var(--library-icon-ink);
 }
 
 .collection-icon.playlist {
