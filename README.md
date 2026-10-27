@@ -75,6 +75,8 @@ npm run format       # Prettier
 | Edit menu: Undo, Redo, Cut, Copy ▸, Paste ▸, Duplicate, Delete, Select All, Deselect All, Search, Spelling and Grammar ▸, Transformations ▸                                            | Same, in the menu bar and under **More**. In a text field they work on its text; elsewhere on the selected slides (⌘-click and ⇧-click select more), or the presentation or playlist item selected in the sidebar.                                 |
 | Presentation menu: New Slide, Next/Previous Slide and Background, Clear Groups ▸, the Clear items, Clear to Logo, Show Triggered…, Reveal in Library, Show Slide on Stage Screens Only | Same, in the menu bar and under **More**, with the same function keys. Clear Logo (F4) stands where ProPresenter has Clear Props.                                                                                                                  |
 | Screens menu: Audience (Enable, Live ▸, Edit Looks…), Stage (Enable, Edit Layouts…), Configure Screens…, Start Capture, Capture Settings…                                              | Same, in the menu bar and under **More ▸ Screens**, with the same keys. See Looks, Stage layouts and Capture below.                                                                                                                                |
+| View menu: Show, Presentation Editor, Reflow Editor, Bibles, Continuous Playlist, Slide View ▸                                                                                         | Same, in the menu bar and under **More ▸ View**, with ProPresenter's Control-key shortcuts. See The View menu below.                                                                                                                               |
+| Grid / Easy / Table buttons under the slides                                                                                                                                           | Same. Easy View shows just the words, large; Table View a row per slide with its picture and words.                                                                                                                                                |
 | Right-click menus                                                                                                                                                                      | Same: slides, group headers, the Edit canvas, library and playlist items, playlists, headers and media each have one. See Slides, groups and labels below.                                                                                         |
 | Copy Style / Paste Style (⌥⌘C / ⌥⌘V)                                                                                                                                                   | Same: right-click a slide, or the Text tab's Copy Style and Paste Style buttons. Paste onto one slide, a group, or every slide.                                                                                                                    |
 | Group and Label (right-click a slide), Edit Groups…                                                                                                                                    | Same. Picking a group starts it at that slide. Labels are colored tags on the thumbnails. **Edit Groups & Labels…** sets the lists.                                                                                                                |
@@ -283,6 +285,23 @@ The column on the right of the preview clears one layer each, top to bottom as i
 
 **Video Input.** In the media bin's sidebar, **Video Inputs ▸ Cameras & Capture** lists webcams, capture cards and virtual cameras (OBS, NDI) once you press **Find Cameras** and allow camera access. Click one to put it live under everything; it replaces slide backgrounds, so slides with transparent themes sit on top of the picture, and media from the media bin covers it. Click it again, or its clear button, to take it down. Each output window opens the camera itself. In the desktop app on a Mac, macOS asks once for camera access.
 
+## The View menu
+
+In the desktop app it's in the menu bar, after Screens; in a browser it's under **More ▸ View**. The shortcuts use the Control key on a Mac too, as ProPresenter's do.
+
+| Item                    | Keys | What it does                                                                                                                                    |
+| ----------------------- | ---- | ----------------------------------------------------------------------------------------------------------------------------------------------- |
+| Show                    | ⌃S   | Show mode                                                                                                                                       |
+| Presentation Editor     | ⌃E   | Edit mode, for the selected presentation                                                                                                        |
+| Reflow Editor           | ⌃R   | Reflow, for the selected presentation                                                                                                           |
+| Bibles                  | ⌃B   | Bible mode                                                                                                                                      |
+| Continuous Playlist     |      | With a playlist open, Show mode lists all its presentations one after another, each under its own bar, with the playlist's headers between them |
+| Slide View ▸ Grid View  |      | Slide thumbnails as they look on screen                                                                                                         |
+| Slide View ▸ Easy View  |      | Just the words, large, white on black, for reading at a glance                                                                                  |
+| Slide View ▸ Table View |      | A row per slide: number and group, a picture of it, and its words                                                                               |
+
+The three views are also the buttons under the slides. In a continuous playlist, clicking a slide shows it and selects its presentation; picking a presentation in the sidebar scrolls to it, and the same song twice in a playlist lights up only where it was shown from. In a browser, ⌃E, ⌃R and ⌃B do nothing while you type in a text field (⌃E is end of line on a Mac); the desktop app's menu takes them everywhere, as ProPresenter's does.
+
 ## The Screens menu
 
 In the desktop app it's in the menu bar; in a browser it's under **More ▸ Screens**.
@@ -448,6 +467,7 @@ Was blind, but now I see.
 | `⌥⌘1` (Ctrl+Alt+1)             | Configure Screens                                                                               |
 | `⇧⌘1` (Ctrl+Shift+1)           | Edit Looks                                                                                      |
 | `⌘4` (Ctrl+4)                  | Edit stage layouts                                                                              |
+| `⌃S` / `⌃E` / `⌃R` / `⌃B`      | Show / Presentation Editor / Reflow Editor / Bibles (Control on a Mac too)                      |
 | `⌘Z` / `⇧⌘Z` (Ctrl+Z / Ctrl+Y) | Undo / redo                                                                                     |
 | `⌘X` `⌘C` `⌘V` `⌘D` (Ctrl)     | Cut, copy, paste, duplicate the selected slides (any mode)                                      |
 | `⌘A` / `⇧⌘A`                   | Select all / deselect all slides                                                                |
@@ -497,6 +517,7 @@ src/
     ControlApp     window layout per mode and keyboard shortcuts
     fileCommands   the File menu: New, Import and Export, saving through the desktop app or downloads
     presentationCommands  the Presentation menu: its commands, function keys and desktop menu state
+    viewCommands   the View menu: modes, Continuous Playlist and Slide View, their keys and desktop menu state
     screensCommands  the Screens menu: its commands and keys, and the desktop menu's checkmarks and looks
     LooksDialog    the Looks window (Edit Looks…)
     StageLayoutsEditor  the stage layout editor (Edit Layouts…)
@@ -508,7 +529,7 @@ src/
     deleting       deleting each kind of thing: what it asks, and the Delete key's notes
     Toolbar        ProPresenter-style toolbar with Search / Text / Theme popovers and the More menu
     Sidebar        Library and Playlist collections with their items
-    ShowView       slide grid and list
+    ShowView       slides in Grid, Easy or Table View, and the continuous playlist
     MediaBin       media sidebar (media, playlists, video inputs) and bin, importing with a playability check
     MediaClock     keeps time for the live video in the operator window: transport and what happens at its end
     LivePanel      preview, clear column, transport, Audio / Stage / Timers / Messages / Props
@@ -534,6 +555,7 @@ src-tauri/          the desktop app (Tauri, Rust)
   src/outputs.rs   output windows: one fullscreen per display, or a window per output without one
   src/camera.rs    lets the web views open cameras (Video Input)
   src/menu.rs      menu bar: File (New, Import, Export), and where the other menus go
+  src/view.rs      the View menu
   src/screens.rs   the Screens menu, with the looks listed under Live
   src/capture.rs   capture files: Save To's folders, writing the recording as it comes
   src/presentation.rs  the Presentation menu, with the operator's clear groups listed in Clear Groups

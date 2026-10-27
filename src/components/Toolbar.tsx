@@ -11,6 +11,7 @@ import { editContext, editEntries, refocus, type EditContext } from './editComma
 import { fileEntries } from './fileCommands';
 import { presentationEntries } from './presentationCommands';
 import { screensEntries } from './screensCommands';
+import { viewEntries } from './viewCommands';
 import { useElapsed } from './CaptureDialog';
 import { stopCapture, useCapture } from '../capture';
 import { FontSelect } from './FontSelect';
@@ -391,6 +392,7 @@ function openMoreMenu(button: HTMLElement, { onBible, onSettings }: { onBible: (
     },
     { label: 'Presentation', submenu: presentationEntries },
     { label: 'Screens', submenu: screensEntries },
+    { label: 'View', submenu: viewEntries },
     '-',
     { label: 'Bible…', action: onBible },
     { label: 'Settings & Shortcuts…', action: onSettings },

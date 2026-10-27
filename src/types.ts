@@ -237,7 +237,10 @@ export interface Settings {
   logoMediaId?: string;
   defaultThemeId: string;
   gridSize: number;
-  slideView: 'grid' | 'list';
+  /** View ▸ Slide View: Grid, Easy (just the words, large) or Table ('list'). */
+  slideView: 'grid' | 'easy' | 'list';
+  /** View ▸ Continuous Playlist: the playlist's presentations one after another in Show mode. */
+  continuousPlaylist?: boolean;
   ccliLicense?: string;
   /** Translation last used in the Bible dialog: an imported Bible's id or an online one. */
   lastBible?: string;

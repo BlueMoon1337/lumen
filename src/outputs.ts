@@ -56,6 +56,8 @@ export interface DesktopBridge {
   writeClipboardText(text: string): Promise<void>;
   /** Turns Edit's items on and off (by command id) and sets Check Spelling While Typing. */
   setEditState(state: { enabled: string[]; spellCheck: boolean }): void;
+  /** The View menu's checkmarks, and its editors on or off. */
+  setViewState(state: { presentation: boolean; continuousPlaylist: boolean; slideView: string }): void;
   /** Turns the Presentation menu's items on and off, and lists the clear groups in Clear Groups. */
   setPresentationState(state: { enabled: string[]; clearGroups: { id: string; name: string }[] }): void;
   /** Shows the Open panel for files (or a folder, giving the files in it with those extensions). */

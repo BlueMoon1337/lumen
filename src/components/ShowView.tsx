@@ -2,7 +2,7 @@ import { memo, useEffect, useMemo, useRef, useState, type DragEvent, type MouseE
 import { getSequence } from '../lyrics';
 import { layerOf, useStore } from '../store';
 import { inkFor, resolveTheme, slideTheme } from '../theme';
-import type { ColorLabel, Presentation, SequenceEntry, Slide, Theme } from '../types';
+import type { ColorLabel, Playlist, Presentation, SequenceEntry, Slide, Theme } from '../types';
 import { SlidePreview } from './Canvas';
 import { openContextMenu, openPopupBelow } from './ContextMenu';
 import { clickSlide, selectForMenu } from './editCommands';
@@ -104,57 +104,40 @@ function slideContextMenu(e: ReactMouseEvent, presentationId: string, entry: Seq
   openContextMenu(e, slideMenu(p, entry.slide, entry.group, { index, playlistItemId }));
 }
 
+/** Show mode's slides: the selected presentation's, or with View ▸ Continuous Playlist, every presentation in the playlist. */
 export function ShowView() {
   const p = useStore((s) => (s.selectedPresentationId ? s.presentations[s.selectedPresentationId] : undefined));
   const view = useStore((s) => s.settings.slideView);
   const gridSize = useStore((s) => s.settings.gridSize);
-  const themeName = useStore((s) => (p ? resolveTheme(s, p).name : ''));
+  const playlist = useStore((s) =>
+    s.settings.continuousPlaylist && s.sidebar === 'playlist' ? s.playlists.find((pl) => pl.id === s.activePlaylistId) : undefined,
+  );
   const s = useStore.getState();
 
   return (
     <div className="show-view">
-      <div className="pres-bar">
-        {p ? (
-          <>
-            <Icon name={p.destination === 'announcements' ? 'megaphone' : p.category === 'scripture' ? 'bible' : 'slides'} size={16} />
-            <span className="pres-title">{p.title}</span>
-            <span className="pres-bar-spacer" />
-            {p.destination === 'announcements' && (
-              <span className="pres-chip" title="Its slides show on the Announcements layer, over the slides">
-                <Icon name="megaphone" size={13} /> Announcements
-              </span>
-            )}
-            {p.autoAdvance && (
-              <span
-                className="pres-chip"
-                title={`Moves to the next slide every ${p.autoAdvance.seconds} seconds${p.autoAdvance.loop ? ', and starts again after the last' : ''}`}
-              >
-                <Icon name={p.autoAdvance.loop ? 'repeat' : 'clock'} size={13} /> {p.autoAdvance.seconds}s
-              </span>
-            )}
-            <span className="pres-theme" title="Theme">
-              <Icon name="theme" size={13} /> {themeName}
-            </span>
-            <IconButton icon="reflow" title="Reflow (edit as text)" onClick={() => s.setUI({ mode: 'reflow' })} />
-            <IconButton icon="edit" title="Edit slides" onClick={() => s.openEditor()} />
-          </>
-        ) : (
-          <span className="pres-title muted">No presentation selected</span>
-        )}
-      </div>
-      {p ? (
-        view === 'list' ? (
-          <SlideList presentation={p} />
-        ) : (
-          <SlideGrid presentation={p} />
-        )
+      {playlist ? (
+        <ContinuousPlaylist playlist={playlist} />
       ) : (
-        <div className="show-empty">
-          <p>Select a presentation from the Library or a Playlist.</p>
-          <p className="muted">
-            <kbd>→</kbd> <kbd>Space</kbd> next slide · <kbd>←</kbd> previous · <kbd>F1</kbd> clear all
-          </p>
-        </div>
+        <>
+          {p ? (
+            <PresentationBar presentation={p} />
+          ) : (
+            <div className="pres-bar">
+              <span className="pres-title muted">No presentation selected</span>
+            </div>
+          )}
+          {p ? (
+            <Slides presentation={p} />
+          ) : (
+            <div className="show-empty">
+              <p>Select a presentation from the Library or a Playlist.</p>
+              <p className="muted">
+                <kbd>→</kbd> <kbd>Space</kbd> next slide · <kbd>←</kbd> previous · <kbd>F1</kbd> clear all
+              </p>
+            </div>
+          )}
+        </>
       )}
       <div className="pane-footer">
         <IconButton
@@ -170,8 +153,9 @@ export function ShowView() {
         />
         {p && <TransitionButton target={{ presentationId: p.id, scope: 'presentation' }} className="footer-transition" />}
         <span className="pane-footer-spacer" />
-        <IconButton icon="grid" title="Grid view" active={view === 'grid'} onClick={() => s.updateSettings({ slideView: 'grid' })} />
-        <IconButton icon="list" title="List view" active={view === 'list'} onClick={() => s.updateSettings({ slideView: 'list' })} />
+        <IconButton icon="grid" title="Grid View" active={view === 'grid'} onClick={() => s.updateSettings({ slideView: 'grid' })} />
+        <IconButton icon="text" title="Easy View" active={view === 'easy'} onClick={() => s.updateSettings({ slideView: 'easy' })} />
+        <IconButton icon="list" title="Table View" active={view === 'list'} onClick={() => s.updateSettings({ slideView: 'list' })} />
         <input
           type="range"
           className="pink-range"
@@ -188,14 +172,120 @@ export function ShowView() {
   );
 }
 
-function useSlides(p: Presentation) {
+function PresentationBar({ presentation: p, playlistItemId }: { presentation: Presentation; playlistItemId?: string }) {
+  const themeName = useStore((s) => resolveTheme(s, p).name);
+  const selected = useStore((s) => playlistItemId !== undefined && s.selectedPlaylistItemId === playlistItemId);
+  const s = useStore.getState();
+  // In a continuous playlist, the bar picks its presentation (for Edit, the Text and Theme panels…).
+  const pick = () => playlistItemId !== undefined && s.select(p.id, playlistItemId);
+  return (
+    <div className={`pres-bar ${playlistItemId !== undefined ? 'cp-bar' : ''} ${selected ? 'selected' : ''}`} onClick={pick}>
+      <Icon name={p.destination === 'announcements' ? 'megaphone' : p.category === 'scripture' ? 'bible' : 'slides'} size={16} />
+      <span className="pres-title">{p.title}</span>
+      <span className="pres-bar-spacer" />
+      {p.destination === 'announcements' && (
+        <span className="pres-chip" title="Its slides show on the Announcements layer, over the slides">
+          <Icon name="megaphone" size={13} /> Announcements
+        </span>
+      )}
+      {p.autoAdvance && (
+        <span
+          className="pres-chip"
+          title={`Moves to the next slide every ${p.autoAdvance.seconds} seconds${p.autoAdvance.loop ? ', and starts again after the last' : ''}`}
+        >
+          <Icon name={p.autoAdvance.loop ? 'repeat' : 'clock'} size={13} /> {p.autoAdvance.seconds}s
+        </span>
+      )}
+      <span className="pres-theme" title="Theme">
+        <Icon name="theme" size={13} /> {themeName}
+      </span>
+      <IconButton icon="reflow" title="Reflow (edit as text)" onClick={() => (pick(), s.setUI({ mode: 'reflow' }))} />
+      <IconButton icon="edit" title="Edit slides" onClick={() => (pick(), s.openEditor())} />
+    </div>
+  );
+}
+
+/** A presentation's slides in the chosen Slide View. In a continuous playlist they're one section of a longer list. */
+function Slides({ presentation: p, playlistItemId }: { presentation: Presentation; playlistItemId?: string }) {
+  const view = useStore((s) => s.settings.slideView);
+  return view === 'list' ? (
+    <SlideList presentation={p} playlistItemId={playlistItemId} />
+  ) : (
+    <SlideGrid presentation={p} playlistItemId={playlistItemId} easy={view === 'easy'} />
+  );
+}
+
+/**
+ * View ▸ Continuous Playlist: the playlist's presentations one after another, each under its own
+ * bar, with the playlist's headers between them. Picking an item in the sidebar scrolls to it.
+ */
+function ContinuousPlaylist({ playlist }: { playlist: Playlist }) {
+  const presentations = useStore((s) => s.presentations);
+  const selectedItem = useStore((s) => s.selectedPlaylistItemId);
+  const ref = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (!selectedItem) return;
+    const section = ref.current?.querySelector(`[data-item="${CSS.escape(selectedItem)}"]`);
+    // Unless a slide in it is already showing (clicking a slide selects its item too).
+    if (section && !section.contains(document.activeElement)) section.scrollIntoView({ block: 'start', behavior: 'smooth' });
+  }, [selectedItem]);
+  const items = playlist.items.filter(
+    (it) => it.type === 'header' || (presentations[it.presentationId] && !presentations[it.presentationId].hidden),
+  );
+  return (
+    <div ref={ref} className="continuous-playlist">
+      {items.map((it) =>
+        it.type === 'header' ? (
+          <div key={it.id} className="cp-header">
+            {it.label}
+          </div>
+        ) : (
+          <section key={it.id} className="cp-item" data-item={it.id}>
+            <PresentationBar presentation={presentations[it.presentationId]} playlistItemId={it.id} />
+            <Slides presentation={presentations[it.presentationId]} playlistItemId={it.id} />
+          </section>
+        ),
+      )}
+      {items.length === 0 && (
+        <div className="show-empty">
+          <p>This playlist is empty. Drag presentations onto it from the Library.</p>
+        </div>
+      )}
+    </div>
+  );
+}
+
+/** The playlist item a section's slides go live from: its own in a continuous playlist, else the selected one. */
+function useItemId(own: string | undefined) {
+  const selected = useStore((s) => s.selectedPlaylistItemId);
+  return own ?? selected;
+}
+
+/** Clicking a slide: shows it, and in a continuous playlist selects its presentation too. */
+function clickToShow(
+  e: ReactMouseEvent,
+  presentationId: string,
+  slideId: string,
+  index: number,
+  playlistItemId: string | null,
+  continuous: boolean,
+) {
+  const s = useStore.getState();
+  if (continuous && (s.selectedPresentationId !== presentationId || s.selectedPlaylistItemId !== playlistItemId))
+    s.select(presentationId, playlistItemId);
+  if (clickSlide(e, presentationId, slideId)) useStore.getState().goLive(presentationId, index, playlistItemId);
+}
+
+function useSlides(p: Presentation, playlistItemId?: string) {
   const themes = useStore((s) => s.themes);
   const settings = useStore((s) => s.settings);
   // An announcements presentation is live on the Announcements layer.
   const live = useStore((s) => s.live[layerOf(p)]);
   const base = resolveTheme({ themes, settings }, p);
   const seq = useMemo(() => getSequence(p), [p]);
-  const liveIndex = live?.presentationId === p.id ? live.index : -1;
+  // In a continuous playlist the same song can be in it twice: only the item it was shown from is live.
+  const here = live?.presentationId === p.id && (!playlistItemId || !live.playlistItemId || live.playlistItemId === playlistItemId);
+  const liveIndex = here && live ? live.index : -1;
   const liveId = seq[liveIndex]?.slide.id;
   useEffect(() => {
     // The selection follows the slide on screen as it changes, unless several are selected.
@@ -206,10 +296,10 @@ function useSlides(p: Presentation) {
   return { base, seq, liveIndex };
 }
 
-function SlideGrid({ presentation: p }: { presentation: Presentation }) {
+function SlideGrid({ presentation: p, playlistItemId: own, easy }: { presentation: Presentation; playlistItemId?: string; easy: boolean }) {
   const gridSize = useStore((s) => s.settings.gridSize);
-  const playlistItemId = useStore((s) => s.selectedPlaylistItemId);
-  const { base, seq, liveIndex } = useSlides(p);
+  const playlistItemId = useItemId(own);
+  const { base, seq, liveIndex } = useSlides(p, own);
   const liveRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -219,7 +309,10 @@ function SlideGrid({ presentation: p }: { presentation: Presentation }) {
   if (seq.length === 0) return <NoSlides />;
 
   return (
-    <div className="slide-grid" style={{ gridTemplateColumns: `repeat(auto-fill, minmax(${gridSize}px, 1fr))` }}>
+    <div
+      className={`slide-grid ${easy ? 'easy' : ''} ${own ? 'inline' : ''}`}
+      style={{ gridTemplateColumns: `repeat(auto-fill, minmax(${gridSize}px, 1fr))` }}
+    >
       {seq.map((entry, i) => (
         <SlideThumb
           key={`${entry.group.id}:${entry.slide.id}:${i}`}
@@ -230,6 +323,8 @@ function SlideGrid({ presentation: p }: { presentation: Presentation }) {
           live={i === liveIndex}
           presentationId={p.id}
           playlistItemId={playlistItemId}
+          continuous={!!own}
+          easy={easy}
         />
       ))}
     </div>
@@ -254,6 +349,8 @@ const SlideThumb = memo(function SlideThumb({
   live,
   presentationId,
   playlistItemId,
+  continuous,
+  easy,
   ref,
 }: {
   entry: SequenceEntry;
@@ -262,6 +359,9 @@ const SlideThumb = memo(function SlideThumb({
   live: boolean;
   presentationId: string;
   playlistItemId: string | null;
+  continuous: boolean;
+  /** Easy View: just the words, large, white on black. */
+  easy: boolean;
   ref?: Ref<HTMLDivElement>;
 }) {
   const { group, slide } = entry;
@@ -274,13 +374,17 @@ const SlideThumb = memo(function SlideThumb({
       tabIndex={-1}
       className={`slide-thumb ${live ? 'live' : ''} ${selected ? 'selected' : ''} ${over ? 'drop-media' : ''}`}
       {...drop}
-      onClick={(e) => clickSlide(e, presentationId, slide.id) && useStore.getState().goLive(presentationId, index, playlistItemId)}
+      onClick={(e) => clickToShow(e, presentationId, slide.id, index, playlistItemId, continuous)}
       onDoubleClick={() => useStore.getState().openEditor(slide.id)}
       onContextMenu={(e) => slideContextMenu(e, presentationId, entry, index, playlistItemId)}
       title="Click to show · ⌘-click or ⇧-click to select more · Double-click to edit · Right-click for more"
     >
       <div className="slide-thumb-canvas">
-        <SlidePreview text={slide.text} caption={slide.caption} theme={theme} background={slide.background} media={slide.media} />
+        {easy ? (
+          <div className="easy-text">{slide.text || slide.caption}</div>
+        ) : (
+          <SlidePreview text={slide.text} caption={slide.caption} theme={theme} background={slide.background} media={slide.media} />
+        )}
         <MediaBadge presentationId={presentationId} slide={slide} />
         <TransitionBadge presentationId={presentationId} slide={slide} />
       </div>
@@ -293,20 +397,22 @@ const SlideThumb = memo(function SlideThumb({
   );
 });
 
-function SlideList({ presentation: p }: { presentation: Presentation }) {
-  const playlistItemId = useStore((s) => s.selectedPlaylistItemId);
-  const { seq, liveIndex } = useSlides(p);
+function SlideList({ presentation: p, playlistItemId: own }: { presentation: Presentation; playlistItemId?: string }) {
+  const playlistItemId = useItemId(own);
+  const { base, seq, liveIndex } = useSlides(p, own);
   if (seq.length === 0) return <NoSlides />;
   return (
-    <div className="slide-list">
+    <div className={`slide-list ${own ? 'inline' : ''}`}>
       {seq.map((entry, i) => (
         <SlideRow
           key={`${entry.group.id}:${entry.slide.id}:${i}`}
           presentationId={p.id}
           entry={entry}
           index={i}
+          theme={slideTheme(base, p, entry.slide)}
           live={i === liveIndex}
           playlistItemId={playlistItemId}
+          continuous={!!own}
         />
       ))}
     </div>
@@ -317,14 +423,18 @@ function SlideRow({
   presentationId,
   entry,
   index,
+  theme,
   live,
   playlistItemId,
+  continuous,
 }: {
   presentationId: string;
   entry: SequenceEntry;
   index: number;
+  theme: Theme;
   live: boolean;
   playlistItemId: string | null;
+  continuous: boolean;
 }) {
   const { group, slide, indexInGroup } = entry;
   const { over, ...drop } = useMediaDrop(presentationId, slide.id);
@@ -335,13 +445,16 @@ function SlideRow({
       tabIndex={-1}
       className={`slide-row ${live ? 'live' : ''} ${selected ? 'selected' : ''} ${over ? 'drop-media' : ''}`}
       {...drop}
-      onClick={(e) => clickSlide(e, presentationId, slide.id) && useStore.getState().goLive(presentationId, index, playlistItemId)}
+      onClick={(e) => clickToShow(e, presentationId, slide.id, index, playlistItemId, continuous)}
       onDoubleClick={() => useStore.getState().openEditor(slide.id)}
       onContextMenu={(e) => slideContextMenu(e, presentationId, entry, index, playlistItemId)}
     >
       <span className="slide-row-label" style={{ background: group.color, color: inkFor(group.color) }}>
-        <span className="slide-number">{index + 1}</span>
+        <span className="slide-number">{index + 1}.</span>
         {indexInGroup === 0 ? group.name : ''}
+      </span>
+      <span className="slide-row-thumb">
+        <SlidePreview text={slide.text} caption={slide.caption} theme={theme} background={slide.background} media={slide.media} />
       </span>
       <span className="slide-row-text">
         {slide.text || <span className="muted">(blank)</span>}

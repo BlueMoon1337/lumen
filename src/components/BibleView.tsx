@@ -508,7 +508,7 @@ export function BibleView() {
           Verse ›
         </button>
         <span className="pane-footer-spacer" />
-        <IconButton icon="grid" title="Grid view" active={view === 'grid'} onClick={() => s.updateSettings({ slideView: 'grid' })} />
+        <IconButton icon="grid" title="Grid view" active={view !== 'list'} onClick={() => s.updateSettings({ slideView: 'grid' })} />
         <IconButton icon="list" title="List view" active={view === 'list'} onClick={() => s.updateSettings({ slideView: 'list' })} />
         <input
           type="range"

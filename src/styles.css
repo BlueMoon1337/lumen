@@ -1145,7 +1145,7 @@ body.resizing-y * {
 
 .slide-row {
   display: grid;
-  grid-template-columns: 150px 1fr;
+  grid-template-columns: 150px 160px 1fr;
   min-height: 46px;
   background: #262626;
   border: 2px solid transparent;
@@ -5535,4 +5535,73 @@ h3.looks-name {
   50% {
     opacity: 0.3;
   }
+}
+
+/* ---- View ▸ Slide View: Easy and Table ---- */
+
+.slide-thumb-canvas {
+  container-type: inline-size;
+}
+
+/* Easy View: just the words, large, white on black, as in ProPresenter. */
+.easy-text {
+  position: absolute;
+  inset: 0;
+  padding: 2.5cqw 3cqw;
+  overflow: hidden;
+  background: #000;
+  color: #fff;
+  font-family: system-ui, sans-serif;
+  font-size: 7.2cqw;
+  font-weight: 500;
+  line-height: 1.22;
+  white-space: pre-wrap;
+}
+
+/* Table View: a picture of each slide beside its words. */
+.slide-row-thumb {
+  position: relative;
+  align-self: start;
+  margin: 4px 0;
+  aspect-ratio: 16 / 9;
+  background: #000;
+}
+
+/* ---- View ▸ Continuous Playlist ---- */
+
+.continuous-playlist {
+  flex: 1;
+  overflow-y: auto;
+}
+
+.slide-grid.inline,
+.slide-list.inline {
+  flex: none;
+  overflow: visible;
+}
+
+.continuous-playlist .show-empty {
+  padding: 18px;
+}
+
+.pres-bar.cp-bar {
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  cursor: pointer;
+  border-top: 1px solid var(--divider);
+}
+
+.pres-bar.cp-bar.selected {
+  background: #3a3a3a;
+  box-shadow: inset 3px 0 0 var(--pink);
+}
+
+.cp-header {
+  padding: 14px 14px 6px;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--text-3);
 }
