@@ -289,6 +289,7 @@ const LABELS: Record<string, string | ((args: unknown[]) => string)> = {
   cutSlides: 'Cut',
   pasteSlides: ([, , options]) => ((options as { matchStyle?: boolean } | undefined)?.matchStyle ? 'Paste and Match Style' : 'Paste'),
   assignGroup: 'Group',
+  ungroup: 'Ungroup',
   deleteGroup: 'Delete Group',
   duplicateGroup: 'Duplicate Group',
   setSlideLabel: 'Label',

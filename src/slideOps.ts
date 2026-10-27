@@ -39,6 +39,40 @@ export function assignGroup(p: Presentation, slideId: string, preset: ColorLabel
   return { groups, arrangement };
 }
 
+/** The look of slides in no group: no name, grey. */
+export const NO_GROUP: ColorLabel = { name: '', color: '#5f6368' };
+
+/**
+ * Whether Ungroup does anything for a slide: it starts a group (a later slide in a group is
+ * already with the slide before it) that isn't already the unnamed first group.
+ */
+export function canUngroup(p: Presentation, slideId: string): boolean {
+  const gi = p.groups.findIndex((g) => g.slides[0]?.id === slideId);
+  if (gi < 0) return false;
+  return gi > 0 || p.groups[0].name !== NO_GROUP.name;
+}
+
+/**
+ * Ungroup, as in ProPresenter: the slide (with the rest of its group) joins the group of the
+ * slide before it. The first slide's group has none before it, so it becomes unnamed and grey.
+ */
+export function ungroup(p: Presentation, slideId: string): Pick<Presentation, 'groups' | 'arrangement'> {
+  const gi = p.groups.findIndex((g) => g.slides[0]?.id === slideId);
+  if (gi < 0) return { groups: p.groups, arrangement: p.arrangement };
+  const old = p.groups[gi];
+  if (gi === 0) {
+    const groups = p.groups.map((g, i) => (i === 0 ? { ...g, ...NO_GROUP } : g));
+    return { groups, arrangement: p.arrangement };
+  }
+  const before = p.groups[gi - 1];
+  const groups = p.groups
+    .map((g, i) => (i === gi - 1 ? { ...before, slides: [...before.slides, ...old.slides] } : g))
+    .filter((g) => g.id !== old.id);
+  // Its slides play wherever the group before it does now; the group itself is gone from the arrangement.
+  const arrangement = p.arrangement.filter((id) => id !== old.id);
+  return { groups, arrangement };
+}
+
 /** Removes a group, its slides and its places in the arrangement. */
 export function deleteGroup(p: Presentation, groupId: string): Pick<Presentation, 'groups' | 'arrangement'> {
   return { groups: p.groups.filter((g) => g.id !== groupId), arrangement: p.arrangement.filter((id) => id !== groupId) };

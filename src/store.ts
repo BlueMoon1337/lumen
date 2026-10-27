@@ -162,6 +162,8 @@ interface Actions {
   openEditor(slideId?: string | null): void;
   /** Puts a slide (and the rest of its group after it) in a group; see assignGroup in src/slideOps.ts. */
   assignGroup(presentationId: string, slideId: string, preset: ColorLabel): void;
+  /** Ungroup: the slide's group joins the group before it (or, first, becomes unnamed); see ungroup in src/slideOps.ts. */
+  ungroup(presentationId: string, slideId: string): void;
   deleteGroup(presentationId: string, groupId: string): void;
   duplicateGroup(presentationId: string, groupId: string): void;
   setSlideLabel(presentationId: string, slideId: string, label: ColorLabel | undefined): void;
@@ -653,6 +655,7 @@ export const useStore = create<AppState>()(
         openEditor: (slideId = null) =>
           set({ mode: 'edit', editSlideId: slideId, editTextSelected: false, selectedSlideIds: slideId ? [slideId] : [] }),
         assignGroup: (pid, slideId, preset) => edit(pid, (p) => ops.assignGroup(p, slideId, preset)),
+        ungroup: (pid, slideId) => edit(pid, (p) => ops.ungroup(p, slideId)),
         deleteGroup: (pid, groupId) => {
           edit(pid, (p) => ops.deleteGroup(p, groupId));
           const p = get().presentations[pid];

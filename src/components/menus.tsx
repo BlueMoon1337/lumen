@@ -1,7 +1,7 @@
 /** The right-click menus: what each thing in the window offers, as in ProPresenter. */
 import { groupPresets, LABEL_SWATCHES, labelPresets } from '../labels';
 import { colorForGroup } from '../lyrics';
-import type { SlideScope } from '../slideOps';
+import { canUngroup, type SlideScope } from '../slideOps';
 import { useStore } from '../store';
 import {
   DEFAULT_TRANSITION,
@@ -137,6 +137,9 @@ const newGroupPopup = (onSave: (g: { name: string; color: string }) => void, tit
 function slideGroupEntries(p: Presentation, slide: Slide, group: Group): ContextEntries {
   const s = st();
   return [
+    // As in ProPresenter: the slide's group joins the one before it (the first becomes unnamed).
+    { label: 'Ungroup', disabled: !canUngroup(p, slide.id), action: () => s.ungroup(p.id, slide.id) },
+    '-',
     ...groupPresets(s.settings).map((g) => ({
       label: g.name,
       swatch: g.color,

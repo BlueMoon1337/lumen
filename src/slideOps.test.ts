@@ -2,7 +2,17 @@ import { beforeEach, describe, expect, it } from 'vitest';
 import { buildFrame } from './frame';
 import { DEFAULT_GROUPS, groupPresets } from './labels';
 import { getSequence, parseLyrics } from './lyrics';
-import { assignGroup, clearTextStyle, deleteGroup, duplicateGroup, insertSlides, pasteTextStyle, setTransition } from './slideOps';
+import {
+  assignGroup,
+  canUngroup,
+  clearTextStyle,
+  deleteGroup,
+  duplicateGroup,
+  insertSlides,
+  pasteTextStyle,
+  setTransition,
+  ungroup,
+} from './slideOps';
 import { upgradeTransitions, useStore, type LibraryData } from './store';
 import {
   easingOf,
@@ -27,6 +37,40 @@ const pres = (text: string, extra: Partial<Presentation> = {}): Presentation => 
 
 const names = (p: Pick<Presentation, 'groups' | 'arrangement'>) =>
   getSequence({ ...pres(''), ...p }).map((e) => `${e.group.name}:${e.slide.text}`);
+
+describe('ungrouping', () => {
+  it('joins a group to the group of the slide before it', () => {
+    const p = pres('[Verse 1]\na\n\nb\n\n[Chorus]\nc\n\nd\n\n[Bridge]\ne');
+    const c = p.groups[1].slides[0].id;
+    expect(canUngroup(p, c)).toBe(true);
+    const next = ungroup(p, c);
+    expect(names(next)).toEqual(['Verse 1:a', 'Verse 1:b', 'Verse 1:c', 'Verse 1:d', 'Bridge:e']);
+    expect(next.groups).toHaveLength(2);
+    expect(next.arrangement).not.toContain(p.groups[1].id);
+  });
+
+  it('leaves the first group unnamed and grey, as there is no slide before it', () => {
+    const p = pres('[Verse 1]\na\n\nb\n\n[Chorus]\nc');
+    const first = ungroup(p, p.groups[0].slides[0].id);
+    expect(first.groups[0]).toMatchObject({ id: p.groups[0].id, name: '', color: '#5f6368' });
+    expect(canUngroup({ ...p, ...first }, p.groups[0].slides[0].id)).toBe(false);
+  });
+
+  it('does nothing for a slide that doesn’t start its group (it’s already with the slide before)', () => {
+    const p = pres('[Verse 1]\na\n\nb');
+    const b = p.groups[0].slides[1].id;
+    expect(canUngroup(p, b)).toBe(false);
+    expect(ungroup(p, b).groups).toBe(p.groups);
+  });
+
+  it('works from the store', () => {
+    const s = useStore.getState();
+    const id = s.createPresentation({ title: 'Ungroup me' }, '[Verse 1]\na\n\n[Chorus]\nb');
+    const chorusSlide = useStore.getState().presentations[id].groups[1].slides[0].id;
+    useStore.getState().ungroup(id, chorusSlide);
+    expect(useStore.getState().presentations[id].groups.map((g) => g.name)).toEqual(['Verse 1']);
+  });
+});
 
 describe('assigning groups', () => {
   const chorus = { name: 'Chorus', color: '#d9485f' };

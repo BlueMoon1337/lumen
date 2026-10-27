@@ -14,6 +14,7 @@ import { useShallow } from 'zustand/react/shallow';
 import { undoBatch } from '../history';
 import { groupPresets, LABEL_SWATCHES, labelPresets } from '../labels';
 import { colorForGroup } from '../lyrics';
+import { canUngroup } from '../slideOps';
 import { useMedia } from '../media';
 import { useStore } from '../store';
 import { applyStyles, inkFor, resolveTheme, slideTheme, toFrameBackground } from '../theme';
@@ -810,13 +811,18 @@ function GroupSection({ presentation: p, slide, group }: { presentation: Present
   const first = group.slides[0]?.id === slide.id;
   const known = presets.some((g) => g.name === group.name);
   const entries: MenuEntry[] = [
-    ...(known ? [] : [{ type: 'item' as const, value: '', label: group.name, swatch: group.color }, { type: 'separator' as const }]),
+    { type: 'item', value: '\u0000ungroup', label: 'Ungroup', disabled: !canUngroup(p, slide.id), checked: false },
+    { type: 'separator' },
+    ...(known
+      ? []
+      : [{ type: 'item' as const, value: '', label: group.name || 'No Group', swatch: group.color }, { type: 'separator' as const }]),
     ...presets.map((g) => ({ type: 'item' as const, value: g.name, label: g.name, swatch: g.color })),
     { type: 'separator' },
     { type: 'item', value: '\u0000new', label: 'New Group…' },
     { type: 'item', value: '\u0000edit', label: 'Edit Groups…' },
   ];
   const pick = (v: string) => {
+    if (v === '\u0000ungroup') return s.ungroup(p.id, slide.id);
     if (v === '\u0000edit') return s.setUI({ dialog: 'labels' });
     if (v === '\u0000new') {
       const anchor = document.activeElement;
