@@ -1402,28 +1402,44 @@ body.resizing-y * {
   background: #3a3a3a;
 }
 
+/* Clear All: a bar between the preview and the clear column, ProPresenter's dark red while
+   anything is on the screens (brighter under the pointer), with the ✕ in the middle. */
 .clear-all {
-  position: absolute;
-  right: 44px;
-  top: 50%;
-  transform: translate(50%, -50%);
-  z-index: 2;
-  width: 26px;
-  height: 26px;
+  flex: none;
+  align-self: stretch;
+  width: 24px;
   display: grid;
   place-items: center;
+  padding: 0;
   border: 0;
-  border-radius: 50%;
-  background: #fff;
-  color: #111;
-  box-shadow: 0 1px 6px rgba(0, 0, 0, 0.6);
+  background: #101010;
+  cursor: default;
+  transition: background 0.12s;
+}
+
+.clear-all.live {
+  background: #501e1d;
   cursor: pointer;
 }
 
-.clear-all:disabled {
+.clear-all.live:hover {
+  background: #83312f;
+}
+
+.clear-all-x {
+  width: 20px;
+  height: 20px;
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+  background: #fff;
+  color: #111;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.5);
+}
+
+.clear-all:disabled .clear-all-x {
   background: #6a6a6a;
   color: #2a2a2a;
-  cursor: default;
 }
 
 .screen-row {

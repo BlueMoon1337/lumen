@@ -203,8 +203,17 @@ export function LivePanel() {
               <StageView frame={frame} layout={firstOf(frame.stageLayouts)} />
             )}
           </div>
-          <button className="clear-all" onClick={s.clearAll} disabled={!anything} title="Clear All (F1)" aria-label="Clear all">
-            <Icon name="close" size={14} />
+          {/* Clear All, as in ProPresenter: a bar down the preview's edge, red while anything is up. */}
+          <button
+            className={`clear-all ${anything ? 'live' : ''}`}
+            onClick={s.clearAll}
+            disabled={!anything}
+            title="Clear All (F1)"
+            aria-label="Clear all"
+          >
+            <span className="clear-all-x">
+              <Icon name="close" size={12} />
+            </span>
           </button>
           <ClearColumn />
         </div>
