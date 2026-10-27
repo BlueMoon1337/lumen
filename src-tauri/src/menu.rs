@@ -1,25 +1,18 @@
-//! The menu bar, with ProPresenter's Screens menu: ⌘1 Audience, ⌘2 Stage,
-//! ⌥⌘1 Configure Screens…, Identify Screens. Clicks go to the operator window, which
-//! owns the setup and sends back the checkmarks.
-//!
-//! The Edit and Presentation menus are ProPresenter's too (see edit.rs and presentation.rs);
-//! their commands run in the operator window.
+//! The menu bar, with ProPresenter's Edit, Presentation and Screens menus (see edit.rs,
+//! presentation.rs and screens.rs); their commands run in the operator window.
 //!
 //! The File menu is ProPresenter's: New Presentation, Playlist and Library, and Import and Export
 //! submenus. Its commands also run in the operator window.
 
 use serde::Deserialize;
-use tauri::menu::{CheckMenuItem, Menu, MenuEvent, MenuItem, MenuItemKind, PredefinedMenuItem, Submenu};
+use tauri::menu::{Menu, MenuEvent, MenuItem, MenuItemKind, PredefinedMenuItem, Submenu};
 use tauri::{AppHandle, Emitter, Wry};
 
 use crate::edit::{self, EditMenu};
 use crate::presentation::{self, PresentationMenu};
+use crate::screens::{self, ScreensMenu};
 
-const COMMANDS: [&str; 18] = [
-    "toggle-audience",
-    "toggle-stage",
-    "configure-screens",
-    "identify-screens",
+const COMMANDS: [&str; 14] = [
     "new-presentation",
     "new-playlist",
     "new-library",
@@ -35,13 +28,6 @@ const COMMANDS: [&str; 18] = [
     "export-playlist",
     "export-themes",
 ];
-
-/// The menu items whose checkmarks follow the setup.
-pub struct ScreensMenu {
-    audience: CheckMenuItem<Wry>,
-    stage: CheckMenuItem<Wry>,
-    identify: CheckMenuItem<Wry>,
-}
 
 /// File ▸ Export's items, on only when there's a presentation selected to export.
 pub struct FileMenu {
@@ -98,12 +84,7 @@ fn file_menu(app: &AppHandle) -> tauri::Result<(Vec<MenuItemKind<Wry>>, FileMenu
 /// The platform's standard menus (so copy and paste work in text fields) plus Screens, before Window.
 /// Edit's Undo and Redo are Lumen's own, in place of the standard ones that only undo typing.
 pub fn build(app: &AppHandle) -> tauri::Result<(Menu<Wry>, ScreensMenu, EditMenu, PresentationMenu, FileMenu)> {
-    let audience = CheckMenuItem::with_id(app, "toggle-audience", "Audience", true, false, Some("CmdOrCtrl+1"))?;
-    let stage = CheckMenuItem::with_id(app, "toggle-stage", "Stage", true, false, Some("CmdOrCtrl+2"))?;
-    let configure = MenuItem::with_id(app, "configure-screens", "Configure Screens…", true, Some("Alt+CmdOrCtrl+1"))?;
-    let identify = CheckMenuItem::with_id(app, "identify-screens", "Identify Screens", true, false, None::<&str>)?;
-    let separator = PredefinedMenuItem::separator(app)?;
-    let screens = Submenu::with_items(app, "Screens", true, &[&audience, &stage, &separator, &configure, &identify])?;
+    let (screens, screens_menu) = screens::build(app)?;
     let menu = Menu::default(app)?;
     let at = menu.items()?.len().saturating_sub(2);
     menu.insert(&screens, at)?;
@@ -149,7 +130,7 @@ pub fn build(app: &AppHandle) -> tauri::Result<(Menu<Wry>, ScreensMenu, EditMenu
             menu.insert(&Submenu::with_items(app, "File", true, &items)?, 0)?;
         }
     }
-    Ok((menu, ScreensMenu { audience, stage, identify }, edit_menu, presentation_menu, file))
+    Ok((menu, screens_menu, edit_menu, presentation_menu, file))
 }
 
 pub fn on_event(app: &AppHandle, event: MenuEvent) {
@@ -160,24 +141,9 @@ pub fn on_event(app: &AppHandle, event: MenuEvent) {
         if !edit::forward_to_panel(app, id) {
             let _ = app.emit_to("main", "menu", id);
         }
-    } else if COMMANDS.contains(&id) || presentation::is_command(id) {
+    } else if COMMANDS.contains(&id) || presentation::is_command(id) || screens::is_command(id) {
         let _ = app.emit_to("main", "menu", id);
     }
-}
-
-#[derive(Deserialize)]
-#[serde(rename_all = "camelCase")]
-pub struct MenuState {
-    audience_enabled: bool,
-    stage_enabled: bool,
-    identify: bool,
-}
-
-#[tauri::command]
-pub fn set_menu_state(menu: tauri::State<'_, ScreensMenu>, state: MenuState) {
-    let _ = menu.audience.set_checked(state.audience_enabled);
-    let _ = menu.stage.set_checked(state.stage_enabled);
-    let _ = menu.identify.set_checked(state.identify);
 }
 
 #[derive(Deserialize)]

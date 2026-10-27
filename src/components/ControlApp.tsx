@@ -5,12 +5,13 @@ import { installHistory, runHistoryCommand, useHistory } from '../history';
 import { startFrameSync } from '../liveFrame';
 import { deleteUnusedBlobs } from '../media';
 import { dismiss, useNotices } from '../notices';
-import { setScreensEnabled, startScreenManager } from '../outputs';
+import { startScreenManager } from '../outputs';
 import { useStore } from '../store';
 import { isTypingTarget } from '../util';
 import { AskHost } from './Ask';
 import { AudioPlayer } from './AudioPlayer';
 import { BibleView } from './BibleView';
+import { CaptureDialog } from './CaptureDialog';
 import { ClearGroupsDialog } from './ClearGroups';
 import { MediaClock } from './MediaClock';
 import { ContextMenuHost } from './ContextMenu';
@@ -22,10 +23,13 @@ import { exportTarget, importFileCommand, newPresentationCommand, runFileCommand
 import { ExportThemesDialog, SlideImagesDialog, TextImportDialog } from './FileDialogs';
 import { WelcomeDialog } from './IconChooser';
 import { LivePanel } from './LivePanel';
+import { LooksDialog } from './LooksDialog';
 import { MediaContent, MediaSidebar } from './MediaBin';
 import { ReflowView } from './ReflowView';
 import { ScreenConfigDialog } from './ScreenConfig';
+import { useScreensCommands } from './screensCommands';
 import { ShowView } from './ShowView';
+import { StageLayoutsEditor } from './StageLayoutsEditor';
 import { Sidebar } from './Sidebar';
 import { DEFAULT_PANES, setPaneSize, Splitter } from './Splitter';
 import { ThemeEditorDialog } from './ThemeEditor';
@@ -128,45 +132,6 @@ function useAutoAdvance() {
   }, [announcement, announcementSeconds]);
 }
 
-const toggleScreens = (kind: 'audience' | 'stage') => {
-  const { screens } = useStore.getState();
-  setScreensEnabled(kind, !(kind === 'audience' ? screens.audienceEnabled : screens.stageEnabled));
-};
-
-/**
- * The Screens menu (ProPresenter's ⌘1, ⌘2 and ⌥⌘1). The desktop app's menu
- * handles the keys itself; in a browser they're caught here, where Chrome may
- * keep ⌘1/⌘2 for switching tabs.
- */
-function useScreenCommands(configure: () => void) {
-  useEffect(() => {
-    const run = (command: string) => {
-      if (command === 'toggle-audience') toggleScreens('audience');
-      else if (command === 'toggle-stage') toggleScreens('stage');
-      else if (command === 'configure-screens') configure();
-      else if (command === 'identify-screens') {
-        const s = useStore.getState();
-        s.setScreenTools({ identify: !s.screenTools.identify });
-      }
-    };
-    const bridge = window.lumenDesktop;
-    if (bridge) return bridge.onMenu(run);
-    const onKey = (e: KeyboardEvent) => {
-      if (!(e.metaKey || e.ctrlKey) || e.shiftKey) return;
-      // e.code, because ⌥1 types "¡" on a Mac.
-      const keys: Record<string, string> = e.altKey
-        ? { Digit1: 'configure-screens' }
-        : { Digit1: 'toggle-audience', Digit2: 'toggle-stage' };
-      const command = keys[e.code];
-      if (!command) return;
-      e.preventDefault();
-      run(command);
-    };
-    window.addEventListener('keydown', onKey);
-    return () => window.removeEventListener('keydown', onKey);
-  }, [configure]);
-}
-
 /**
  * File menu commands. The desktop app's menu sends them (with ⌘N and ⇧⌘I); in a browser those
  * keys are caught here, where the browser lets them through. The desktop menu's Export items
@@ -226,7 +191,7 @@ function PaneSplitters({
   media,
 }: {
   app: RefObject<HTMLDivElement | null>;
-  layout: 'show' | 'edit' | 'reflow';
+  layout: 'show' | 'edit' | 'reflow' | 'layouts';
   media: boolean;
 }) {
   const track = (prop: 'gridTemplateColumns' | 'gridTemplateRows', i: number) =>
@@ -328,7 +293,7 @@ export default function ControlApp() {
   useAutoAdvance();
   useEffect(() => startScreenManager(), []);
   const openScreens = useCallback(() => setDialog('screens'), [setDialog]);
-  useScreenCommands(openScreens);
+  useScreensCommands();
   useEffect(() => {
     void registerFonts(fonts);
   }, [fonts]);
@@ -386,10 +351,13 @@ export default function ControlApp() {
       )}
       {mode === 'edit' && <EditView />}
       {mode === 'reflow' && <ReflowView />}
+      {mode === 'layouts' && <StageLayoutsEditor />}
       <PaneSplitters app={appRef} layout={layout} media={showMediaBin} />
       {dialog === 'settings' && <SettingsDialog onClose={() => setDialog(null)} onScreens={openScreens} />}
       {dialog === 'screens' && <ScreenConfigDialog onClose={() => setDialog(null)} />}
       {dialog === 'labels' && <LabelsDialog onClose={() => setDialog(null)} />}
+      {dialog === 'capture' && <CaptureDialog onClose={() => setDialog(null)} />}
+      {dialog === 'looks' && <LooksDialog onClose={() => setDialog(null)} />}
       {dialog === 'clearGroups' && <ClearGroupsDialog onClose={() => setDialog(null)} />}
       {dialog === 'textImport' && <TextImportDialog onClose={() => setDialog(null)} />}
       {dialog === 'slideImages' && <SlideImagesDialog onClose={() => setDialog(null)} />}

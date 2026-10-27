@@ -26,7 +26,10 @@ const SETTING_KEYS = [
 ] as const;
 type SettingKey = (typeof SETTING_KEYS)[number];
 
-type Doc = Pick<AppState, 'presentations' | 'themes' | 'playlists' | 'messages' | 'media' | 'mediaPlaylists' | 'libraries'> & {
+type Doc = Pick<
+  AppState,
+  'presentations' | 'themes' | 'playlists' | 'messages' | 'media' | 'mediaPlaylists' | 'libraries' | 'looks' | 'stageLayouts'
+> & {
   settings: Pick<Settings, SettingKey>;
 };
 
@@ -68,6 +71,8 @@ function docOf(s: AppState): Doc {
     media: s.media,
     mediaPlaylists: s.mediaPlaylists,
     libraries: s.libraries,
+    looks: s.looks,
+    stageLayouts: s.stageLayouts,
     settings: Object.fromEntries(SETTING_KEYS.map((k) => [k, s.settings[k]])) as Doc['settings'],
   };
 }
@@ -78,6 +83,7 @@ const visible = (all: Record<string, Presentation>) => Object.entries(all).filte
 function docChanged(a: AppState, b: AppState): boolean {
   if (a.themes !== b.themes || a.playlists !== b.playlists || a.messages !== b.messages || a.media !== b.media) return true;
   if (a.mediaPlaylists !== b.mediaPlaylists || a.libraries !== b.libraries) return true;
+  if (a.looks !== b.looks || a.stageLayouts !== b.stageLayouts) return true;
   if (SETTING_KEYS.some((k) => a.settings[k] !== b.settings[k])) return true;
   if (a.presentations === b.presentations) return false;
   const before = visible(a.presentations);
@@ -113,6 +119,9 @@ function restore(doc: Doc) {
       media: doc.media,
       mediaPlaylists: doc.mediaPlaylists,
       libraries: doc.libraries,
+      looks: doc.looks,
+      stageLayouts: doc.stageLayouts,
+      stageLayoutId: doc.stageLayouts.some((l) => l.id === s.stageLayoutId) ? s.stageLayoutId : (doc.stageLayouts[0]?.id ?? null),
       libraryCategory: doc.libraries.some((l) => l.id === s.libraryCategory) ? s.libraryCategory : doc.libraries[0].id,
       settings: { ...s.settings, ...doc.settings },
       selectedPresentationId: s.selectedPresentationId && presentations[s.selectedPresentationId] ? s.selectedPresentationId : null,
@@ -298,6 +307,16 @@ const LABELS: Record<string, string | ((args: unknown[]) => string)> = {
   renamePlaylist: 'Rename Playlist',
   deletePlaylist: 'Delete Playlist',
   createLibrary: 'New Library',
+  saveLook: 'Save Look',
+  deleteLook: 'Delete Look',
+  addStageLayout: 'New Layout',
+  updateStageLayout: ([, patch]) => firstOf(patch, [['name', 'Rename Layout']], 'Edit Layout'),
+  deleteStageLayout: 'Delete Layout',
+  addStageObject: 'Add Object',
+  updateStageObject: ([, , patch]) =>
+    keysOf(patch).every((k) => ['x', 'y', 'width', 'height'].includes(k)) ? 'Move Object' : 'Edit Object',
+  deleteStageObject: 'Delete Object',
+  restackStageObject: 'Arrange Object',
   renameLibrary: 'Rename Library',
   deleteLibrary: 'Delete Library',
   createTheme: 'New Theme',
@@ -355,6 +374,8 @@ const CONTINUOUS = new Set([
   'updatePlaylistItem',
   'renamePlaylist',
   'renameLibrary',
+  'updateStageLayout',
+  'updateStageObject',
   'updateTheme',
   'updateMedia',
   'updateMessage',

@@ -10,6 +10,9 @@ import { openContextMenu } from './ContextMenu';
 import { editContext, editEntries, refocus, type EditContext } from './editCommands';
 import { fileEntries } from './fileCommands';
 import { presentationEntries } from './presentationCommands';
+import { screensEntries } from './screensCommands';
+import { useElapsed } from './CaptureDialog';
+import { stopCapture, useCapture } from '../capture';
 import { FontSelect } from './FontSelect';
 import { useToolbarPop, type PopoverName } from './toolbarState';
 import { Icon, IconButton, Popover, shortcut, type IconName } from './ui';
@@ -48,6 +51,26 @@ function Tool({
       </button>
       {children}
     </div>
+  );
+}
+
+/** While a capture records: a red dot and how long it's been going; a click stops it. */
+function CaptureIndicator() {
+  const capture = useCapture();
+  const time = useElapsed(capture.startedAt);
+  if (!capture.recording) return null;
+  return (
+    <button
+      type="button"
+      className="capture-rec"
+      disabled={capture.stopping}
+      onClick={() => void stopCapture()}
+      onContextMenu={(e) => (e.preventDefault(), useStore.getState().setUI({ dialog: 'capture' }))}
+      title={`Recording to ${capture.file ?? ''}. Click to stop · Right-click for Capture Settings`}
+    >
+      <span className="capture-dot" />
+      {capture.stopping ? 'Finishing…' : time}
+    </button>
   );
 }
 
@@ -127,7 +150,7 @@ export function Toolbar({ onSettings, onScreens }: { onSettings: () => void; onS
           label="More"
           // Edit's commands work where the focus was before the menu took it.
           onMouseDown={() => (moreContext = editContext())}
-          onClick={(e) => openMoreMenu(e.currentTarget, { onBible: () => setMode('bible'), onSettings, onScreens })}
+          onClick={(e) => openMoreMenu(e.currentTarget, { onBible: () => setMode('bible'), onSettings })}
         />
       </div>
       <div className="toolbar-spacer" data-tauri-drag-region />
@@ -139,6 +162,7 @@ export function Toolbar({ onSettings, onScreens }: { onSettings: () => void; onS
           onClick={() => useStore.getState().setUI({ showMediaBin: !showMediaBin, mode: 'show' })}
         />
       </div>
+      <CaptureIndicator />
       <div className="tool-group">
         <ScreenTool kind="audience" label="Audience" onConfigure={onScreens} />
         <ScreenTool kind="stage" label="Stage" onConfigure={onScreens} />
@@ -339,10 +363,7 @@ let moreContext: EditContext | null = null;
  * More: the menu bar's File and Edit menus (for a browser, which has no menu bar), and the
  * windows.
  */
-function openMoreMenu(
-  button: HTMLElement,
-  { onBible, onSettings, onScreens }: { onBible: () => void; onSettings: () => void; onScreens: () => void },
-) {
+function openMoreMenu(button: HTMLElement, { onBible, onSettings }: { onBible: () => void; onSettings: () => void }) {
   const { undo, redo } = useHistory.getState();
   const ctx = moreContext ?? editContext();
   moreContext = null;
@@ -369,9 +390,9 @@ function openMoreMenu(
       ],
     },
     { label: 'Presentation', submenu: presentationEntries },
+    { label: 'Screens', submenu: screensEntries },
     '-',
     { label: 'Bible…', action: onBible },
-    { label: 'Configure Screens…', shortcut: shortcut('1', true), action: onScreens },
     { label: 'Settings & Shortcuts…', action: onSettings },
   ]);
 }

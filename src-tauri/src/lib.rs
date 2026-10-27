@@ -1,9 +1,10 @@
 //! Lumen's desktop app: hosts the operator window and opens output windows on the
 //! connected displays. The interface itself is the web app in src/; this side gives it
-//! the display list, output windows, the File and Screens menus, Save panels, the clipboard
+//! the display list, output windows, the menus, Save panels, the clipboard, capture files
 //! and the app icon (see the `DesktopBridge` in src/outputs.ts and src/desktop.ts).
 
 mod camera;
+mod capture;
 mod displays;
 mod edit;
 mod files;
@@ -11,6 +12,7 @@ mod icon;
 mod menu;
 mod outputs;
 mod presentation;
+mod screens;
 
 use tauri::window::Color;
 use tauri::{Manager, WebviewUrl, WebviewWindowBuilder};
@@ -23,12 +25,13 @@ pub fn run() {
         .manage(outputs::Outputs::default())
         .manage(files::ExportFolder::default())
         .manage(files::OpenedFiles::default())
+        .manage(capture::Capture::default())
         .on_permission_request(camera::on_permission_request)
         .invoke_handler(tauri::generate_handler![
             displays::get_displays,
             outputs::set_outputs,
             outputs::open_outputs,
-            menu::set_menu_state,
+            screens::set_menu_state,
             edit::set_undo_state,
             edit::set_edit_state,
             presentation::set_presentation_state,
@@ -41,6 +44,10 @@ pub fn run() {
             files::read_clipboard_text,
             files::write_clipboard_text,
             icon::set_app_icon,
+            capture::capture_open,
+            capture::capture_write,
+            capture::capture_close,
+            capture::choose_capture_folder,
         ])
         .setup(|app| {
             let handle = app.handle();

@@ -3,7 +3,9 @@ import { getSequence } from './lyrics';
 import { adjacentPlaylistItem, type AppState } from './store';
 import { copyrightLine, resolveTheme, slideTheme, toFrameBackground } from './theme';
 import { effectiveTransition, mediaTransitionOf, transitionDuration } from './transitions';
-import type { FrameBackground, OutputFrame, Presentation } from './types';
+import { screenLook } from './looks';
+import { layoutFor } from './stageLayouts';
+import type { FrameBackground, OutputFrame, Presentation, SequenceEntry, SlidePicture } from './types';
 
 const label = (p: Presentation, groupName: string) => `${p.title} · ${groupName}`;
 
@@ -15,16 +17,23 @@ export function buildFrame(s: AppState): OutputFrame {
   const entry = ref ? seq[ref.index] : undefined;
   const theme = slideTheme(resolveTheme(s, p), p, entry?.slide);
 
-  let next: { text: string; label: string } | null = null;
+  let next: { text: string; label: string; notes?: string; presentation: Presentation; entry: SequenceEntry } | null = null;
   if (p && ref && entry) {
     const following = seq[ref.index + 1];
     if (following) {
-      next = { text: following.slide.text, label: label(p, following.group.name) };
+      next = {
+        text: following.slide.text,
+        label: label(p, following.group.name),
+        notes: following.slide.notes,
+        presentation: p,
+        entry: following,
+      };
     } else if (s.settings.advanceAcrossItems) {
       const item = adjacentPlaylistItem(s, ref.playlistItemId, 1);
       const np = item && s.presentations[item.presentationId];
       const first = np ? getSequence(np)[0] : undefined;
-      if (np && first) next = { text: first.slide.text, label: label(np, first.group.name) };
+      if (np && first)
+        next = { text: first.slide.text, label: label(np, first.group.name), notes: first.slide.notes, presentation: np, entry: first };
     }
   }
 
@@ -38,6 +47,7 @@ export function buildFrame(s: AppState): OutputFrame {
           caption: entry.slide.caption,
           footer: showCredit ? copyrightLine(p, s.settings) : undefined,
           theme,
+          background: entry.slide.background,
         }
       : null;
   // Media from the media bin replaces slide backgrounds; so does a camera, which shows underneath.
@@ -80,6 +90,16 @@ export function buildFrame(s: AppState): OutputFrame {
   const sSeq = sp ? getSequence(sp) : [];
   const sEntry = sRef ? sSeq[sRef.index] : undefined;
   const sNext = sRef ? sSeq[sRef.index + 1] : undefined;
+  const picture = (q: Presentation, e: SequenceEntry | undefined): SlidePicture | null =>
+    e
+      ? {
+          text: e.slide.text,
+          caption: e.slide.caption,
+          theme: slideTheme(resolveTheme(s, q), q, e.slide),
+          background: e.slide.background,
+          media: e.slide.media,
+        }
+      : null;
   const stage =
     sp && sEntry
       ? {
@@ -89,6 +109,9 @@ export function buildFrame(s: AppState): OutputFrame {
           next: sNext?.slide.text ?? null,
           nextLabel: sNext ? label(sp, sNext.group.name) : null,
           notes: sEntry.slide.notes ?? null,
+          nextNotes: sNext?.slide.notes ?? null,
+          currentSlide: picture(sp, sEntry),
+          nextSlide: picture(sp, sNext),
         }
       : {
           title: p?.title ?? null,
@@ -97,7 +120,18 @@ export function buildFrame(s: AppState): OutputFrame {
           next: next?.text ?? null,
           nextLabel: next?.label ?? null,
           notes: entry?.slide.notes ?? null,
+          nextNotes: next?.notes ?? null,
+          currentSlide: p ? picture(p, entry) : null,
+          nextSlide: next ? picture(next.presentation, next.entry) : null,
         };
+
+  const fadeMs = s.settings.lookFadeMs ?? 1000;
+  const looks = Object.fromEntries(
+    s.screens.screens.filter((sc) => sc.kind === 'audience').map((sc) => [sc.id, screenLook(s.liveLook, sc.id, s.themes, fadeMs)]),
+  );
+  const stageLayouts = Object.fromEntries(
+    s.screens.screens.filter((sc) => sc.kind === 'stage').map((sc) => [sc.id, layoutFor(sc, s.stageLayouts)]),
+  );
 
   return {
     slide,
@@ -116,5 +150,7 @@ export function buildFrame(s: AppState): OutputFrame {
     screenTools: s.screenTools,
     timer: s.timer,
     stage: { ...stage, message: s.live.stageMessage },
+    looks,
+    stageLayouts,
   };
 }

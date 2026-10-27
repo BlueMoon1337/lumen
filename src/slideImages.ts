@@ -182,7 +182,7 @@ async function mediaImage(id: string): Promise<CanvasImageSource | null> {
 }
 
 /** Fills the canvas with an image, cropped to cover it (object-fit: cover). */
-function drawCover(ctx: Ctx, image: CanvasImageSource) {
+export function drawCover(ctx: Ctx, image: CanvasImageSource) {
   const iw = (image as { width: number }).width;
   const ih = (image as { height: number }).height;
   if (!iw || !ih) return;
@@ -218,7 +218,7 @@ async function drawBackground(ctx: Ctx, bg: ThemeBackground, media: string | und
 }
 
 /** Waits for the fonts the slides use, so they're drawn in them rather than a fallback. */
-async function loadFonts(themes: Theme[]) {
+export async function loadFonts(themes: Theme[]) {
   if (!document.fonts) return;
   const wanted = new Set(themes.flatMap((t) => [fontOf(t, 40), fontOf(t, 40, 400)]));
   await Promise.all([...wanted].map((f) => document.fonts.load(f).catch(() => [])));
@@ -232,10 +232,15 @@ export async function drawSlide(
 ) {
   ctx.clearRect(0, 0, CANVAS_W, CANVAS_H);
   await drawBackground(ctx, slide.background ?? theme.background, slide.media, images);
+  drawWords(ctx, theme, slide.text, slide.caption);
+}
+
+/** A slide's words and caption, in their boxes, on a 1920 × 1080 canvas. */
+export function drawWords(ctx: Ctx, theme: Theme, text: string, caption?: string) {
   if (theme.captionBox) {
-    drawText(ctx, theme, slide.text);
-    if (slide.caption) drawText(ctx, captionBoxTheme(theme, theme.captionBox), slide.caption);
-  } else drawText(ctx, theme, slide.text, slide.caption);
+    drawText(ctx, theme, text);
+    if (caption) drawText(ctx, captionBoxTheme(theme, theme.captionBox), caption);
+  } else drawText(ctx, theme, text, caption);
 }
 
 /** Images of a presentation's slides, in the order they're shown, named "Title 01.jpg" and so on. */

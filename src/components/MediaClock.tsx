@@ -7,6 +7,17 @@ import { useStore } from '../store';
 export const useMediaStatus = create<{ time: number; duration: number }>(() => ({ time: 0, duration: 0 }));
 
 /**
+ * When the live video ends, for stage layouts' Video Countdown: its end time while it plays, or
+ * the time left while paused. Changes only when the video starts, stops, seeks or loops, so the
+ * screens count down by themselves.
+ */
+export const useVideoClock = create<{ endsAt: number | null; remainingMs: number | null }>(() => ({ endsAt: null, remainingMs: null }));
+
+/** The live video's element: the capture records its picture and sound. */
+let liveVideo: HTMLVideoElement | null = null;
+export const liveVideoElement = () => liveVideo;
+
+/**
  * Keeps time for the video on the Media layer in the operator window: a silent copy that
  * starts, pauses and seeks with the screens, so the transport can show where it is and Lumen
  * knows when it ends (to stop, clear or play the next, as the video is set to). Showing the
@@ -52,6 +63,32 @@ export function MediaClock() {
     const v = ref.current;
     if (v) useMediaStatus.setState({ time: v.currentTime, duration: Number.isFinite(v.duration) ? v.duration : 0 });
   };
+  const clock = () => {
+    const v = ref.current;
+    const left = v && media && Number.isFinite(v.duration) ? Math.max(0, (v.duration - v.currentTime) * 1000) : null;
+    const next =
+      left === null
+        ? { endsAt: null, remainingMs: null }
+        : v && !v.paused
+          ? { endsAt: Math.round(Date.now() + left), remainingMs: null }
+          : { endsAt: null, remainingMs: Math.round(left) };
+    const now = useVideoClock.getState();
+    // Within half a second is the same end: no need to send the screens a new frame.
+    if (next.endsAt !== null && now.endsAt !== null && Math.abs(next.endsAt - now.endsAt) < 500) return;
+    if (next.endsAt === now.endsAt && next.remainingMs === now.remainingMs) return;
+    useVideoClock.setState(next);
+  };
+
+  useEffect(() => {
+    liveVideo = ref.current;
+    return () => {
+      liveVideo = null;
+    };
+  }, []);
+
+  useEffect(() => {
+    if (!media) useVideoClock.setState({ endsAt: null, remainingMs: null });
+  }, [media]);
 
   return (
     <video
@@ -63,7 +100,11 @@ export function MediaClock() {
       preload="auto"
       loop={(item?.playback ?? 'loop') === 'loop'}
       onTimeUpdate={report}
-      onLoadedMetadata={report}
+      onLoadedMetadata={() => (report(), clock())}
+      onPlaying={clock}
+      onPause={clock}
+      onSeeked={clock}
+      onRateChange={clock}
       onEnded={() => useStore.getState().mediaEnded()}
       hidden
     />

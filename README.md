@@ -29,7 +29,7 @@ Click **Audience** or **Stage** in the toolbar to open the output windows. In Ch
 
 ### As a desktop app
 
-The desktop app is built with [Tauri](https://tauri.app). It's a small native app that uses the web engine already in the computer (Safari's on a Mac, WebView2 on Windows) instead of bundling a browser. It opens each output fullscreen on its display, adds ProPresenter's **Screens** menu (⌘1 Audience, ⌘2 Stage, ⌥⌘1 Configure Screens…, Identify Screens), and lists displays by their real names. Outputs come up as soon as an HDMI cable goes in and return when an unplugged screen is reconnected.
+The desktop app is built with [Tauri](https://tauri.app). It's a small native app that uses the web engine already in the computer (Safari's on a Mac, WebView2 on Windows) instead of bundling a browser. It opens each output fullscreen on its display, adds ProPresenter's menus (File, Edit, Presentation and **Screens**: ⌘1 Audience, ⌘2 Stage, Live looks, Edit Looks…, Edit Layouts…, ⌥⌘1 Configure Screens…, Capture), and lists displays by their real names. Outputs come up as soon as an HDMI cable goes in and return when an unplugged screen is reconnected.
 
 One-time setup:
 
@@ -74,6 +74,7 @@ npm run format       # Prettier
 | File menu: New Presentation, New Playlist, New Library, Import ▸, Export ▸                                                                                                             | Same, in the desktop app's menu bar and under **More ▸ File**. Import has File…, Library…, Media…, Text from Clipboard… and Import Bible…; Export has Presentation…, Presentation Bundle…, Text…, Slide Images…, Playlist… and Themes…. No Print.  |
 | Edit menu: Undo, Redo, Cut, Copy ▸, Paste ▸, Duplicate, Delete, Select All, Deselect All, Search, Spelling and Grammar ▸, Transformations ▸                                            | Same, in the menu bar and under **More**. In a text field they work on its text; elsewhere on the selected slides (⌘-click and ⇧-click select more), or the presentation or playlist item selected in the sidebar.                                 |
 | Presentation menu: New Slide, Next/Previous Slide and Background, Clear Groups ▸, the Clear items, Clear to Logo, Show Triggered…, Reveal in Library, Show Slide on Stage Screens Only | Same, in the menu bar and under **More**, with the same function keys. Clear Logo (F4) stands where ProPresenter has Clear Props.                                                                                                                  |
+| Screens menu: Audience (Enable, Live ▸, Edit Looks…), Stage (Enable, Edit Layouts…), Configure Screens…, Start Capture, Capture Settings…                                              | Same, in the menu bar and under **More ▸ Screens**, with the same keys. See Looks, Stage layouts and Capture below.                                                                                                                                |
 | Right-click menus                                                                                                                                                                      | Same: slides, group headers, the Edit canvas, library and playlist items, playlists, headers and media each have one. See Slides, groups and labels below.                                                                                         |
 | Copy Style / Paste Style (⌥⌘C / ⌥⌘V)                                                                                                                                                   | Same: right-click a slide, or the Text tab's Copy Style and Paste Style buttons. Paste onto one slide, a group, or every slide.                                                                                                                    |
 | Group and Label (right-click a slide), Edit Groups…                                                                                                                                    | Same. Picking a group starts it at that slide. Labels are colored tags on the thumbnails. **Edit Groups & Labels…** sets the lists.                                                                                                                |
@@ -282,6 +283,55 @@ The column on the right of the preview clears one layer each, top to bottom as i
 
 **Video Input.** In the media bin's sidebar, **Video Inputs ▸ Cameras & Capture** lists webcams, capture cards and virtual cameras (OBS, NDI) once you press **Find Cameras** and allow camera access. Click one to put it live under everything; it replaces slide backgrounds, so slides with transparent themes sit on top of the picture, and media from the media bin covers it. Click it again, or its clear button, to take it down. Each output window opens the camera itself. In the desktop app on a Mac, macOS asks once for camera access.
 
+## The Screens menu
+
+In the desktop app it's in the menu bar; in a browser it's under **More ▸ Screens**.
+
+| Item                         | Keys | What it does                                                       |
+| ---------------------------- | ---- | ------------------------------------------------------------------ |
+| Audience ▸ Enable            | ⌘1   | Audience screens on or off                                         |
+| Audience ▸ Live: _look_ ▸    |      | Puts a saved look on the audience screens; the live one is checked |
+| Audience ▸ Edit Looks…       | ⇧⌘1  | The Looks window                                                   |
+| Stage ▸ Enable               | ⌘2   | Stage screens on or off                                            |
+| Stage ▸ Edit Layouts…        | ⌘4   | The stage layout editor                                            |
+| Configure Screens…           | ⌥⌘1  | Screen Configuration (see Screens below)                           |
+| Start Capture / Stop Capture |      | Records an audience screen to a movie file                         |
+| Capture Settings…            |      | What to record, where, and how                                     |
+
+Identify Screens has moved into Screen Configuration and the Looks window (**Enable Identify**), as in ProPresenter.
+
+### Looks
+
+A look says what each audience screen shows: which layers (Messages, Logo, Announcements, Slide, Media, Video Input), the slides in a theme of its own (**Presentation**: a lower third for the livestream screen, say, while the projector keeps the full slide), and a **Mask** that leaves only part of the screen showing (4:3 in the middle, letterbox, lower or upper third, left or right half).
+
+**Edit Looks…** lists **Live** and the **Presets**. Changing Live changes the screens straight away; a preset is changed in the window and kept with **Save**. Double-click a preset (or **Make Live**, or pick it from Screens ▸ Live) to put it on the screens. **+** saves Live as a new preset; right-click a preset to rename, duplicate or delete it. The slider at the bottom is how long layers take to fade in and out when the look changes. Looks are undoable and saved with the library.
+
+### Stage layouts
+
+**Edit Layouts…** (⌘4) opens the layout editor in place of the slides, like Edit mode: the layouts down the left with their objects underneath, the layout on a canvas with rulers, and an inspector on the right.
+
+- The toolbar above the canvas adds objects: **Slide** (current or next slide's text, notes or picture, the group name, the presentation title), **Time** (the clock, the countdown timer, the time left in the live video), **Message** (the stage message, shown only while there is one), **Text** and **Shape**.
+- Drag an object to move it, or its handles to resize it; the arrow keys nudge it (Shift for 10 pixels), ⌘D duplicates it and Delete removes it. Right-click for Bring to Front and the rest.
+- The inspector sets the layout's name, background and size, and each object's position, font, size, weight, color, alignment, label and fill.
+- **+** makes a blank layout, a copy of the current one, or one from the templates (Current + Next Text, Lyrics & Notes, Current & Next Slide). Right-click a layout to rename, duplicate or delete it.
+
+Each stage screen shows the layout picked for it in the live panel's **Stage** tab (the first layout until one is picked).
+
+### Capture
+
+**Start Capture** records an audience screen, as it looks under the live look, with Lumen's sound: the Audio layer and the live video's own sound. **Capture Settings…** sets:
+
+- **Preset:** save the settings under a name to switch back to them.
+- **Source:** which audience screen.
+- **Save To:** Downloads, Documents, Desktop, Movies or another folder (desktop app). A browser downloads the file when the capture stops.
+- **Codec:** H.264 and H.265 where the computer can record them (H.264 on a Mac and in Chrome or Edge), or WebM. HAP and ProRes are listed, as in ProPresenter, but need encoders a web view doesn't have.
+- **Encoding:** ProPresenter's sizes, frame rates and bit rates, from 360p30 (4 Mbps) to 1080p60 (24 Mbps), or **Custom Encoding…**.
+- **Audio ▸ Routing…:** which of Lumen's two channels goes to the recording's left and right (**Auto** is left to left, right to right).
+
+While it records, a red dot with the time shows in the toolbar; click it to stop. Files are named by the time they started ("Lumen Capture 2026-10-27 at 19.05.33.mp4") and never replace another file.
+
+The capture draws the screen itself (backgrounds, the slide, announcements, messages, the logo, a camera, with their fades), so it records what the screen shows, but slide transitions other than dissolves come out as dissolves.
+
 ## Screens
 
 Open **Configure Screens…** from the Screens menu (desktop app), the More menu, Settings, a right-click on the Audience or Stage button, or ⌥⌘1 (Ctrl+Alt+1).
@@ -396,6 +446,8 @@ Was blind, but now I see.
 | `⌘0`                           | Show the selected slide on the stage screens only                                               |
 | `⌘1` / `⌘2` (Ctrl on Windows)  | Audience / Stage screens on or off (browsers may keep these for switching tabs)                 |
 | `⌥⌘1` (Ctrl+Alt+1)             | Configure Screens                                                                               |
+| `⇧⌘1` (Ctrl+Shift+1)           | Edit Looks                                                                                      |
+| `⌘4` (Ctrl+4)                  | Edit stage layouts                                                                              |
 | `⌘Z` / `⇧⌘Z` (Ctrl+Z / Ctrl+Y) | Undo / redo                                                                                     |
 | `⌘X` `⌘C` `⌘V` `⌘D` (Ctrl)     | Cut, copy, paste, duplicate the selected slides (any mode)                                      |
 | `⌘A` / `⇧⌘A`                   | Select all / deselect all slides                                                                |
@@ -429,6 +481,9 @@ src/
   commands.ts      new presentation, file import (ProPresenter files, lyrics, Bibles and Lumen's own)
   fileFormats.ts   Lumen's export files (.lumen, .lumenbundle, .lumenplaylist, .lumenthemes): writing, reading, importing
   slideImages.ts   drawing slides onto a canvas for Export ▸ Slide Images
+  looks.ts         looks: which layers each audience screen shows, its theme and mask
+  stageLayouts.ts  stage layouts: the kinds of object, the templates, moving and resizing
+  capture.ts       Screens ▸ Capture: drawing an audience screen onto a canvas, its sound, recording to a file
   import/          readers for ProPresenter .pro (protobuf + RTF), .proplaylist and .rvbible (zip of USX books),
                    and a zip reader that tolerates ProPresenter's Zip64 layout
   frame.ts         derives the OutputFrame from the store
@@ -442,6 +497,10 @@ src/
     ControlApp     window layout per mode and keyboard shortcuts
     fileCommands   the File menu: New, Import and Export, saving through the desktop app or downloads
     presentationCommands  the Presentation menu: its commands, function keys and desktop menu state
+    screensCommands  the Screens menu: its commands and keys, and the desktop menu's checkmarks and looks
+    LooksDialog    the Looks window (Edit Looks…)
+    StageLayoutsEditor  the stage layout editor (Edit Layouts…)
+    CaptureDialog  Capture Settings, and the capture's time
     editCommands   the Edit menu: what each command does in a text field, a list or the selected slides; its keys;
                    slide selection; keeping the desktop menu's items on and off
     FileDialogs    Text from Clipboard, Export Slide Images and Export Themes windows
@@ -467,14 +526,16 @@ src/
     ScreenHostApp  output window (#/screen): every output on one display, each in its region, with its share of a
                    grouped screen, edge blend, delay, color, corner pin, identify and test patterns.
                    #/output and #/stage show the first audience or stage screen, e.g. as a browser source in OBS
-    StageView      stage display layout
+    StageView      a stage screen: its layout's objects
     BibleView      Bible mode: passage, translations, Verse/Reference boxes, options, slides, Save As
     ThemeEditor, Dialogs
 src-tauri/          the desktop app (Tauri, Rust)
   src/displays.rs  display list with real names (macOS: from AppKit), hot-plug watcher
   src/outputs.rs   output windows: one fullscreen per display, or a window per output without one
   src/camera.rs    lets the web views open cameras (Video Input)
-  src/menu.rs      menu bar: File (New, Import, Export) and Screens
+  src/menu.rs      menu bar: File (New, Import, Export), and where the other menus go
+  src/screens.rs   the Screens menu, with the looks listed under Live
+  src/capture.rs   capture files: Save To's folders, writing the recording as it comes
   src/presentation.rs  the Presentation menu, with the operator's clear groups listed in Clear Groups
   src/edit.rs      the Edit menu: its items on and off, Undo and Redo named after the next step, macOS's own
                    Spelling and Grammar and Transformations, and Edit's commands for a Save or Open panel in front

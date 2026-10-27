@@ -11,9 +11,15 @@ import type { SlideScope } from './slideOps';
 import { applyStyles, resolveTheme } from './theme';
 import { DEFAULT_TRANSITION, fromMs } from './transitions';
 import { ALL_LAYERS, clearLive } from './layers';
+import { DEFAULT_LOOK, lookScreen } from './looks';
+import { DEFAULT_STAGE_LAYOUTS } from './stageLayouts';
 import type {
   Category,
   Library,
+  Look,
+  LookScreen,
+  StageLayout,
+  StageObject,
   MediaPlaylist,
   ClearLayer,
   ColorLabel,
@@ -58,6 +64,11 @@ export interface LibraryData {
   mediaPlaylists: MediaPlaylist[];
   /** The libraries presentations are kept in, in sidebar order. */
   libraries: Library[];
+  /** Saved looks (Screens ▸ Live), and the one on the screens now. */
+  looks: Look[];
+  liveLook: Look;
+  /** Stage screen layouts (Screens ▸ Edit Layouts…). */
+  stageLayouts: StageLayout[];
 }
 
 /** The libraries a new Lumen starts with. */
@@ -81,7 +92,7 @@ export function librariesFor(libraries: Library[] | undefined, presentations: Re
   return list;
 }
 
-export type Mode = 'show' | 'edit' | 'reflow' | 'bible';
+export type Mode = 'show' | 'edit' | 'reflow' | 'bible' | 'layouts';
 export type LiveTab = 'audio' | 'stage' | 'timers' | 'messages' | 'props';
 
 interface UIState {
@@ -111,8 +122,11 @@ interface UIState {
   styleClipboard: TextStyle | null;
   /** Copied slides, for Paste. */
   slideClipboard: Slide[] | null;
-  /** The open window: Settings, Screen Configuration, Groups & Labels, Clear Groups, or one of File's. */
-  dialog: 'settings' | 'screens' | 'labels' | 'clearGroups' | 'textImport' | 'slideImages' | 'exportThemes' | null;
+  /** The open window: Settings, Screen Configuration, Groups & Labels, Clear Groups, one of File's, Looks, or Capture Settings. */
+  dialog: 'settings' | 'screens' | 'labels' | 'clearGroups' | 'textImport' | 'slideImages' | 'exportThemes' | 'looks' | 'capture' | null;
+  /** The stage layout open in the layout editor, and its selected object. */
+  stageLayoutId: string | null;
+  stageObjectId: string | null;
 }
 
 interface Actions {
@@ -171,6 +185,23 @@ interface Actions {
   renamePlaylist(id: string, name: string): void;
   deletePlaylist(id: string): void;
   /** Adds a library to the sidebar, opens it and returns its id. */
+  /** Changes what an audience screen shows in the live look. */
+  updateLiveLook(screenId: string, patch: Partial<LookScreen>): void;
+  /** Puts a saved look on the screens. */
+  triggerLook(id: string): void;
+  /** Saves a look as a preset: a new one, or over the one with its id. Returns its id. */
+  saveLook(look: Look): string;
+  deleteLook(id: string): void;
+
+  addStageLayout(layout: StageLayout): string;
+  updateStageLayout(id: string, patch: Partial<Omit<StageLayout, 'id' | 'objects'>>): void;
+  deleteStageLayout(id: string): void;
+  addStageObject(layoutId: string, object: StageObject): void;
+  updateStageObject(layoutId: string, objectId: string, patch: Partial<StageObject>): void;
+  deleteStageObject(layoutId: string, objectId: string): void;
+  /** Moves an object in front of (1) or behind (-1) the next one, or to the front or back (±Infinity). */
+  restackStageObject(layoutId: string, objectId: string, by: number): void;
+
   createLibrary(name: string): Category;
   renameLibrary(id: Category, name: string): void;
   /** Deletes a library and the presentations in it (they come out of playlists too). One library always stays. */
@@ -297,6 +328,9 @@ function initialLibrary(): LibraryData {
     screens: defaultScreenSetup(),
     mediaPlaylists: [],
     libraries: DEFAULT_LIBRARIES,
+    looks: [DEFAULT_LOOK],
+    liveLook: DEFAULT_LOOK,
+    stageLayouts: DEFAULT_STAGE_LAYOUTS,
   };
 }
 
@@ -466,6 +500,8 @@ export const useStore = create<AppState>()(
         selectedPresentationId: null,
         selectedPlaylistItemId: null,
         selectedSlideIds: [],
+        stageLayoutId: null,
+        stageObjectId: null,
         mode: 'show',
         sidebar: 'playlist',
         libraryCategory: 'song',
@@ -702,6 +738,77 @@ export const useStore = create<AppState>()(
             return { playlists, activePlaylistId: playlists[0].id, selectedPlaylistItemId: null };
           }),
         setActivePlaylist: (id) => set({ activePlaylistId: id, selectedPlaylistItemId: null }),
+
+        updateLiveLook: (screenId, patch) =>
+          set((s) => ({
+            liveLook: { ...s.liveLook, screens: { ...s.liveLook.screens, [screenId]: { ...lookScreen(s.liveLook, screenId), ...patch } } },
+          })),
+        triggerLook: (id) =>
+          set((s) => {
+            const look = s.looks.find((l) => l.id === id);
+            return look ? { liveLook: structuredClone(look) } : {};
+          }),
+        saveLook: (look) => {
+          const saved = { ...structuredClone(look), id: look.id && get().looks.some((l) => l.id === look.id) ? look.id : uid() };
+          set((s) => ({
+            looks: s.looks.some((l) => l.id === saved.id) ? s.looks.map((l) => (l.id === saved.id ? saved : l)) : [...s.looks, saved],
+            // The live look keeps the name of the preset it now is.
+            liveLook:
+              s.liveLook.id === saved.id || s.liveLook.id === look.id ? { ...s.liveLook, id: saved.id, name: saved.name } : s.liveLook,
+          }));
+          return saved.id;
+        },
+        deleteLook: (id) => set((s) => (s.looks.length > 1 ? { looks: s.looks.filter((l) => l.id !== id) } : {})),
+
+        addStageLayout: (layout) => {
+          const added = { ...structuredClone(layout), id: uid() };
+          set((s) => ({ stageLayouts: [...s.stageLayouts, added], stageLayoutId: added.id, stageObjectId: null }));
+          return added.id;
+        },
+        updateStageLayout: (id, patch) => set((s) => ({ stageLayouts: s.stageLayouts.map((l) => (l.id === id ? { ...l, ...patch } : l)) })),
+        deleteStageLayout: (id) =>
+          set((s) => {
+            if (s.stageLayouts.length <= 1) return {};
+            const stageLayouts = s.stageLayouts.filter((l) => l.id !== id);
+            return {
+              stageLayouts,
+              stageLayoutId: s.stageLayoutId === id ? stageLayouts[0].id : s.stageLayoutId,
+              screens: {
+                ...s.screens,
+                screens: s.screens.screens.map((sc) => (sc.stageLayoutId === id ? { ...sc, stageLayoutId: undefined } : sc)),
+              },
+            };
+          }),
+        addStageObject: (layoutId, object) =>
+          set((s) => ({
+            stageLayouts: s.stageLayouts.map((l) => (l.id === layoutId ? { ...l, objects: [...l.objects, object] } : l)),
+            stageObjectId: object.id,
+          })),
+        updateStageObject: (layoutId, objectId, patch) =>
+          set((s) => ({
+            stageLayouts: s.stageLayouts.map((l) =>
+              l.id === layoutId ? { ...l, objects: l.objects.map((o) => (o.id === objectId ? { ...o, ...patch } : o)) } : l,
+            ),
+          })),
+        deleteStageObject: (layoutId, objectId) =>
+          set((s) => ({
+            stageLayouts: s.stageLayouts.map((l) =>
+              l.id === layoutId ? { ...l, objects: l.objects.filter((o) => o.id !== objectId) } : l,
+            ),
+            stageObjectId: s.stageObjectId === objectId ? null : s.stageObjectId,
+          })),
+        restackStageObject: (layoutId, objectId, by) =>
+          set((s) => ({
+            stageLayouts: s.stageLayouts.map((l) => {
+              if (l.id !== layoutId) return l;
+              const objects = [...l.objects];
+              const at = objects.findIndex((o) => o.id === objectId);
+              if (at < 0) return l;
+              const [o] = objects.splice(at, 1);
+              objects.splice(Math.max(0, Math.min(objects.length, at + by)), 0, o);
+              return { ...l, objects };
+            }),
+          })),
 
         createLibrary: (name) => {
           const library: Library = { id: uid(), name };
@@ -1100,6 +1207,9 @@ export const useStore = create<AppState>()(
             bibles: data.bibles ?? [],
             mediaPlaylists: data.mediaPlaylists ?? [],
             libraries: librariesFor(data.libraries, data.presentations),
+            looks: data.looks?.length ? data.looks : [DEFAULT_LOOK],
+            liveLook: data.liveLook ?? DEFAULT_LOOK,
+            stageLayouts: data.stageLayouts?.length ? data.stageLayouts : DEFAULT_STAGE_LAYOUTS,
             fonts: data.fonts ?? [],
             screens: normalizeScreens(data.screens),
             selectedPresentationId: null,
@@ -1149,6 +1259,9 @@ export const useStore = create<AppState>()(
         screens: s.screens,
         mediaPlaylists: s.mediaPlaylists,
         libraries: s.libraries,
+        looks: s.looks,
+        liveLook: s.liveLook,
+        stageLayouts: s.stageLayouts,
       }),
     },
   ),

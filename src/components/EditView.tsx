@@ -209,9 +209,9 @@ function OutlineSlide({
 
 // ---- Center: canvas ------------------------------------------------------
 
-type Handle = 'move' | 'n' | 's' | 'e' | 'w' | 'ne' | 'nw' | 'se' | 'sw';
-const HANDLES: Exclude<Handle, 'move'>[] = ['nw', 'n', 'ne', 'e', 'se', 's', 'sw', 'w'];
-const RULER = 20;
+export type Handle = 'move' | 'n' | 's' | 'e' | 'w' | 'ne' | 'nw' | 'se' | 'sw';
+export const HANDLES: Exclude<Handle, 'move'>[] = ['nw', 'n', 'ne', 'e', 'se', 's', 'sw', 'w'];
+export const RULER = 20;
 const TOOLBAR_SPACE = 64;
 const PAD = 36;
 const MIN_SIZE = 3;
@@ -234,7 +234,7 @@ export function adjustInset(i: Theme['inset'], handle: Handle, dx: number, dy: n
   return { top: round(top), right: round(right), bottom: round(bottom), left: round(left) };
 }
 
-function Rulers({ left, top, scale, width, height }: { left: number; top: number; scale: number; width: number; height: number }) {
+export function Rulers({ left, top, scale, width, height }: { left: number; top: number; scale: number; width: number; height: number }) {
   const minor = 50 * scale >= 6 ? 50 : 100;
   const major = 500 * scale >= 60 ? 500 : 1000;
   const ticks = (origin: number, length: number) => {
@@ -615,7 +615,7 @@ export function Inspector({
   );
 }
 
-function Field({ label, children }: { label: string; children: ReactNode }) {
+export function Field({ label, children }: { label: string; children: ReactNode }) {
   return (
     <label className="insp-row">
       <span className="insp-label">{label}</span>
@@ -624,7 +624,7 @@ function Field({ label, children }: { label: string; children: ReactNode }) {
   );
 }
 
-function Switch({ checked, onChange, label }: { checked: boolean; onChange: (v: boolean) => void; label: string }) {
+export function Switch({ checked, onChange, label }: { checked: boolean; onChange: (v: boolean) => void; label: string }) {
   return (
     <label className="switch" title={label}>
       <input type="checkbox" checked={checked} onChange={(e) => onChange(e.target.checked)} aria-label={label} />

@@ -277,9 +277,15 @@ function OutputRegion({
           }}
         >
           {screen.kind === 'stage' ? (
-            <StageView frame={shown} />
+            <StageView frame={shown} layout={shown?.stageLayouts?.[screen.id]} />
           ) : (
-            <OutputView frame={shown} muted={!playsSound} screenColor={screen.screenColor} alphaKey={alphaKey} />
+            <OutputView
+              frame={shown}
+              muted={!playsSound}
+              screenColor={screen.screenColor}
+              alphaKey={alphaKey}
+              look={shown?.looks?.[screen.id]}
+            />
           )}
           {pattern && <TestPatternView pattern={pattern} label={screen.name} width={layout.width} height={layout.height} />}
         </div>

@@ -38,6 +38,10 @@ export function installDesktopBridge() {
     onMenu: (cb) => subscribe('menu', cb),
     setMenuState: (state) => void invoke('set_menu_state', { state }),
     setUndoState: (state) => void invoke('set_undo_state', { state }),
+    captureOpen: (folder, name) => invoke<string>('capture_open', { folder, name }),
+    captureWrite: (data) => invoke('capture_write', data),
+    captureClose: () => invoke('capture_close'),
+    chooseCaptureFolder: () => invoke<string | null>('choose_capture_folder'),
     setAppIcon: (id) => void invoke('set_app_icon', { id }),
     setFileState: (state) => void invoke('set_file_state', { state }),
     // File contents go as the raw request body; names in headers, encoded so any name survives.

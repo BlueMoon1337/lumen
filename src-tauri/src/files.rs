@@ -117,7 +117,7 @@ fn body(request: &Request<'_>) -> Result<Vec<u8>, String> {
 }
 
 /// A dialog in front of the operator window.
-fn dialog(app: &AppHandle) -> FileDialogBuilder<tauri::Wry> {
+pub(crate) fn dialog(app: &AppHandle) -> FileDialogBuilder<tauri::Wry> {
     let builder = app.dialog().file();
     match app.get_webview_window("main") {
         Some(window) => builder.set_parent(&window),

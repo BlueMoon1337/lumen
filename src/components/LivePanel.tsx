@@ -1,3 +1,4 @@
+import { useShallow } from 'zustand/react/shallow';
 import { useRef, useState, type CSSProperties } from 'react';
 import { timerRemaining, useNow } from '../clock';
 import { useLiveFrame } from '../liveFrame';
@@ -13,6 +14,7 @@ import { useMediaStatus } from './MediaClock';
 import { PLAYBACK, playbackEntries } from './menus';
 import { setPaneSize, Splitter } from './Splitter';
 import { StageView } from './StageView';
+import { layoutFor } from '../stageLayouts';
 import { TransitionButton } from './TransitionPicker';
 import { Icon, IconButton, SectionHeader, type IconName } from './ui';
 
@@ -193,7 +195,14 @@ export function LivePanel() {
     >
       <div ref={top} className="live-top">
         <div className="preview-row">
-          <div className="preview">{screen === 'audience' ? <OutputView frame={frame} /> : <StageView frame={frame} />}</div>
+          <div className="preview">
+            {/* The first audience screen's look, or the first stage screen's layout. */}
+            {screen === 'audience' ? (
+              <OutputView frame={frame} look={firstOf(frame.looks)} />
+            ) : (
+              <StageView frame={frame} layout={firstOf(frame.stageLayouts)} />
+            )}
+          </div>
           <button className="clear-all" onClick={s.clearAll} disabled={!anything} title="Clear All (F1)" aria-label="Clear all">
             <Icon name="close" size={14} />
           </button>
@@ -350,6 +359,8 @@ function MessagesTab() {
   );
 }
 
+const firstOf = <T,>(byScreen: Record<string, T> | undefined): T | undefined => (byScreen ? Object.values(byScreen)[0] : undefined);
+
 function StageTab() {
   const current = useStore((s) => s.live.stageMessage);
   const { setStageMessage } = useStore.getState();
@@ -373,6 +384,37 @@ function StageTab() {
         </button>
       </form>
       {current && <div className="stage-message-live">On stage: {current}</div>}
+      <StageLayoutPicker />
+    </>
+  );
+}
+
+/** Which layout each stage screen shows (Screens ▸ Edit Layouts… makes them). */
+function StageLayoutPicker() {
+  const screens = useStore(useShallow((s) => s.screens.screens.filter((sc) => sc.kind === 'stage')));
+  const layouts = useStore((s) => s.stageLayouts);
+  const s = useStore.getState();
+  return (
+    <>
+      <SectionHeader title="Layouts" />
+      <div className="stage-layout-picks">
+        {screens.map((sc) => (
+          <label key={sc.id} className="field-row">
+            <span>{sc.name}</span>
+            <select value={layoutFor(sc, layouts).id} onChange={(e) => s.updateScreen(sc.id, { stageLayoutId: e.target.value })}>
+              {layouts.map((l) => (
+                <option key={l.id} value={l.id}>
+                  {l.name}
+                </option>
+              ))}
+            </select>
+          </label>
+        ))}
+        {!screens.length && <p className="muted small-print">No stage screens. Add one in Configure Screens.</p>}
+        <button className="btn small" onClick={() => s.setUI({ mode: 'layouts' })}>
+          Edit Layouts…
+        </button>
+      </div>
     </>
   );
 }

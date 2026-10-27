@@ -14,6 +14,15 @@ export interface DesktopOutputRequest {
   displayId?: number;
 }
 
+export interface ScreensMenuState {
+  audienceEnabled: boolean;
+  stageEnabled: boolean;
+  looks: { id: string; name: string }[];
+  liveLookId: string;
+  liveLookName: string;
+  capturing: boolean;
+}
+
 /** Lumen's desktop app (src-tauri), as connected in src/desktop.ts. */
 export interface DesktopBridge {
   platform: string;
@@ -22,7 +31,15 @@ export interface DesktopBridge {
   setOutputs(outputs: DesktopOutputRequest[]): Promise<void>;
   onOutputsChanged(cb: (openHosts: string[]) => void): () => void;
   onMenu(cb: (command: string) => void): () => void;
-  setMenuState(state: { audienceEnabled: boolean; stageEnabled: boolean; identify: boolean }): void;
+  /** The Screens menu: its checkmarks, the looks under Live, and Start or Stop Capture. */
+  setMenuState(state: ScreensMenuState): void;
+  /** Opens a new capture file in a folder ("movies", "downloads"… or a path); its path. */
+  captureOpen(folder: string, name: string): Promise<string>;
+  /** Adds to the capture file. */
+  captureWrite(data: Uint8Array): Promise<void>;
+  captureClose(): Promise<void>;
+  /** Asks for a folder for captures; its path, or null when cancelled. */
+  chooseCaptureFolder(): Promise<string | null>;
   /** Names Edit ▸ Undo and Redo after the steps they'd take; null turns one off. */
   setUndoState(state: { undo: string | null; redo: string | null }): void;
   /** Dock (macOS), taskbar and window icons. */
@@ -275,23 +292,12 @@ export function startScreenManager(): () => void {
     cleanups.push(bridge.onOutputsChanged((openHosts) => useDisplays.setState({ openHosts })));
     // Outputs follow the setup and the connected displays, so screens come up as soon as an HDMI cable goes in.
     let lastPlan = '';
-    let lastMenu = '';
     const sync = () => {
       const requests = desktopRequests();
       const plan = JSON.stringify(requests);
       if (plan !== lastPlan) {
         lastPlan = plan;
         void bridge.setOutputs(requests);
-      }
-      const s = useStore.getState();
-      const menu = JSON.stringify({
-        audienceEnabled: s.screens.audienceEnabled,
-        stageEnabled: s.screens.stageEnabled,
-        identify: s.screenTools.identify,
-      });
-      if (menu !== lastMenu) {
-        lastMenu = menu;
-        bridge.setMenuState(JSON.parse(menu));
       }
     };
     sync();

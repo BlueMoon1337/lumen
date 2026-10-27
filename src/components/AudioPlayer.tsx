@@ -7,6 +7,8 @@ import { useStore } from '../store';
 export const useAudioStatus = create<{ time: number; duration: number }>(() => ({ time: 0, duration: 0 }));
 
 let element: HTMLAudioElement | null = null;
+/** The Audio layer's element: the capture records its sound. */
+export const audioElement = () => element;
 
 export function seekAudio(seconds: number) {
   if (element && Number.isFinite(seconds)) element.currentTime = Math.max(0, seconds);

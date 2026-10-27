@@ -215,6 +215,12 @@ export type AppIconId = 'star' | 'camera' | 'film' | 'projector';
 
 export interface Settings {
   /** Chosen on first launch; unset until then. */
+  /** How long a look takes to change on the screens, in ms (Edit Looks…); 1000 when unset. */
+  lookFadeMs?: number;
+  capture?: CaptureSettings;
+  /** The capture preset in use; "No Preset" when unset. */
+  capturePresetId?: string;
+  capturePresets?: CapturePreset[];
   /** Check Spelling While Typing (Edit ▸ Spelling and Grammar); on when unset. */
   spellcheck?: boolean;
   appIcon?: AppIconId;
@@ -387,6 +393,131 @@ export interface ScreenConfig {
   columns: number;
   blend: EdgeBlend;
   outputs: ScreenOutput[];
+  /** A stage screen's layout (Screens ▸ Edit Layouts…); the first layout when unset. */
+  stageLayoutId?: string;
+}
+
+// ---- Looks (Screens ▸ Live, Edit Looks…) -------------------------------------------------------
+
+/** A shape that leaves only part of an audience screen showing. */
+export type LookMask = 'none' | 'fourThree' | 'letterbox' | 'lowerThird' | 'upperThird' | 'leftHalf' | 'rightHalf';
+
+/** What one audience screen shows in a look. */
+export interface LookScreen {
+  messages: boolean;
+  /** The logo layer (where ProPresenter has Props). */
+  logo: boolean;
+  announcements: boolean;
+  slide: boolean;
+  media: boolean;
+  videoInput: boolean;
+  /** Slides on this screen use this theme instead of their own: a lower third for a livestream, say. */
+  themeId?: string;
+  mask?: LookMask;
+}
+
+/** A Look: what each audience screen shows. The live look drives the screens; presets are saved looks. */
+export interface Look {
+  id: string;
+  name: string;
+  /** By screen id; a screen not listed shows everything. */
+  screens: Record<string, LookScreen>;
+}
+
+// ---- Stage layouts (Screens ▸ Edit Layouts…) ---------------------------------------------------
+
+export type StageObjectKind =
+  | 'currentText'
+  | 'nextText'
+  | 'currentNotes'
+  | 'nextNotes'
+  | 'currentSlide'
+  | 'nextSlide'
+  | 'groupName'
+  | 'title'
+  | 'clock'
+  | 'timer'
+  | 'videoCountdown'
+  | 'message'
+  | 'text'
+  | 'shape';
+
+/** One thing on a stage layout, in the layout's pixels. */
+export interface StageObject {
+  id: string;
+  kind: StageObjectKind;
+  name: string;
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+  /** Largest text size; long text shrinks to fit. */
+  fontSize: number;
+  fontFamily?: string;
+  fontWeight?: number;
+  color: string;
+  textAlign: 'left' | 'center' | 'right';
+  verticalAlign: 'top' | 'middle' | 'bottom';
+  uppercase?: boolean;
+  /** A small caption along the bottom ("Timer"). */
+  showLabel?: boolean;
+  /** Box fill, empty for none. */
+  fill?: string;
+  /** What a Text object says. */
+  text?: string;
+}
+
+/** A stage screen's layout: what the confidence monitor shows, and where. */
+export interface StageLayout {
+  id: string;
+  name: string;
+  width: number;
+  height: number;
+  /** Behind the objects; null leaves the screen black. */
+  background: string | null;
+  objects: StageObject[];
+}
+
+// ---- Capture (Screens ▸ Start Capture, Capture Settings…) ----------------------------------------
+
+export type CaptureCodec =
+  | 'h264'
+  | 'h265'
+  | 'hap'
+  | 'hapAlpha'
+  | 'hapQ'
+  | 'prores422'
+  | 'prores422hq'
+  | 'prores422lt'
+  | 'prores422proxy'
+  | 'prores4444'
+  | 'prores4444xq'
+  | 'vp9';
+
+export interface CaptureEncoding {
+  width: number;
+  height: number;
+  fps: number;
+  /** Megabits a second. */
+  mbps: number;
+}
+
+export interface CaptureSettings {
+  /** The audience screen to record; the first one when unset. */
+  sourceScreenId?: string;
+  destination: 'disk';
+  /** "downloads", "documents", "desktop", "movies", or a folder's path. */
+  saveTo: string;
+  codec: CaptureCodec;
+  encoding: CaptureEncoding;
+  /** Which of Lumen's two sound channels goes to the recording's left and right: matrix[input][output]. */
+  audio: { auto: boolean; matrix: [[boolean, boolean], [boolean, boolean]] };
+}
+
+export interface CapturePreset {
+  id: string;
+  name: string;
+  settings: CaptureSettings;
 }
 
 export interface ScreenSetup {
@@ -458,7 +589,8 @@ export interface SequenceEntry {
 
 /** Everything an output window needs to draw itself, sent over BroadcastChannel. */
 export interface OutputFrame {
-  slide: { key: string; text: string; caption?: string; footer?: string; theme: Theme } | null;
+  /** `background` is the slide's own, if it has one (a look's theme doesn't replace it). */
+  slide: { key: string; text: string; caption?: string; footer?: string; theme: Theme; background?: ThemeBackground } | null;
   background: FrameBackground | null;
   message: { key: string; text: string } | null;
   /** The Announcements layer: a slide over the slides, with its own background. */
@@ -489,8 +621,36 @@ export interface OutputFrame {
     next: string | null;
     nextLabel: string | null;
     notes: string | null;
+    nextNotes: string | null;
     message: string | null;
+    /** The current and next slides as pictures, for a stage layout's slide objects. */
+    currentSlide: SlidePicture | null;
+    nextSlide: SlidePicture | null;
   };
+  /** Each audience screen's part of the live look, by screen id. */
+  looks?: Record<string, ScreenLook>;
+  /** Each stage screen's layout, by screen id. */
+  stageLayouts?: Record<string, StageLayout>;
+  /** The live video's end, for a stage layout's Video Countdown: when it ends if playing, or the time left if paused. */
+  videoClock?: { endsAt: number | null; remainingMs: number | null };
+}
+
+/** A slide as a picture: its words in its theme, over its background or media. */
+export interface SlidePicture {
+  text: string;
+  caption?: string;
+  theme: Theme;
+  background?: ThemeBackground;
+  media?: string;
+}
+
+/** What an audience screen shows under the live look (src/looks.ts). */
+export interface ScreenLook {
+  show: Omit<LookScreen, 'themeId' | 'mask'>;
+  /** The look's theme for the slides on this screen. */
+  theme?: Theme;
+  mask: LookMask;
+  fadeMs: number;
 }
 
 export type FrameBackground =

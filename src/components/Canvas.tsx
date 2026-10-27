@@ -4,7 +4,8 @@ import { useFontsVersion } from '../fonts';
 import { useMedia } from '../media';
 import { toFrameBackground } from '../theme';
 import { DEFAULT_TRANSITION, directionOf, easingCss } from '../transitions';
-import type { FrameBackground, OutputFrame, SlideTransition, Theme, ThemeBackground, ThemeTextBox } from '../types';
+import { maskClip } from '../looks';
+import type { FrameBackground, OutputFrame, ScreenLook, SlideTransition, Theme, ThemeBackground, ThemeTextBox } from '../types';
 import { formatClock, formatDuration } from '../util';
 
 export const CANVAS_W = 1920;
@@ -14,21 +15,32 @@ export const CANVAS_H = 1080;
  * Lays out children on a 1920x1080 canvas and scales it to fit the parent,
  * so thumbnails, monitors and outputs all wrap text identically.
  */
-export function ScaledCanvas({ children, className = '' }: { children: ReactNode; className?: string }) {
+export function ScaledCanvas({
+  children,
+  className = '',
+  width = CANVAS_W,
+  height = CANVAS_H,
+}: {
+  children: ReactNode;
+  className?: string;
+  /** A canvas of another size (a stage layout's). */
+  width?: number;
+  height?: number;
+}) {
   const ref = useRef<HTMLDivElement>(null);
   const [scale, setScale] = useState(0);
   useLayoutEffect(() => {
     const el = ref.current;
     if (!el) return;
-    const update = () => setScale(Math.min(el.clientWidth / CANVAS_W, el.clientHeight / CANVAS_H));
+    const update = () => setScale(Math.min(el.clientWidth / width, el.clientHeight / height));
     update();
     const ro = new ResizeObserver(update);
     ro.observe(el);
     return () => ro.disconnect();
-  }, []);
+  }, [width, height]);
   return (
     <div ref={ref} className={`scaled-canvas ${className}`}>
-      <div className="canvas" style={{ width: CANVAS_W, height: CANVAS_H, transform: `translate(-50%, -50%) scale(${scale})` }}>
+      <div className="canvas" style={{ width, height, transform: `translate(-50%, -50%) scale(${scale})` }}>
         {scale > 0 && children}
       </div>
     </div>
@@ -367,11 +379,14 @@ export function OutputView({
   muted = true,
   screenColor,
   alphaKey = 'off',
+  look,
 }: {
   frame: OutputFrame | null;
   muted?: boolean;
   screenColor?: string;
   alphaKey?: 'off' | 'fill' | 'key';
+  /** The screen's part of the live look: layers it hides fade out, its theme dresses the slides, its mask crops. */
+  look?: ScreenLook;
 }) {
   // The slide layer changes the way the incoming slide says, and so does a background that
   // changes with it; backgrounds from the media bin use the media transition. Messages and
@@ -380,9 +395,26 @@ export function OutputView({
   const mediaFx = frame?.mediaTransition ?? DEFAULT_TRANSITION;
   const announcementFx = frame?.announcementTransition ?? DEFAULT_TRANSITION;
   const d = frame?.fadeMs ?? 400;
-  const background = frame?.background ?? null;
-  const camera = frame?.videoInput?.deviceId ?? null;
   const isLive = (bg: FrameBackground | null) => bg?.kind === 'media' && !!bg.live;
+  const camera = frame?.videoInput?.deviceId ?? null;
+  // A look's theme dresses the slides, and gives them its background unless they have their own.
+  const lookTheme = look?.theme;
+  const slideBackground =
+    lookTheme && frame?.slide && !camera && !isLive(frame.background)
+      ? toFrameBackground(frame.slide.background ?? lookTheme.background)
+      : (frame?.background ?? null);
+  const background = slideBackground;
+  const show = look?.show;
+  // Layers the look hides fade away (and keep playing underneath), so switching looks is smooth.
+  const layer = (visible: boolean | undefined, node: ReactNode) =>
+    look ? (
+      <div className="look-layer" style={{ opacity: visible === false ? 0 : 1, transition: `opacity ${look.fadeMs}ms ease` }}>
+        {node}
+      </div>
+    ) : (
+      node
+    );
+  const slideTheme = (t: Theme) => lookTheme ?? t;
   const last = useRef({ background, camera });
   // A background that changes because media or a camera came or went uses the media transition.
   const backgroundFx = isLive(background) || isLive(last.current.background) || camera !== last.current.camera ? mediaFx : slideFx;
@@ -391,48 +423,78 @@ export function OutputView({
   });
   const foreground = (
     <>
-      <Transition itemKey={frame?.slide?.key ?? null} duration={slideFx.ms} effect={slideFx}>
-        {frame?.slide && (
-          <>
-            <SlideText text={frame.slide.text} caption={frame.slide.caption} theme={frame.slide.theme} />
-            {frame.slide.footer && <div className="slide-footer">{frame.slide.footer}</div>}
-          </>
-        )}
-      </Transition>
-      <Transition itemKey={frame?.announcement?.key ?? null} duration={announcementFx.ms} effect={announcementFx}>
-        {frame?.announcement && (
-          <>
-            {alphaKey === 'off' && frame.announcement.background && <BackgroundFill bg={frame.announcement.background} />}
-            <SlideText text={frame.announcement.text} caption={frame.announcement.caption} theme={frame.announcement.theme} />
-          </>
-        )}
-      </Transition>
-      <Transition itemKey={frame?.message?.key ?? null} duration={d}>
-        {frame?.message && <MessageBanner text={frame.message.text} timer={frame.timer} />}
-      </Transition>
-      <Transition itemKey={frame?.logoMediaId ? `logo:${frame.logoMediaId}` : null} duration={d}>
-        {frame?.logoMediaId && (
-          <div className="fill logo-layer">
-            <BackgroundFill bg={{ key: '', kind: 'media', mediaId: frame.logoMediaId }} muted={muted} />
-          </div>
-        )}
-      </Transition>
+      {layer(
+        show?.slide,
+        <Transition itemKey={frame?.slide?.key ?? null} duration={slideFx.ms} effect={slideFx}>
+          {frame?.slide && (
+            <>
+              <SlideText text={frame.slide.text} caption={frame.slide.caption} theme={slideTheme(frame.slide.theme)} />
+              {frame.slide.footer && <div className="slide-footer">{frame.slide.footer}</div>}
+            </>
+          )}
+        </Transition>,
+      )}
+      {layer(
+        show?.announcements,
+        <Transition itemKey={frame?.announcement?.key ?? null} duration={announcementFx.ms} effect={announcementFx}>
+          {frame?.announcement && (
+            <>
+              {alphaKey === 'off' && frame.announcement.background && <BackgroundFill bg={frame.announcement.background} />}
+              <SlideText text={frame.announcement.text} caption={frame.announcement.caption} theme={frame.announcement.theme} />
+            </>
+          )}
+        </Transition>,
+      )}
+      {layer(
+        show?.messages,
+        <Transition itemKey={frame?.message?.key ?? null} duration={d}>
+          {frame?.message && <MessageBanner text={frame.message.text} timer={frame.timer} />}
+        </Transition>,
+      )}
+      {layer(
+        show?.logo,
+        <Transition itemKey={frame?.logoMediaId ? `logo:${frame.logoMediaId}` : null} duration={d}>
+          {frame?.logoMediaId && (
+            <div className="fill logo-layer">
+              <BackgroundFill bg={{ key: '', kind: 'media', mediaId: frame.logoMediaId }} muted={muted} />
+            </div>
+          )}
+        </Transition>,
+      )}
+    </>
+  );
+  const picture = (
+    <>
+      <div className="fill" style={{ background: alphaKey === 'off' ? (screenColor ?? '#000') : '#000' }} />
+      {alphaKey === 'off' && (
+        <>
+          {layer(
+            show?.videoInput,
+            <Transition itemKey={camera} duration={mediaFx.ms} effect={mediaFx} mode="over">
+              {camera && <CameraFill deviceId={camera} />}
+            </Transition>,
+          )}
+          {/* Media from the media bin is the Media layer; any other background belongs to the slide. */}
+          {layer(
+            isLive(background) ? show?.media : show?.slide,
+            <Transition itemKey={background?.key ?? null} duration={backgroundFx.ms} effect={backgroundFx} mode="over">
+              {background && <BackgroundFill bg={background} muted={muted} />}
+            </Transition>,
+          )}
+        </>
+      )}
+      {alphaKey === 'key' ? <div className="fill key-matte">{foreground}</div> : foreground}
     </>
   );
   return (
     <ScaledCanvas className="output-view">
-      <div className="fill" style={{ background: alphaKey === 'off' ? (screenColor ?? '#000') : '#000' }} />
-      {alphaKey === 'off' && (
-        <>
-          <Transition itemKey={camera} duration={mediaFx.ms} effect={mediaFx} mode="over">
-            {camera && <CameraFill deviceId={camera} />}
-          </Transition>
-          <Transition itemKey={background?.key ?? null} duration={backgroundFx.ms} effect={backgroundFx} mode="over">
-            {background && <BackgroundFill bg={background} muted={muted} />}
-          </Transition>
-        </>
+      {look && look.mask !== 'none' ? (
+        <div className="look-mask" style={{ clipPath: maskClip(look.mask), transition: `clip-path ${look.fadeMs}ms ease` }}>
+          {picture}
+        </div>
+      ) : (
+        picture
       )}
-      {alphaKey === 'key' ? <div className="fill key-matte">{foreground}</div> : foreground}
     </ScaledCanvas>
   );
 }
