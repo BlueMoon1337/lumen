@@ -187,7 +187,7 @@ class Visibility {
   }
 }
 
-const LAYERS = ['videoInput', 'background', 'slide', 'announcement', 'message', 'logo'] as const;
+const LAYERS = ['videoInput', 'background', 'cover', 'slide', 'announcement', 'message', 'logo'] as const;
 type LayerName = (typeof LAYERS)[number];
 
 /** Draws an audience screen at a size, frame after frame. */
@@ -346,6 +346,8 @@ export class ScreenRenderer {
     // A camera that went off keeps going until it has faded out.
     if (!camera && !f.videoInput.prev) this.stopCamera();
     f.background.set(background ? this.fill(background) : null, (isLive(background) ? frame.mediaTransition : frame.transition).ms, now);
+    // A theme that keeps its background over the media (which plays on underneath).
+    f.cover.set(frame.cover ? this.fill(frame.cover) : null, frame.transition.ms, now);
     const slide = frame.slide;
     f.slide.set(
       slide
@@ -408,6 +410,7 @@ export class ScreenRenderer {
     const visible: Record<LayerName, number> = {
       videoInput: vis('videoInput', show?.videoInput),
       background: vis('background', isLive(background) ? show?.media : show?.slide),
+      cover: vis('cover', show?.slide),
       slide: vis('slide', show?.slide),
       announcement: vis('announcement', show?.announcements),
       message: vis('message', show?.messages),

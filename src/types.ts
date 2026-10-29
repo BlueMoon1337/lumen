@@ -190,6 +190,11 @@ export interface Theme {
   boxColor: string;
   captionScale: number;
   background: ThemeBackground;
+  /**
+   * The background stays up when media from the Media bin is live (the media keeps playing under
+   * it). Unset: the media replaces it, as before.
+   */
+  keepBackground?: boolean;
   /** What the main text box is called in menus, e.g. "Verse" in a Bible template. "Text" when unset. */
   textName?: string;
   /** A second text box for the slide's caption (a scripture reference, say). Unset: the caption sits under the text. */
@@ -678,6 +683,8 @@ export interface OutputFrame {
     picture?: string;
   } | null;
   background: FrameBackground | null;
+  /** The slide's own background over live media from the Media bin, when its theme keeps it. */
+  cover?: FrameBackground | null;
   message: { key: string; text: string } | null;
   /** The Announcements layer: a slide over the slides, with its own background. */
   announcement: {

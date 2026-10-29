@@ -112,7 +112,7 @@ npm run format       # Prettier
 - **Slide grid** or list with group colors (Verse, Chorus, Bridge…). Click a slide to put it live.
 - **Edit mode** to move and resize the text box, type directly on the slide, and give a slide its own background, formatting, caption and stage notes.
 - **Reflow** where the lyrics text is the whole presentation: groups, slides, arrangement, captions and stage notes. Edit-mode changes survive reflowing.
-- **Themes** with font, size, colors, shadow, outline, alignment, margins, a lower-third box, and color, gradient or media backgrounds. Text shrinks automatically to fit. Per-presentation formatting from the Text button sits on top of the theme.
+- **Themes** with font, size, colors, shadow, outline, alignment, margins, a lower-third box, and color, gradient or media backgrounds. Text shrinks automatically to fit. In Edit Theme, the Background switch **Media from the Media bin replaces it** can be turned off so the theme's background stays up over media playing from the Media bin (which keeps playing underneath), e.g. scripture on black during a looping video. Per-presentation formatting from the Text button sits on top of the theme.
 - **Fonts**: Copperplate from the computer (with a free bundled stand-in), any installed font by name, and font files you add (see below).
 - **Copyright line** (title, author, publisher, CCLI song and license numbers) on the first and last slides when "Show On Screen" is on.
 - **Transitions**: Cut, Dissolve, Fade, Push, Slide, Reveal, Wipe, Split, Iris, Zoom, Blur, Flip and Cube, with a direction, length and easing, for one slide, a group, a presentation, every slide (global), and media backgrounds. One panel sets any of them, with a preview that plays the transition.

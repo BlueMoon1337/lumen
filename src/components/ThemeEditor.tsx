@@ -272,7 +272,23 @@ export function ThemeEditorDialog() {
                 </select>
               </Row>
             )}
-            <p className="muted small-print">Media playing from the Media bin replaces the theme background while it is live.</p>
+            <label className="check-row theme-bg-toggle">
+              <input
+                type="checkbox"
+                role="switch"
+                checked={!t.keepBackground}
+                disabled={t.background.type === 'none'}
+                onChange={(e) => set({ keepBackground: e.target.checked ? undefined : true })}
+              />
+              Media from the Media bin replaces it
+            </label>
+            <p className="muted small-print">
+              {t.background.type === 'none'
+                ? 'A transparent background shows the media from the Media bin behind the words.'
+                : t.keepBackground
+                  ? 'This background stays up over media playing from the Media bin, which keeps playing underneath.'
+                  : 'Media playing from the Media bin replaces this background while it is live.'}
+            </p>
           </fieldset>
         </div>
       </div>

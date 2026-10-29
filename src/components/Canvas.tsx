@@ -520,6 +520,13 @@ export function OutputView({
               {background && <BackgroundFill bg={background} muted={muted} />}
             </Transition>,
           )}
+          {/* A theme that keeps its background over the media: the media plays on underneath. */}
+          {layer(
+            show?.slide,
+            <Transition itemKey={frame?.cover?.key ?? null} duration={slideFx.ms} effect={slideFx} mode="over">
+              {frame?.cover && <BackgroundFill bg={frame.cover} muted={muted} />}
+            </Transition>,
+          )}
         </>
       )}
       {alphaKey === 'key' ? <div className="fill key-matte">{foreground}</div> : foreground}

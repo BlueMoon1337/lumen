@@ -80,6 +80,11 @@ export function buildFrame(s: AppState): OutputFrame {
     : slide && entry && !s.live.videoInput
       ? withLoop(toFrameBackground(entry.slide.background ?? theme.background))
       : null;
+  // A theme set to keep its background puts it over the media, which plays on underneath.
+  const cover =
+    s.live.mediaId && slide && entry && theme?.keepBackground
+      ? withLoop(toFrameBackground(entry.slide.background ?? theme.background))
+      : null;
 
   // The Announcements layer: its own slide, theme and background, over the slides.
   const aRef = s.live.announcement;
@@ -151,6 +156,7 @@ export function buildFrame(s: AppState): OutputFrame {
   return {
     slide,
     background,
+    cover,
     message: message ? { key: message.id, text: message.text } : null,
     announcement,
     videoInput: s.live.videoInput ? { deviceId: s.live.videoInput.deviceId } : null,

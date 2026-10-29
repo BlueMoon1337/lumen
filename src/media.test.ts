@@ -216,3 +216,25 @@ describe('logos', () => {
     expect(isLogoName('Church Logo White')).toBe(true);
   });
 });
+
+describe('a theme that keeps its background', () => {
+  it('stays over media from the Media bin, which plays on underneath', () => {
+    const id = s().createPresentation({ title: 'Scripture' }, 'For God so loved the world');
+    const p = s().presentations[id];
+    const theme = s().themes.find((t) => t.id === p.themeId) ?? s().themes[0];
+    s().updateTheme(theme.id, { background: { type: 'color', color: '#000000', color2: '#000000' } });
+    s().select(id);
+    s().goLive(id, 0);
+    s().setLiveMedia('v1');
+    // By default the media replaces it.
+    expect(buildFrame(s()).background).toMatchObject({ kind: 'media', mediaId: 'v1' });
+    expect(buildFrame(s()).cover).toBeNull();
+    s().updateTheme(theme.id, { keepBackground: true });
+    expect(buildFrame(s()).background).toMatchObject({ kind: 'media', mediaId: 'v1' });
+    expect(buildFrame(s()).cover).toMatchObject({ kind: 'color', color: '#000000' });
+    // No media: just the background, as ever.
+    s().setLiveMedia(null);
+    expect(buildFrame(s()).cover).toBeNull();
+    expect(buildFrame(s()).background).toMatchObject({ kind: 'color' });
+  });
+});
