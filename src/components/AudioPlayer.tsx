@@ -78,7 +78,7 @@ export function AudioPlayer() {
   useEffect(() => {
     const el = ref.current;
     if (!el || !audioId) return;
-    if ((!videoCountdown && !timerRunning) || fadeSettings.seconds <= 0) {
+    if (!videoCountdown && !timerRunning) {
       if (!fade.current) el.volume = 1;
       return;
     }

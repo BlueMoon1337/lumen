@@ -123,7 +123,7 @@ npm run format       # Prettier
 - **Audio bin** in the live panel: music and sound effects that play from this computer, loop if you like, and fade out when cleared.
 - **Announcements**: a presentation can play on its own layer over the slides, and any presentation can advance by itself (an announcement loop).
 - **Video Input**: webcams, capture cards and virtual cameras (OBS, NDI) as a live layer under everything.
-- **Countdown timer**, either a duration or a time of day, shown on the stage display and usable in messages.
+- **Countdown timer**, either a duration or a time of day, shown on the stage display and usable in messages. It stops at 0:00 (no overtime) and goes back to its length, ready to start again.
 - **Messages** on the audience screen, with `{countdown}` and `{clock}` tokens.
 - **Stage display** showing the current and next slide, notes, clock, timer, and a flashing message to the stage.
 - **ProPresenter import** of `.pro` presentations, `.proplaylist` playlists and `.rvbible` Bibles (see below).

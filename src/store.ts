@@ -15,7 +15,7 @@ import { ALL_LAYERS, clearLive } from './layers';
 import { DEFAULT_LOOK, lookScreen } from './looks';
 import { DEFAULT_STAGE_LAYOUTS } from './stageLayouts';
 import { deckFileOf, isSlideshow, SLIDESHOW_LIBRARY_ID, SLIDESHOW_LIBRARY_NAME } from './slideshows';
-import { isCountdownName } from './countdowns';
+import { countdownFade, isCountdownName } from './countdowns';
 import type {
   Category,
   Library,
@@ -397,6 +397,28 @@ const initialTimer: TimerState = {
   endsAt: null,
   remainingMs: 5 * 60_000,
 };
+
+let timerEnd: ReturnType<typeof setTimeout> | undefined;
+
+/**
+ * The Timers tab's countdown stops at 0:00 (no overtime) and goes back to its length, ready to
+ * start again. Music it's fading out (Countdown Fade) goes with it.
+ */
+function whenTimerEnds(endsAt: number | null) {
+  clearTimeout(timerEnd);
+  timerEnd = undefined;
+  if (endsAt == null) return;
+  timerEnd = setTimeout(
+    () => {
+      const s = useStore.getState();
+      if (!s.timer.running || s.timer.endsAt !== endsAt) return;
+      if (Date.now() < endsAt) return whenTimerEnds(endsAt);
+      s.resetTimer();
+      if (countdownFade(s.settings).timer && s.live.audioId) s.clearLayers(['audio']);
+    },
+    Math.max(0, endsAt - Date.now()),
+  );
+}
 
 export function activePlaylist(s: LibraryData): Playlist | undefined {
   return s.playlists.find((p) => p.id === s.activePlaylistId) ?? s.playlists[0];
@@ -1290,19 +1312,26 @@ export const useStore = create<AppState>()(
             if (!timer.running) timer.remainingMs = timer.durationMs;
             return { timer };
           }),
-        startTimer: () =>
+        startTimer: () => {
           set((s) => {
             if (s.timer.running) return {};
             const now = Date.now();
             const endsAt = s.timer.mode === 'toTime' ? nextOccurrence(s.timer.targetTime, now) : now + s.timer.remainingMs;
             return { timer: { ...s.timer, running: true, endsAt } };
-          }),
-        pauseTimer: () =>
+          });
+          whenTimerEnds(get().timer.endsAt);
+        },
+        pauseTimer: () => {
           set((s) => {
             if (!s.timer.running || s.timer.endsAt == null) return {};
-            return { timer: { ...s.timer, running: false, endsAt: null, remainingMs: s.timer.endsAt - Date.now() } };
-          }),
-        resetTimer: () => set((s) => ({ timer: { ...s.timer, running: false, endsAt: null, remainingMs: s.timer.durationMs } })),
+            return { timer: { ...s.timer, running: false, endsAt: null, remainingMs: Math.max(0, s.timer.endsAt - Date.now()) } };
+          });
+          whenTimerEnds(null);
+        },
+        resetTimer: () => {
+          set((s) => ({ timer: { ...s.timer, running: false, endsAt: null, remainingMs: s.timer.durationMs } }));
+          whenTimerEnds(null);
+        },
 
         importLibrary: (data) =>
           set({

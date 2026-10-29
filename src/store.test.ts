@@ -1,4 +1,5 @@
-import { beforeEach, describe, expect, it } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { timerRemaining } from './clock';
 import { buildFrame } from './frame';
 import { useStore } from './store';
 import { formatDuration, parseDuration } from './util';
@@ -99,6 +100,39 @@ describe('timer', () => {
     expect(useStore.getState().timer.remainingMs).toBeLessThanOrEqual(60_000);
     s.resetTimer();
     expect(useStore.getState().timer.remainingMs).toBe(60_000);
+  });
+
+  it('stops at 0:00, with no overtime, back at its length (and takes the music it was fading with it)', () => {
+    vi.useFakeTimers();
+    try {
+      const s = useStore.getState();
+      useStore.setState({ media: [{ id: 'song', name: 'Song', kind: 'audio', mime: 'audio/mpeg' }] });
+      s.setTimer({ mode: 'duration', durationMs: 30_000 });
+      s.startTimer();
+      s.playAudio('song');
+      vi.advanceTimersByTime(29_000);
+      expect(timerRemaining(useStore.getState().timer, Date.now())).toBe(1_000);
+      expect(timerRemaining(useStore.getState().timer, Date.now() + 5_000)).toBe(0);
+      vi.advanceTimersByTime(1_000);
+      expect(useStore.getState().timer).toMatchObject({ running: false, endsAt: null, remainingMs: 30_000 });
+      expect(useStore.getState().live.audioId).toBeNull();
+      // Paused before the end, it doesn't stop by itself.
+      s.startTimer();
+      vi.advanceTimersByTime(10_000);
+      s.pauseTimer();
+      vi.advanceTimersByTime(60_000);
+      expect(useStore.getState().timer).toMatchObject({ running: false, remainingMs: 20_000 });
+      // Without Countdown Fade's Timer switch, the music plays on.
+      s.updateSettings({ countdownFadeTimer: false });
+      s.resetTimer();
+      s.startTimer();
+      s.playAudio('song');
+      vi.advanceTimersByTime(30_000);
+      expect(useStore.getState().timer.running).toBe(false);
+      expect(useStore.getState().live.audioId).toBe('song');
+    } finally {
+      vi.useRealTimers();
+    }
   });
 
   it('formats and parses durations', () => {
