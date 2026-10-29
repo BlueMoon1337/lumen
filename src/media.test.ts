@@ -214,6 +214,17 @@ describe('logos', () => {
     expect(s().media.some((m) => m.id === 'v2')).toBe(true);
     expect(s().settings.logoMediaId).toBeUndefined();
     expect(isLogoName('Church Logo White')).toBe(true);
+    // The Logo button clears the words and the background as it shows the logo; music and messages stay.
+    s().setActiveMedia('logo', 'i1');
+    if (s().live.logo) s().toggleLogo();
+    const song = s().createPresentation({ title: 'Song' }, 'Amazing grace');
+    s().goLive(song, 0);
+    s().setLiveMedia('v1');
+    s().showMessage(s().messages[0].id);
+    s().pressLogo();
+    expect(s().live).toMatchObject({ logo: true, slide: null, mediaId: null, messageId: s().messages[0].id });
+    s().pressLogo();
+    expect(s().live.logo).toBe(false);
   });
 });
 

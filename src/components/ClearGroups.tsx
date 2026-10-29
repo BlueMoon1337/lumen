@@ -175,7 +175,7 @@ export function ClearGroupsDialog({ onClose }: { onClose: () => void }) {
   );
 }
 
-/** Logo: shows the active logo (Media ▸ Logo, the one with a bookmark) over everything, or hides it. */
+/** Logo: shows the active logo (Media ▸ Logo, the one with a bookmark), clearing the words and the background; or hides it. */
 function ShowLogo() {
   const logo = useStore((s) => s.media.find((m) => m.id === s.settings.logoMediaId));
   const on = useStore((s) => s.live.logo);
@@ -189,14 +189,14 @@ function ShowLogo() {
         logo
           ? on
             ? `Showing the logo “${logo.name}”: click to hide it`
-            : `Logo: show “${logo.name}”`
+            : `Logo: show “${logo.name}” and clear the words and the background`
           : 'Logo: no logo yet. Right-click an image or video in the media bin ▸ Active Logo.'
       }
       aria-label="Logo"
-      onClick={s.toggleLogo}
+      onClick={s.pressLogo}
       onContextMenu={(e) =>
         openContextMenu(e, [
-          { label: on ? 'Hide Logo' : 'Show Logo', disabled: !logo, action: s.toggleLogo },
+          { label: on ? 'Hide Logo' : 'Show Logo', disabled: !logo, action: s.pressLogo },
           '-',
           { label: 'Choose the Logo…', action: () => s.setUI({ mode: 'show', showMediaBin: true, mediaFilter: 'logo' }) },
         ])

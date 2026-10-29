@@ -328,6 +328,8 @@ interface Actions {
   /** The live video ended: loop, stop, clear or play the next, as the video says. */
   mediaEnded(): void;
   toggleLogo(): void;
+  /** The Logo button: shows the logo, clearing the slide's words and the background (Media layer); or hides it. */
+  pressLogo(): void;
   /** Presentation ▸ Clear to Logo: everything off the screens but the logo. */
   clearToLogo(): void;
   /** Presentation ▸ Next / Previous Background: the next or previous image or video, in its media playlist or the media bin. */
@@ -1414,6 +1416,12 @@ export const useStore = create<AppState>()(
           }
         },
         toggleLogo: () => set((s) => ({ live: { ...s.live, logo: !s.live.logo } })),
+        pressLogo: () =>
+          set((s) =>
+            s.live.logo
+              ? { live: { ...s.live, logo: false } }
+              : { live: { ...clearLive(s.live, ['slide', 'media']), logo: !!s.settings.logoMediaId } },
+          ),
         clearToLogo: () => set((s) => ({ live: { ...clearLive(s.live, ALL_LAYERS), logo: !!s.settings.logoMediaId } })),
         stepMedia: (delta) => {
           const s = get();
