@@ -280,6 +280,8 @@ The function keys are ProPresenter's: F4 now clears the logo and F6 the messages
 
 **Countdowns.** Countdown videos have their own **Countdowns** tab in the media bin (they're in All Media and Videos too). Videos named like one ("Countdown", "Cuenta regresiva") go there by themselves, as do videos imported while the tab is open; right-click any video ▸ **Countdown** to make it one (or not). A countdown holds its last frame when it ends. As it runs out, music on the Audio layer fades to silence over its last seconds and then clears, and the countdown's own sound fades with it. **Countdown Fade**, at the top of the Audio tab, sets when the music starts to fade (10 seconds before the end by default; 0 stops it at the end without fading) and what sets it off: **Countdown videos**, the **Timer** (the Timers tab's countdown, which has the same switch), or both. If a countdown is cleared (or the timer paused or reset) before its end, the music comes back up.
 
+**Audio playlists and the Audio Library.** The Audio tab has **Playlists** under Countdown Fade: press **+** to make one, then drag tracks from the Audio list onto it (or onto a track in it, to put them before that one; drag tracks within a playlist to reorder them). Dropping audio files on a playlist imports them into it. Click a track in a playlist to play from there: when it ends the next one plays, and after the last the Audio layer clears, unless the playlist loops (its ↻ button, or right-click ▸ **Loop Playlist**), when it starts over. The ▷ button plays a playlist from the top; right-click it to rename, import into or delete it, and right-click a track to remove it. Deleting a playlist keeps its tracks. **Audio Library**, beside the Audio header, opens a window with every audio file: search them, sort by date added, name or length, play one (▷ or double-click), loop it, see which playlists it's in, and select several (⇧ or ⌘-click) to **Add to Playlist** (an existing one or a new one). Drop audio files on the window to import them.
+
 **Playlists.** As in ProPresenter, the media bin's **Playlists** (+ to add one) keep media in an order, e.g. a service's walk-in loop, countdown and offering video. Importing while a playlist is open puts the files in it; drag tiles from All Media onto a playlist to add them; right-click to rename, delete, or take an item out (it stays in All Media).
 
 **Playing.** Click a video to put it on the Media layer, again to clear it. Under the preview, the transport shows how far in it is and how long is left, a slider to scrub, ±10 seconds, pause and play from the start. Every screen follows. Each video's tile shows its length, and right-click → **When It Ends** (or the button in the transport) chooses:
@@ -615,7 +617,7 @@ src/
     MediaClock     keeps time for the live video in the operator window: transport and what happens at its end
     LivePanel      preview, clear column, transport, Audio / Stage / Timers / Messages / Props
     ClearGroups    the Clear Groups row and its window
-    AudioTab, AudioPlayer  the audio bin, and the player for the Audio layer (with its fade-out)
+    AudioTab, AudioPlayer  the audio bin, its playlists and Audio Library, and the player for the Audio layer (with its fade-out)
     EditView       slide outline, canvas editor with rulers, inspector
     DeckEditor     Edit mode for PowerPoint and Keynote slides: their shapes on a canvas, typing in place, the Shape inspector
     ReflowView     lyrics text editor

@@ -1,4 +1,4 @@
-import { useEffect, useRef, type ReactNode } from 'react';
+import { useEffect, useRef, type MouseEvent as ReactMouseEvent, type ReactNode } from 'react';
 import { notify } from '../notices';
 
 const paths = {
@@ -86,7 +86,7 @@ export function IconButton({
 }: {
   icon: IconName;
   title: string;
-  onClick: () => void;
+  onClick: (e: ReactMouseEvent<HTMLButtonElement>) => void;
   active?: boolean;
   danger?: boolean;
   disabled?: boolean;
@@ -100,7 +100,7 @@ export function IconButton({
       aria-label={title}
       onClick={(e) => {
         e.stopPropagation();
-        onClick();
+        onClick(e);
       }}
     >
       <Icon name={icon} />
@@ -319,3 +319,5 @@ export const DRAG_PRESENTATION = 'application/x-lumen-presentation';
 export const DRAG_PLAYLIST_ITEM = 'application/x-lumen-playlist-item';
 /** Drag payload type for media bin items dropped on media playlists or slides. */
 export const DRAG_MEDIA = 'application/x-lumen-media';
+/** Drag payload type for audio tracks dropped on audio playlists: `{ ids, from }` as JSON (`from`: the playlist they're dragged out of). */
+export const DRAG_AUDIO = 'application/x-lumen-audio';

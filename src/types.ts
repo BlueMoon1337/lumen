@@ -239,11 +239,13 @@ export interface MediaItem {
 /** When a video ends: start again, hold the last frame, clear the Media layer, or play the next one. */
 export type VideoPlayback = 'loop' | 'stop' | 'clear' | 'next';
 
-/** A media bin playlist, like ProPresenter's: media items in an order. Each item is in the library once. */
+/** A media bin (or Audio tab) playlist, like ProPresenter's: media items in an order. Each item is in the library once. */
 export interface MediaPlaylist {
   id: string;
   name: string;
   items: string[];
+  /** An audio playlist that starts over after its last track. */
+  loop?: boolean;
 }
 
 export type PlaylistItem = { id: string; type: 'presentation'; presentationId: string } | { id: string; type: 'header'; label: string };
@@ -628,6 +630,8 @@ export interface LiveState {
   audioId: string | null;
   audioPaused: boolean;
   audioRestart: number;
+  /** The audio playlist the playing track was started from: its next track follows when it ends. */
+  audioFrom: string | null;
   /** A slide on the Announcements layer, over the slide layer. */
   announcement: LiveSlideRef | null;
   /** A camera or capture card on the Video Input layer, under everything. */

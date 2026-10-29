@@ -21,6 +21,7 @@ import { useEditKeys, useEditMenuState } from './editCommands';
 import { EditView } from './EditView';
 import { usePresentationKeys, usePresentationMenu } from './presentationCommands';
 import { exportTarget, importFileCommand, newPresentationCommand, runFileCommand } from './fileCommands';
+import { AudioLibraryDialog } from './AudioTab';
 import { ExportThemesDialog, SlideImagesDialog, TextImportDialog } from './FileDialogs';
 import { WelcomeDialog } from './IconChooser';
 import { LivePanel } from './LivePanel';
@@ -455,6 +456,7 @@ export default function ControlApp() {
       {dialog === 'textImport' && <TextImportDialog onClose={() => setDialog(null)} />}
       {dialog === 'slideImages' && <SlideImagesDialog onClose={() => setDialog(null)} />}
       {dialog === 'exportThemes' && <ExportThemesDialog onClose={() => setDialog(null)} />}
+      {dialog === 'audioLibrary' && <AudioLibraryDialog onClose={() => setDialog(null)} />}
       {editingTheme && <ThemeEditorDialog />}
       {!appIcon && <WelcomeDialog />}
       <Notices />

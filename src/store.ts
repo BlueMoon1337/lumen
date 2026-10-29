@@ -65,6 +65,8 @@ export interface LibraryData {
   screens: ScreenSetup;
   /** The media bin's playlists. */
   mediaPlaylists: MediaPlaylist[];
+  /** The Audio tab's playlists. */
+  audioPlaylists: MediaPlaylist[];
   /** The libraries presentations are kept in, in sidebar order. */
   libraries: Library[];
   /** Saved looks (Screens ▸ Live), and the one on the screens now. */
@@ -138,6 +140,7 @@ interface UIState {
     | 'looks'
     | 'capture'
     | 'update'
+    | 'audioLibrary'
     | null;
   /** The stage layout open in the layout editor, and its selected object. */
   stageLayoutId: string | null;
@@ -245,6 +248,13 @@ interface Actions {
   deleteMediaPlaylist(id: string): void;
   addToMediaPlaylist(playlistId: string, mediaIds: string[]): void;
   removeFromMediaPlaylist(playlistId: string, mediaId: string): void;
+  createAudioPlaylist(name: string): string;
+  renameAudioPlaylist(id: string, name: string): void;
+  deleteAudioPlaylist(id: string): void;
+  /** Adds tracks to an audio playlist, before `before` (or at the end); tracks already in it move there. */
+  addToAudioPlaylist(playlistId: string, mediaIds: string[], before?: string | null): void;
+  removeFromAudioPlaylist(playlistId: string, mediaId: string): void;
+  updateAudioPlaylist(id: string, patch: Partial<Pick<MediaPlaylist, 'loop'>>): void;
 
   addBible(meta: BibleMeta): void;
   deleteBible(id: string): void;
@@ -271,7 +281,10 @@ interface Actions {
   goLive(presentationId: string, index: number, playlistItemId?: string | null): void;
   /** Auto-advance: the next slide on a layer, back to the first after the last if the presentation loops. */
   advanceLayer(layer: 'slide' | 'announcement'): void;
-  playAudio(mediaId: string): void;
+  /** Plays a track on the Audio layer; from an audio playlist, its next track follows. */
+  playAudio(mediaId: string, playlistId?: string | null): void;
+  /** The track ended: the next one in its playlist plays, or the Audio layer clears. */
+  audioEnded(): void;
   setAudioPaused(paused: boolean): void;
   restartAudio(): void;
   setVideoInput(input: LiveState['videoInput']): void;
@@ -347,6 +360,7 @@ function initialLibrary(): LibraryData {
     fonts: [],
     screens: defaultScreenSetup(),
     mediaPlaylists: [],
+    audioPlaylists: [],
     libraries: DEFAULT_LIBRARIES,
     looks: [DEFAULT_LOOK],
     liveLook: DEFAULT_LOOK,
@@ -367,6 +381,7 @@ const emptyLive: LiveState = {
   audioId: null,
   audioPaused: false,
   audioRestart: 0,
+  audioFrom: null,
   announcement: null,
   videoInput: null,
 };
@@ -463,6 +478,18 @@ const MIME_BY_EXTENSION: Record<string, string> = {
 export const mimeFromName = (name: string) => MIME_BY_EXTENSION[name.split('.').pop()?.toLowerCase() ?? ''] ?? '';
 
 /** The video or image after `id`: in its media playlist if it was started from one, else in the media bin. */
+/** The track after `id` in an audio playlist (back to the first if it loops), or null after its last. */
+export function nextAudio(s: Pick<LibraryData, 'media' | 'audioPlaylists'>, id: string, playlistId: string | null): string | null {
+  const pl = s.audioPlaylists.find((x) => x.id === playlistId);
+  if (!pl) return null;
+  const audio = new Set(s.media.filter((m) => m.kind === 'audio').map((m) => m.id));
+  const order = pl.items.filter((x) => audio.has(x));
+  if (!order.length) return null;
+  const at = order.indexOf(id);
+  if (at + 1 < order.length) return order[at + 1];
+  return pl.loop ? order[0] : null;
+}
+
 export function nextMedia(s: Pick<LibraryData, 'media' | 'mediaPlaylists'>, id: string, playlistId: string | null): string | null {
   const visual = new Set(s.media.filter((m) => m.kind !== 'audio').map((m) => m.id));
   const order = (s.mediaPlaylists.find((pl) => pl.id === playlistId)?.items ?? s.media.map((m) => m.id)).filter((x) => visual.has(x));
@@ -921,6 +948,7 @@ export const useStore = create<AppState>()(
           set((s) => ({
             media: s.media.filter((m) => m.id !== id),
             mediaPlaylists: s.mediaPlaylists.map((pl) => (pl.items.includes(id) ? { ...pl, items: pl.items.filter((x) => x !== id) } : pl)),
+            audioPlaylists: s.audioPlaylists.map((pl) => (pl.items.includes(id) ? { ...pl, items: pl.items.filter((x) => x !== id) } : pl)),
             presentations: Object.fromEntries(
               Object.entries(s.presentations).map(([pid, p]) => [
                 pid,
@@ -975,6 +1003,40 @@ export const useStore = create<AppState>()(
               pl.id === playlistId ? { ...pl, items: pl.items.filter((x) => x !== mediaId) } : pl,
             ),
           })),
+
+        createAudioPlaylist: (name) => {
+          const pl: MediaPlaylist = { id: uid(), name, items: [] };
+          set((s) => ({ audioPlaylists: [...s.audioPlaylists, pl] }));
+          return pl.id;
+        },
+        renameAudioPlaylist: (id, name) =>
+          set((s) => ({ audioPlaylists: s.audioPlaylists.map((pl) => (pl.id === id ? { ...pl, name } : pl)) })),
+        deleteAudioPlaylist: (id) =>
+          set((s) => ({
+            audioPlaylists: s.audioPlaylists.filter((pl) => pl.id !== id),
+            live: s.live.audioFrom === id ? { ...s.live, audioFrom: null } : s.live,
+          })),
+        addToAudioPlaylist: (playlistId, mediaIds, before) =>
+          set((s) => {
+            const audio = new Set(s.media.filter((m) => m.kind === 'audio').map((m) => m.id));
+            const adding = [...new Set(mediaIds)].filter((id) => audio.has(id));
+            return {
+              audioPlaylists: s.audioPlaylists.map((pl) => {
+                if (pl.id !== playlistId) return pl;
+                const rest = pl.items.filter((x) => !adding.includes(x));
+                const at = before ? rest.indexOf(before) : -1;
+                return { ...pl, items: at < 0 ? [...rest, ...adding] : [...rest.slice(0, at), ...adding, ...rest.slice(at)] };
+              }),
+            };
+          }),
+        removeFromAudioPlaylist: (playlistId, mediaId) =>
+          set((s) => ({
+            audioPlaylists: s.audioPlaylists.map((pl) =>
+              pl.id === playlistId ? { ...pl, items: pl.items.filter((x) => x !== mediaId) } : pl,
+            ),
+          })),
+        updateAudioPlaylist: (id, patch) =>
+          set((s) => ({ audioPlaylists: s.audioPlaylists.map((pl) => (pl.id === id ? { ...pl, ...patch } : pl)) })),
 
         addBible: (meta) =>
           set((s) => {
@@ -1069,8 +1131,16 @@ export const useStore = create<AppState>()(
           if (ref.index + 1 < length) s.goLive(p.id, ref.index + 1, ref.playlistItemId);
           else if (p.autoAdvance.loop && length) s.goLive(p.id, 0, ref.playlistItemId);
         },
-        playAudio: (mediaId) =>
-          set((s) => ({ live: { ...s.live, audioId: mediaId, audioPaused: false, audioRestart: s.live.audioRestart + 1 } })),
+        playAudio: (mediaId, playlistId = null) =>
+          set((s) => ({
+            live: { ...s.live, audioId: mediaId, audioPaused: false, audioRestart: s.live.audioRestart + 1, audioFrom: playlistId },
+          })),
+        audioEnded: () => {
+          const s = get();
+          const next = s.live.audioId ? nextAudio(s, s.live.audioId, s.live.audioFrom) : null;
+          if (next) s.playAudio(next, s.live.audioFrom);
+          else s.clearLayers(['audio']);
+        },
         setAudioPaused: (paused) => set((s) => ({ live: { ...s.live, audioPaused: paused } })),
         restartAudio: () => set((s) => ({ live: { ...s.live, audioPaused: false, audioRestart: s.live.audioRestart + 1 } })),
         setVideoInput: (input) => set((s) => ({ live: { ...s.live, videoInput: input } })),
@@ -1239,6 +1309,7 @@ export const useStore = create<AppState>()(
             ...upgradeTransitions(data),
             bibles: data.bibles ?? [],
             mediaPlaylists: data.mediaPlaylists ?? [],
+            audioPlaylists: data.audioPlaylists ?? [],
             libraries: librariesFor(data.libraries, data.presentations),
             looks: data.looks?.length ? data.looks : [DEFAULT_LOOK],
             liveLook: data.liveLook ?? DEFAULT_LOOK,
@@ -1302,6 +1373,7 @@ export const useStore = create<AppState>()(
         fonts: s.fonts,
         screens: s.screens,
         mediaPlaylists: s.mediaPlaylists,
+        audioPlaylists: s.audioPlaylists,
         libraries: s.libraries,
         looks: s.looks,
         liveLook: s.liveLook,

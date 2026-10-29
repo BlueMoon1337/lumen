@@ -163,6 +163,20 @@ export function deleteMediaPlaylist(id: string) {
   );
 }
 
+export function deleteAudioPlaylist(id: string) {
+  const pl = st().audioPlaylists.find((x) => x.id === id);
+  if (!pl) return;
+  confirmThen(
+    {
+      title: `Delete the audio playlist “${pl.name}”?`,
+      message: sentences(pl.items.length > 0 && 'Its tracks stay in the Audio Library.', undoHint()),
+      confirmLabel: 'Delete',
+      danger: true,
+    },
+    () => st().deleteAudioPlaylist(id),
+  );
+}
+
 export function deleteTheme(id: string) {
   const s = st();
   const t = s.themes.find((x) => x.id === id);

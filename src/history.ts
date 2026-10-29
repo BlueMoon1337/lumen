@@ -28,7 +28,16 @@ type SettingKey = (typeof SETTING_KEYS)[number];
 
 type Doc = Pick<
   AppState,
-  'presentations' | 'themes' | 'playlists' | 'messages' | 'media' | 'mediaPlaylists' | 'libraries' | 'looks' | 'stageLayouts'
+  | 'presentations'
+  | 'themes'
+  | 'playlists'
+  | 'messages'
+  | 'media'
+  | 'mediaPlaylists'
+  | 'audioPlaylists'
+  | 'libraries'
+  | 'looks'
+  | 'stageLayouts'
 > & {
   settings: Pick<Settings, SettingKey>;
 };
@@ -70,6 +79,7 @@ function docOf(s: AppState): Doc {
     messages: s.messages,
     media: s.media,
     mediaPlaylists: s.mediaPlaylists,
+    audioPlaylists: s.audioPlaylists,
     libraries: s.libraries,
     looks: s.looks,
     stageLayouts: s.stageLayouts,
@@ -82,7 +92,7 @@ const visible = (all: Record<string, Presentation>) => Object.entries(all).filte
 /** Whether the library changed. Bible mode's working passage (a hidden presentation) doesn't count. */
 function docChanged(a: AppState, b: AppState): boolean {
   if (a.themes !== b.themes || a.playlists !== b.playlists || a.messages !== b.messages || a.media !== b.media) return true;
-  if (a.mediaPlaylists !== b.mediaPlaylists || a.libraries !== b.libraries) return true;
+  if (a.mediaPlaylists !== b.mediaPlaylists || a.audioPlaylists !== b.audioPlaylists || a.libraries !== b.libraries) return true;
   if (a.looks !== b.looks || a.stageLayouts !== b.stageLayouts) return true;
   if (SETTING_KEYS.some((k) => a.settings[k] !== b.settings[k])) return true;
   if (a.presentations === b.presentations) return false;
@@ -118,6 +128,7 @@ function restore(doc: Doc) {
       messages: doc.messages,
       media: doc.media,
       mediaPlaylists: doc.mediaPlaylists,
+      audioPlaylists: doc.audioPlaylists,
       libraries: doc.libraries,
       looks: doc.looks,
       stageLayouts: doc.stageLayouts,
@@ -342,6 +353,12 @@ const LABELS: Record<string, string | ((args: unknown[]) => string)> = {
   deleteMediaPlaylist: 'Delete Media Playlist',
   addToMediaPlaylist: 'Add to Media Playlist',
   removeFromMediaPlaylist: 'Remove from Media Playlist',
+  createAudioPlaylist: 'New Audio Playlist',
+  renameAudioPlaylist: 'Rename Audio Playlist',
+  deleteAudioPlaylist: 'Delete Audio Playlist',
+  addToAudioPlaylist: 'Add to Audio Playlist',
+  removeFromAudioPlaylist: 'Remove from Audio Playlist',
+  updateAudioPlaylist: 'Audio Playlist Settings',
   addMessage: 'New Message',
   updateMessage: 'Edit Message',
   deleteMessage: 'Delete Message',

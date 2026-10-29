@@ -21,7 +21,8 @@ const FADE_MS = 600;
 
 /**
  * Plays the Audio layer on this computer, as ProPresenter does (outputs only play a video's own
- * sound). Clearing it fades the sound out rather than cutting it off; a track that ends clears it.
+ * sound). Clearing it fades the sound out rather than cutting it off; a track that ends plays the
+ * next one in its audio playlist, or clears it.
  */
 export function AudioPlayer() {
   const audioId = useStore((s) => s.live.audioId);
@@ -126,7 +127,7 @@ export function AudioPlayer() {
       preload="auto"
       onTimeUpdate={report}
       onLoadedMetadata={report}
-      onEnded={() => useStore.getState().clearLayers(['audio'])}
+      onEnded={() => useStore.getState().audioEnded()}
       hidden
     />
   );
