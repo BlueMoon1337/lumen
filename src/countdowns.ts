@@ -22,8 +22,15 @@ export function countdownFade(settings: Pick<Settings, 'countdownFadeSeconds' | 
   };
 }
 
+/**
+ * The fade's curve. Sound seems half as loud for every 10 dB it drops, so a volume of t^1.66
+ * (t: the share of the fade left) sounds like it goes down evenly. Volume going down in a
+ * straight line would sound like it hardly fades at first, then drops away at the end.
+ */
+const EVEN_LOUDNESS = 1 / (2 * Math.log10(2));
+
 /** How loud sound is with `remaining` seconds of a countdown left: full until the fade, then down to nothing at the end. */
 export function countdownVolume(remaining: number, fadeSeconds: number): number {
   if (!Number.isFinite(remaining) || fadeSeconds <= 0) return 1;
-  return Math.max(0, Math.min(1, remaining / fadeSeconds));
+  return Math.max(0, Math.min(1, remaining / fadeSeconds)) ** EVEN_LOUDNESS;
 }

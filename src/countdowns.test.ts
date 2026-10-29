@@ -25,7 +25,11 @@ describe('countdowns', () => {
 
   it('take the sound down over their last seconds, to nothing at the end', () => {
     expect(countdownVolume(60, 10)).toBe(1);
-    expect(countdownVolume(5, 10)).toBe(0.5);
+    // Halfway, it's 10 dB down: it sounds half as loud. A quarter left, 20 dB: a quarter as loud.
+    const db = (v: number) => 20 * Math.log10(v);
+    expect(db(countdownVolume(5, 10))).toBeCloseTo(-10, 5);
+    expect(db(countdownVolume(2.5, 10))).toBeCloseTo(-20, 5);
+    expect(countdownVolume(9, 10)).toBeLessThan(0.9);
     expect(countdownVolume(0, 10)).toBe(0);
     expect(countdownVolume(-1, 10)).toBe(0);
     // No fade set: full volume.

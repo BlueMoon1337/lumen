@@ -1,5 +1,6 @@
 import { useEffect, useLayoutEffect, useRef, useState, type CSSProperties, type ReactNode } from 'react';
 import { timerRemaining, useNow } from '../clock';
+import { countdownVolume } from '../countdowns';
 import { useFontsVersion } from '../fonts';
 import { useMedia } from '../media';
 import { toFrameBackground } from '../theme';
@@ -232,7 +233,7 @@ function MediaFill({
     const v = video.current;
     if (!v || !fadeOut) return;
     const tick = window.setInterval(() => {
-      if (Number.isFinite(v.duration) && v.duration > 0) v.volume = Math.max(0, Math.min(1, (v.duration - v.currentTime) / fadeOut));
+      if (Number.isFinite(v.duration) && v.duration > 0) v.volume = countdownVolume(v.duration - v.currentTime, fadeOut);
     }, 50);
     return () => {
       window.clearInterval(tick);
