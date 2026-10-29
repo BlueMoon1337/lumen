@@ -124,7 +124,7 @@ npm run format       # Prettier
 - **Announcements**: a presentation can play on its own layer over the slides, and any presentation can advance by itself (an announcement loop).
 - **Video Input**: webcams, capture cards and virtual cameras (OBS, NDI) as a live layer under everything.
 - **Countdown timer**, either a duration or a time of day, shown on the stage display and usable in messages. It stops at 0:00 (no overtime) and goes back to its length, ready to start again; the stage screen shows 0:00 for 5 seconds, then the timer disappears from it until it's started or reset.
-- **Messages** on the audience screen, with `{countdown}` and `{clock}` tokens.
+- **Messages** on the audience screen, with `{countdown}` and `{clock}` tokens. A built-in `{countdown}` message, always under the new-message box, shows the timer on its own.
 - **Stage display** showing the current and next slide, notes, clock, timer, and a flashing message to the stage.
 - **ProPresenter import** of `.pro` presentations, `.proplaylist` playlists and `.rvbible` Bibles (see below).
 - **PowerPoint and Keynote import** into their own library, with their slides editable in Edit mode (see below).

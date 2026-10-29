@@ -4,7 +4,7 @@ import { adjacentPlaylistItem, type AppState } from './store';
 import { copyrightLine, resolveTheme, slideTheme, toFrameBackground } from './theme';
 import { effectiveTransition, mediaTransitionOf, transitionDuration } from './transitions';
 import { screenLook } from './looks';
-import { countdownFade } from './countdowns';
+import { countdownFade, findMessage } from './countdowns';
 import { slideWords } from './slideshows';
 import { layoutFor } from './stageLayouts';
 import type { FrameBackground, OutputFrame, Presentation, SequenceEntry, SlidePicture } from './types';
@@ -45,7 +45,7 @@ export function buildFrame(s: AppState): OutputFrame {
     }
   }
 
-  const message = s.messages.find((m) => m.id === s.live.messageId);
+  const message = findMessage(s.messages, s.live.messageId);
   const showCredit = p?.showCopyright && ref && (ref.index === 0 || ref.index === seq.length - 1);
   const slide =
     p && entry && ref

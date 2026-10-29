@@ -1,7 +1,7 @@
 import { useShallow } from 'zustand/react/shallow';
 import { useRef, useState, type CSSProperties } from 'react';
 import { timerRemaining, useNow } from '../clock';
-import { countdownFade } from '../countdowns';
+import { COUNTDOWN_MESSAGE, countdownFade } from '../countdowns';
 import { useLiveFrame } from '../liveFrame';
 import { useStore, type LiveTab } from '../store';
 import { ALL_LAYERS, isLayerLive, LAYERS } from '../layers';
@@ -373,6 +373,20 @@ function MessagesTab() {
           <Icon name="plus" />
         </button>
       </form>
+      <ul className="messages default-messages">
+        <li className={liveId === COUNTDOWN_MESSAGE.id ? 'live' : ''}>
+          <span className="default-message" title="The Timers tab's countdown, always here">
+            <Icon name="clock" size={13} />
+            {COUNTDOWN_MESSAGE.text}
+          </span>
+          <button
+            className={`btn small ${liveId === COUNTDOWN_MESSAGE.id ? 'on' : ''}`}
+            onClick={() => s.showMessage(liveId === COUNTDOWN_MESSAGE.id ? null : COUNTDOWN_MESSAGE.id)}
+          >
+            {liveId === COUNTDOWN_MESSAGE.id ? 'Hide' : 'Show'}
+          </button>
+        </li>
+      </ul>
     </>
   );
 }

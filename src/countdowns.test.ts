@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it } from 'vitest';
-import { countdownFade, countdownVolume, isCountdownName } from './countdowns';
+import { COUNTDOWN_MESSAGE, countdownFade, countdownVolume, isCountdownName } from './countdowns';
 import { buildFrame } from './frame';
 import { useStore } from './store';
 
@@ -57,5 +57,12 @@ describe('countdowns', () => {
   it('can be made (or unmade) from any video', () => {
     s().updateMedia('v', { countdown: true, playback: 'stop' });
     expect(s().media.find((m) => m.id === 'v')).toMatchObject({ countdown: true, playback: 'stop' });
+  });
+
+  it('have a built-in {countdown} message, always there, that shows on the audience screen', () => {
+    s().showMessage(COUNTDOWN_MESSAGE.id);
+    expect(buildFrame(s()).message).toEqual({ key: COUNTDOWN_MESSAGE.id, text: '{countdown}' });
+    s().showMessage(null);
+    expect(buildFrame(s()).message).toBeNull();
   });
 });

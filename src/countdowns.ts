@@ -1,4 +1,4 @@
-import type { Settings } from './types';
+import type { Message, Settings } from './types';
 
 /**
  * Countdown videos: the walk-in timers played before a service. They have their own tab in the
@@ -34,3 +34,10 @@ export function countdownVolume(remaining: number, fadeSeconds: number): number 
   if (!Number.isFinite(remaining) || fadeSeconds <= 0) return 1;
   return Math.max(0, Math.min(1, remaining / fadeSeconds)) ** EVEN_LOUDNESS;
 }
+
+/** The Messages tab's built-in message: the Timers tab's countdown on its own. It's always there. */
+export const COUNTDOWN_MESSAGE: Message = { id: 'message-countdown', text: '{countdown}' };
+
+/** A message by its id, the built-in countdown one included. */
+export const findMessage = (messages: Message[], id: string | null) =>
+  id === COUNTDOWN_MESSAGE.id ? COUNTDOWN_MESSAGE : messages.find((m) => m.id === id);

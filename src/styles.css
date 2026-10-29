@@ -1632,6 +1632,32 @@ body.resizing-y * {
   border-color: var(--pink);
 }
 
+.default-messages {
+  padding: 0 8px 8px;
+}
+
+/* The built-in {countdown} message: the same width as the ones above (which have a delete button). */
+.default-messages li {
+  padding-right: 30px;
+}
+
+.default-message {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+  padding: 4px 8px;
+  border: 1px dashed var(--field-border);
+  border-radius: 5px;
+  color: var(--text-2);
+}
+
+.default-messages li.live .default-message {
+  border: 1px solid var(--pink);
+  color: var(--text);
+}
+
 .add-row {
   display: flex;
   gap: 4px;

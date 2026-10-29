@@ -8,6 +8,7 @@
  * thing less than a second apart join the step before. `undoBatch` groups several actions.
  */
 import { create } from 'zustand';
+import { findMessage } from './countdowns';
 import { notify } from './notices';
 import { useStore, type AppState } from './store';
 import type { Presentation, Settings } from './types';
@@ -143,7 +144,7 @@ function restore(doc: Doc) {
         ...s.live,
         slide: s.live.slide && presentations[s.live.slide.presentationId] ? s.live.slide : null,
         mediaId: s.live.mediaId && doc.media.some((m) => m.id === s.live.mediaId) ? s.live.mediaId : null,
-        messageId: s.live.messageId && doc.messages.some((m) => m.id === s.live.messageId) ? s.live.messageId : null,
+        messageId: findMessage(doc.messages, s.live.messageId) ? s.live.messageId : null,
         audioId: s.live.audioId && doc.media.some((m) => m.id === s.live.audioId) ? s.live.audioId : null,
         announcement: s.live.announcement && presentations[s.live.announcement.presentationId] ? s.live.announcement : null,
       },
