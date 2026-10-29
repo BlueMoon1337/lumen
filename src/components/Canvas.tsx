@@ -201,12 +201,15 @@ function MediaFill({
   paused = false,
   loop = true,
   seek,
+  fadeOut,
 }: {
   mediaId: string;
   muted: boolean;
   paused?: boolean;
   loop?: boolean;
   seek?: { to: number; n: number };
+  /** Seconds over which its sound fades away at the end (a countdown). */
+  fadeOut?: number;
 }) {
   const media = useMedia(mediaId);
   const video = useRef<HTMLVideoElement>(null);
@@ -224,6 +227,18 @@ function MediaFill({
     seen.current = seek.n;
     v.currentTime = seek.to;
   }, [seek, media]);
+  // A countdown's sound goes down with it over its last seconds.
+  useEffect(() => {
+    const v = video.current;
+    if (!v || !fadeOut) return;
+    const tick = window.setInterval(() => {
+      if (Number.isFinite(v.duration) && v.duration > 0) v.volume = Math.max(0, Math.min(1, (v.duration - v.currentTime) / fadeOut));
+    }, 50);
+    return () => {
+      window.clearInterval(tick);
+      v.volume = 1;
+    };
+  }, [fadeOut, media]);
   if (!media) return null;
   return media.isVideo ? (
     <video ref={video} className="media-fill" src={media.url} autoPlay={!paused} loop={loop} muted={muted} playsInline />
@@ -264,7 +279,7 @@ export function BackgroundFill({ bg, muted = true }: { bg: FrameBackground; mute
     case 'gradient':
       return <div className="fill" style={{ background: `linear-gradient(135deg, ${bg.color}, ${bg.color2})` }} />;
     case 'media':
-      return <MediaFill mediaId={bg.mediaId} muted={muted} paused={bg.paused} loop={bg.loop ?? true} seek={bg.seek} />;
+      return <MediaFill mediaId={bg.mediaId} muted={muted} paused={bg.paused} loop={bg.loop ?? true} seek={bg.seek} fadeOut={bg.fadeOut} />;
   }
 }
 

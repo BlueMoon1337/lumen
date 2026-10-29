@@ -1,7 +1,9 @@
 import { useEffect, useRef, useState } from 'react';
 import { create } from 'zustand';
+import { COUNTDOWN_FADE_SECONDS, countdownVolume } from '../countdowns';
 import { useMedia } from '../media';
 import { useStore } from '../store';
+import { liveVideoElement } from './MediaClock';
 
 /** Where the playing audio is, for the transport. */
 export const useAudioStatus = create<{ time: number; duration: number }>(() => ({ time: 0, duration: 0 }));
@@ -64,6 +66,27 @@ export function AudioPlayer() {
       }
     }, 30);
   }, [audioId]);
+
+  // A countdown on the Media layer takes the music down with it over its last seconds, and when
+  // it's over, the Audio layer clears. If the countdown goes before its end, the music comes back up.
+  const countdown = useStore((s) => !!s.media.find((m) => m.id === s.live.mediaId)?.countdown);
+  const fadeSeconds = useStore((s) => s.settings.countdownFadeSeconds ?? COUNTDOWN_FADE_SECONDS);
+  useEffect(() => {
+    const el = ref.current;
+    if (!el || !audioId || fadeSeconds <= 0) return;
+    if (!countdown) {
+      if (!fade.current) el.volume = 1;
+      return;
+    }
+    const tick = window.setInterval(() => {
+      const v = liveVideoElement();
+      if (!v || !Number.isFinite(v.duration) || v.duration <= 0 || fade.current) return;
+      const remaining = v.duration - v.currentTime;
+      el.volume = countdownVolume(remaining, fadeSeconds);
+      if (v.ended || remaining <= 0.1) useStore.getState().clearLayers(['audio']);
+    }, 50);
+    return () => window.clearInterval(tick);
+  }, [countdown, audioId, fadeSeconds]);
 
   // A new track, or the same one again, starts from the top.
   useEffect(() => {

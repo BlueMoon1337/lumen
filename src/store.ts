@@ -15,6 +15,7 @@ import { ALL_LAYERS, clearLive } from './layers';
 import { DEFAULT_LOOK, lookScreen } from './looks';
 import { DEFAULT_STAGE_LAYOUTS } from './stageLayouts';
 import { deckFileOf, isSlideshow, SLIDESHOW_LIBRARY_ID, SLIDESHOW_LIBRARY_NAME } from './slideshows';
+import { isCountdownName } from './countdowns';
 import type {
   Category,
   Library,
@@ -117,7 +118,7 @@ interface UIState {
   editingThemeId: string | null;
   showMediaBin: boolean;
   /** What the media bin shows: its images and videos, a media playlist, or the cameras for the Video Input layer. */
-  mediaFilter: 'all' | 'image' | 'video' | 'playlist' | 'inputs';
+  mediaFilter: 'all' | 'image' | 'video' | 'countdown' | 'playlist' | 'inputs';
   /** The media playlist shown when mediaFilter is "playlist". */
   mediaPlaylistId: string | null;
   liveTab: LiveTab;
@@ -233,11 +234,12 @@ interface Actions {
   deleteTheme(id: string): void;
 
   /** Imports images, videos and audio (into a media playlist, if given) and returns what was added. */
-  addMediaFiles(files: File[], playlistId?: string | null): Promise<MediaItem[]>;
+  /** `countdown`: the videos are countdowns (imported into the Countdowns tab). */
+  addMediaFiles(files: File[], playlistId?: string | null, options?: { countdown?: boolean }): Promise<MediaItem[]>;
   /** Adds media whose files are already stored (from an imported bundle). */
   addMedia(items: MediaItem[]): void;
   deleteMedia(id: string): void;
-  updateMedia(id: string, patch: Partial<Pick<MediaItem, 'name' | 'loop' | 'playback'>>): void;
+  updateMedia(id: string, patch: Partial<Pick<MediaItem, 'name' | 'loop' | 'playback' | 'countdown'>>): void;
   createMediaPlaylist(name: string): string;
   renameMediaPlaylist(id: string, name: string): void;
   deleteMediaPlaylist(id: string): void;
@@ -885,7 +887,7 @@ export const useStore = create<AppState>()(
             };
           }),
 
-        addMediaFiles: async (files, playlistId) => {
+        addMediaFiles: async (files, playlistId, options) => {
           const added: MediaItem[] = [];
           for (const file of files) {
             // Some systems give no type for .mp4, .mov or .m4v files; go by the name then.
@@ -899,6 +901,9 @@ export const useStore = create<AppState>()(
                   : null;
             if (!kind) continue;
             const item: MediaItem = { id: uid(), name: file.name.replace(/\.[^.]+$/, ''), kind, mime: mime || file.type };
+            // Countdowns (imported into their tab, or named like one) hold their last frame rather than loop.
+            if (kind === 'video' && (options?.countdown || isCountdownName(item.name)))
+              Object.assign(item, { countdown: true, playback: 'stop' });
             await putMediaBlob(item.id, file);
             added.push(item);
           }
@@ -1249,7 +1254,7 @@ export const useStore = create<AppState>()(
     },
     {
       name: 'lumen-library',
-      version: 7,
+      version: 8,
       migrate: (persisted, version) => {
         const saved = persisted as Partial<LibraryData>;
         const addTheme = (id: string) => {
@@ -1265,6 +1270,11 @@ export const useStore = create<AppState>()(
         // Version 6 added the PowerPoint & Keynote library, where those presentations are imported.
         if (version < 6 && saved.libraries && !saved.libraries.some((l) => l.id === SLIDESHOW_LIBRARY_ID))
           saved.libraries = [...saved.libraries, { id: SLIDESHOW_LIBRARY_ID, name: SLIDESHOW_LIBRARY_NAME }];
+        // Version 8 put countdown videos (by their names) in the media bin's Countdowns tab.
+        if (version < 8 && saved.media)
+          saved.media = saved.media.map((m) =>
+            m.kind === 'video' && m.countdown === undefined && isCountdownName(m.name) ? { ...m, countdown: true } : m,
+          );
         // Version 7 matched the group list (and colors) to ProPresenter's.
         if (version < 7 && saved.settings?.groupPresets)
           saved.settings = { ...saved.settings, groupPresets: upgradeGroupPresets(saved.settings.groupPresets) };

@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { checkForUpdates, useUpdates } from '../updates';
 import { DEFAULT_APP_ICON } from '../appIcons';
+import { COUNTDOWN_FADE_SECONDS } from '../countdowns';
 import { addFontFiles, importFiles } from '../commands';
 import { cssFamilyFor, faceName, FONT_ACCEPT, isFontInstalled } from '../fonts';
 import { DEFAULT_GROUPS, DEFAULT_LABELS, groupPresets, LABEL_SWATCHES, labelPresets } from '../labels';
@@ -155,6 +156,21 @@ export function SettingsDialog({ onClose, onScreens }: { onClose: () => void; on
           <span>Media transition</span>
           <TransitionButton target="media" />
         </div>
+        <label className="field-row">
+          <span>Countdown music fade</span>
+          <span className="pair">
+            <input
+              type="number"
+              className="num-small"
+              min={0}
+              max={120}
+              value={settings.countdownFadeSeconds ?? COUNTDOWN_FADE_SECONDS}
+              onChange={(e) => s.updateSettings({ countdownFadeSeconds: Math.max(0, Math.min(120, Number(e.target.value) || 0)) })}
+              aria-label="Seconds the music fades over as a countdown ends"
+            />
+            <span className="muted">seconds before a countdown ends (0: no fade)</span>
+          </span>
+        </label>
         <label className="field-row">
           <span>Default theme</span>
           <select value={settings.defaultThemeId} onChange={(e) => s.updateSettings({ defaultThemeId: e.target.value })}>

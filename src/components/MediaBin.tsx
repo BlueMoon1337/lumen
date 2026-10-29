@@ -17,7 +17,12 @@ const FILTERS = [
   { value: 'all', label: 'All Media', icon: 'image' },
   { value: 'image', label: 'Images', icon: 'image' },
   { value: 'video', label: 'Videos', icon: 'video' },
+  { value: 'countdown', label: 'Countdowns', icon: 'clock' },
 ] as const;
+
+/** Whether an item belongs under a media bin filter (a countdown is a video too). */
+const inFilter = (m: MediaItem, filter: string) =>
+  filter === 'all' || filter === 'playlist' || (filter === 'countdown' ? !!m.countdown : m.kind === filter);
 
 /** The media bin holds images and videos; audio lives in the Audio tab. */
 const isVisual = (m: MediaItem) => m.kind !== 'audio';
@@ -49,7 +54,11 @@ function canPlay(id: string): Promise<boolean> {
  * Imports images and videos (into a media playlist, if given), and says which files were left out
  * or can't be played here, e.g. an HEVC or ProRes video in a browser without that codec.
  */
-export async function importMediaFiles(chosen: File[], playlistId?: string | null): Promise<MediaItem[]> {
+export async function importMediaFiles(
+  chosen: File[],
+  playlistId?: string | null,
+  options?: { countdown?: boolean },
+): Promise<MediaItem[]> {
   // iPhone photos (HEIC) become JPEGs first, so every screen can show them.
   let working: number | null = null;
   const { files, converted, failed } = await convertHeicPhotos(chosen, (count) => {
@@ -58,7 +67,9 @@ export async function importMediaFiles(chosen: File[], playlistId?: string | nul
   if (working !== null) dismiss(working);
   if (converted) notify(`${converted === 1 ? 'A HEIC photo was' : `${converted} HEIC photos were`} added as JPEG.`, 'success', 3500);
   for (const name of failed) notify(`“${name}” couldn’t be converted from HEIC: the photo may be damaged.`, 'error', 9000);
-  const added = await useStore.getState().addMediaFiles(files, playlistId);
+  // Imported in the Countdowns tab, videos are countdowns.
+  const countdown = options?.countdown ?? useStore.getState().mediaFilter === 'countdown';
+  const added = await useStore.getState().addMediaFiles(files, playlistId, { countdown });
   const audio = added.filter((m) => m.kind === 'audio').length;
   if (audio) notify(`${audio === 1 ? 'The audio file went' : 'Audio files went'} to the Audio tab, in the live panel.`, 'info');
   const skipped = files.length - added.length;
@@ -183,7 +194,7 @@ export function MediaSidebar() {
               <Icon name={f.icon} size={14} />
             </span>
             <span className="list-label">{f.label}</span>
-            <span className="count">{f.value === 'all' ? media.length : media.filter((m) => m.kind === f.value).length}</span>
+            <span className="count">{media.filter((m) => inFilter(m, f.value)).length}</span>
           </div>
         ))}
       <SectionHeader title="Playlists" collapsed={!playlistsOpen} onToggle={() => setPlaylistsOpen(!playlistsOpen)}>
@@ -294,10 +305,10 @@ function MediaGrid() {
     const q = query.trim().toLowerCase();
     const shown = playlist
       ? playlist.items.map((id) => media.find((m) => m.id === id)).filter((m): m is MediaItem => !!m)
-      : media.filter((m) => filter === 'all' || filter === 'playlist' || m.kind === filter);
+      : media.filter((m) => inFilter(m, filter));
     return shown.filter((m) => !q || m.name.toLowerCase().includes(q));
   }, [media, filter, playlist, query]);
-  const empty = playlist ? playlist.items.length === 0 : media.length === 0;
+  const empty = playlist ? playlist.items.length === 0 : media.length === 0 || (filter === 'countdown' && items.length === 0 && !query);
 
   return (
     <section
@@ -333,8 +344,12 @@ function MediaGrid() {
           <button className="import-tile" onClick={() => void importInto(playlistId)}>
             <Icon name="download" size={40} />
           </button>
-          <span>Import Media</span>
-          <span className="muted small-print">Images (iPhone HEIC photos become JPEG) and videos (MP4, MOV, WebM). Or drop them here.</span>
+          <span>{filter === 'countdown' ? 'Import Countdowns' : 'Import Media'}</span>
+          <span className="muted small-print">
+            {filter === 'countdown'
+              ? 'Countdown videos for before the service. Videos named “countdown” come here by themselves; right-click any video to make it one. As a countdown ends, music on the Audio layer fades out with it.'
+              : 'Images (iPhone HEIC photos become JPEG) and videos (MP4, MOV, WebM). Or drop them here.'}
+          </span>
         </div>
       ) : (
         <div className="media-grid" style={{ gridTemplateColumns: `repeat(auto-fill, minmax(${size}px, 1fr))` }}>

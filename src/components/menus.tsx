@@ -515,6 +515,12 @@ export function mediaMenu(m: MediaItem, playlistId?: string | null): ContextEntr
   return [
     { label: live ? 'Clear from Screen' : 'Show on Media Layer', action: () => s.setLiveMedia(live ? null : m.id, playlistId ?? null) },
     m.kind === 'video' && { label: 'When It Ends', submenu: () => playbackEntries(m.id).slice(1) },
+    m.kind === 'video' && {
+      label: 'Countdown',
+      checked: !!m.countdown,
+      // A countdown has its own tab, and music fades out as it ends.
+      action: () => s.updateMedia(m.id, m.countdown ? { countdown: false } : { countdown: true, playback: m.playback ?? 'stop' }),
+    },
     { label: 'Use as Logo', checked: logo, action: () => s.updateSettings({ logoMediaId: logo ? undefined : m.id }) },
     { label: 'Media Transition…', action: () => openPopupAtMenu(<TargetTransitionPicker target="media" />) },
     '-',

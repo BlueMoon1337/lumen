@@ -4,6 +4,7 @@ import { adjacentPlaylistItem, type AppState } from './store';
 import { copyrightLine, resolveTheme, slideTheme, toFrameBackground } from './theme';
 import { effectiveTransition, mediaTransitionOf, transitionDuration } from './transitions';
 import { screenLook } from './looks';
+import { COUNTDOWN_FADE_SECONDS } from './countdowns';
 import { slideWords } from './slideshows';
 import { layoutFor } from './stageLayouts';
 import type { FrameBackground, OutputFrame, Presentation, SequenceEntry, SlidePicture } from './types';
@@ -71,6 +72,10 @@ export function buildFrame(s: AppState): OutputFrame {
         live: true,
         loop: loops(s.live.mediaId),
         seek: s.live.mediaSeek,
+        // A countdown's sound fades away as it ends (src/countdowns.ts).
+        ...(s.media.find((m) => m.id === s.live.mediaId)?.countdown
+          ? { fadeOut: s.settings.countdownFadeSeconds ?? COUNTDOWN_FADE_SECONDS }
+          : {}),
       }
     : slide && entry && !s.live.videoInput
       ? withLoop(toFrameBackground(entry.slide.background ?? theme.background))

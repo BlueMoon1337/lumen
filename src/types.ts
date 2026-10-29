@@ -232,6 +232,8 @@ export interface MediaItem {
   loop?: boolean;
   /** Video: what happens when it ends. Loop when unset. */
   playback?: VideoPlayback;
+  /** Video: a countdown, in the media bin's Countdowns tab; music fades out as it ends (src/countdowns.ts). */
+  countdown?: boolean;
 }
 
 /** When a video ends: start again, hold the last frame, clear the Media layer, or play the next one. */
@@ -284,6 +286,8 @@ export interface Settings {
   /** Advancing past the last slide moves on to the next playlist item. */
   advanceAcrossItems: boolean;
   logoMediaId?: string;
+  /** Seconds over which music fades as a countdown video ends; 10 when unset, 0 for no fade. */
+  countdownFadeSeconds?: number;
   defaultThemeId: string;
   gridSize: number;
   /** View ▸ Slide View: Grid, Easy (just the words, large) or Table ('list'). */
@@ -737,4 +741,6 @@ export type FrameBackground =
       live?: boolean;
       loop?: boolean;
       seek?: { to: number; n: number };
+      /** A countdown: its own sound fades out over its last this-many seconds. */
+      fadeOut?: number;
     };
