@@ -480,11 +480,7 @@ function PropsTab() {
       <div className="tab-pad">
         <div className="prop-row">
           <span>Logo</span>
-          <select
-            value={logoId ?? ''}
-            onChange={(e) => s.updateSettings({ logoMediaId: e.target.value || undefined })}
-            aria-label="Logo image"
-          >
+          <select value={logoId ?? ''} onChange={(e) => s.setActiveMedia('logo', e.target.value || null)} aria-label="Logo image">
             <option value="">None</option>
             {media.map((m) => (
               <option key={m.id} value={m.id}>

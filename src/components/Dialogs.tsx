@@ -167,7 +167,7 @@ export function SettingsDialog({ onClose, onScreens }: { onClose: () => void; on
         </label>
         <label className="field-row">
           <span>Logo</span>
-          <select value={settings.logoMediaId ?? ''} onChange={(e) => s.updateSettings({ logoMediaId: e.target.value || undefined })}>
+          <select value={settings.logoMediaId ?? ''} onChange={(e) => s.setActiveMedia('logo', e.target.value || null)}>
             <option value="">None</option>
             {media.map((m) => (
               <option key={m.id} value={m.id}>

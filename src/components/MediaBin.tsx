@@ -19,13 +19,14 @@ const FILTERS = [
   { value: 'video', label: 'Videos', icon: 'video' },
   { value: 'countdown', label: 'Countdowns', icon: 'clock' },
   { value: 'outro', label: 'Outro', icon: 'outro' },
+  { value: 'logo', label: 'Logo', icon: 'logo' },
 ] as const;
 
 /** Whether an item belongs under a media bin filter (a countdown is a video too). */
 const inFilter = (m: MediaItem, filter: string) =>
   filter === 'all' ||
   filter === 'playlist' ||
-  (filter === 'countdown' ? !!m.countdown : filter === 'outro' ? !!m.outro : m.kind === filter);
+  (filter === 'countdown' ? !!m.countdown : filter === 'outro' ? !!m.outro : filter === 'logo' ? !!m.logo : m.kind === filter);
 
 /** The media bin holds images and videos; audio lives in the Audio tab. */
 const isVisual = (m: MediaItem) => m.kind !== 'audio';
@@ -60,7 +61,7 @@ function canPlay(id: string): Promise<boolean> {
 export async function importMediaFiles(
   chosen: File[],
   playlistId?: string | null,
-  options?: { countdown?: boolean; outro?: boolean },
+  options?: { countdown?: boolean; outro?: boolean; logo?: boolean },
 ): Promise<MediaItem[]> {
   // iPhone photos (HEIC) become JPEGs first, so every screen can show them.
   let working: number | null = null;
@@ -70,10 +71,13 @@ export async function importMediaFiles(
   if (working !== null) dismiss(working);
   if (converted) notify(`${converted === 1 ? 'A HEIC photo was' : `${converted} HEIC photos were`} added as JPEG.`, 'success', 3500);
   for (const name of failed) notify(`“${name}” couldn’t be converted from HEIC: the photo may be damaged.`, 'error', 9000);
-  // Imported in the Countdowns or Outro tab, videos are countdowns or outros.
-  const countdown = options?.countdown ?? useStore.getState().mediaFilter === 'countdown';
-  const outro = options?.outro ?? useStore.getState().mediaFilter === 'outro';
-  const added = await useStore.getState().addMediaFiles(files, playlistId, { countdown, outro });
+  // Imported in the Countdowns, Outro or Logo tab, they go in that tab.
+  const tab = useStore.getState().mediaFilter;
+  const added = await useStore.getState().addMediaFiles(files, playlistId, {
+    countdown: options?.countdown ?? tab === 'countdown',
+    outro: options?.outro ?? tab === 'outro',
+    logo: options?.logo ?? tab === 'logo',
+  });
   const audio = added.filter((m) => m.kind === 'audio').length;
   if (audio) notify(`${audio === 1 ? 'The audio file went' : 'Audio files went'} to the Audio tab, in the live panel.`, 'info');
   const skipped = files.length - added.length;
@@ -194,7 +198,9 @@ export function MediaSidebar() {
             className={`collection-row ${filter === f.value ? 'selected' : ''}`}
             onClick={() => setUI({ mediaFilter: f.value })}
           >
-            <span className={`collection-icon ${f.value === 'countdown' || f.value === 'outro' ? 'special' : 'media'}`}>
+            <span
+              className={`collection-icon ${f.value === 'countdown' || f.value === 'outro' || f.value === 'logo' ? 'special' : 'media'}`}
+            >
               <Icon name={f.icon} size={14} />
             </span>
             <span className="list-label">{f.label}</span>
@@ -227,6 +233,17 @@ export function MediaSidebar() {
         </div>
       )}
     </aside>
+  );
+}
+
+/** The active outro's or logo's mark: a corner bookmark, like a felt one over a page's corner. */
+function CornerBookmark({ icon, title, left }: { icon: 'outro' | 'logo'; title: string; left?: boolean }) {
+  return (
+    <span className={`corner-bookmark ${left ? 'left' : ''}`} title={title}>
+      <span className="corner-bookmark-felt">
+        <Icon name={icon} size={11} />
+      </span>
+    </span>
   );
 }
 
@@ -299,13 +316,8 @@ function MediaTile({
       title="Click to show on the Media layer, click again to clear. Drag onto a slide to play it with that slide, or between items to reorder."
     >
       <div className="media-tile-frame">
-        {outro && (
-          <span className="outro-bookmark" title="The active outro: Play Outro plays it">
-            <span className="outro-bookmark-felt">
-              <Icon name="outro" size={11} />
-            </span>
-          </span>
-        )}
+        {outro && <CornerBookmark icon="outro" title="The active outro: Play Outro plays it" />}
+        {logo && <CornerBookmark icon="logo" title="The active logo: the Logo button shows it" left={outro} />}
         {!media ? (
           <div className="media-thumb-img" />
         ) : media.isVideo ? (
@@ -328,13 +340,12 @@ function MediaTile({
       </div>
       <div className="media-tile-footer">
         <span className="list-label">{item.name}</span>
-        {logo && <span className="badge">Logo</span>}
         <span className="row-actions">
           <IconButton
-            icon="layers"
-            title={logo ? 'Stop using as logo' : 'Use as logo'}
+            icon="logo"
+            title={logo ? 'The active logo: click to have none' : 'Make this the active logo'}
             active={logo}
-            onClick={() => s.updateSettings({ logoMediaId: logo ? undefined : item.id })}
+            onClick={() => s.setActiveMedia('logo', logo ? null : item.id)}
           />
           {tab ? (
             <IconButton
@@ -380,7 +391,7 @@ function MediaGrid() {
   }, [media, filter, playlist, query]);
   const empty = playlist
     ? playlist.items.length === 0
-    : media.length === 0 || ((filter === 'countdown' || filter === 'outro') && items.length === 0 && !query);
+    : media.length === 0 || ((filter === 'countdown' || filter === 'outro' || filter === 'logo') && items.length === 0 && !query);
 
   return (
     <section
@@ -416,13 +427,23 @@ function MediaGrid() {
           <button className="import-tile" onClick={() => void importInto(playlistId)}>
             <Icon name="download" size={40} />
           </button>
-          <span>{filter === 'countdown' ? 'Import Countdowns' : filter === 'outro' ? 'Import Outros' : 'Import Media'}</span>
+          <span>
+            {filter === 'countdown'
+              ? 'Import Countdowns'
+              : filter === 'outro'
+                ? 'Import Outros'
+                : filter === 'logo'
+                  ? 'Import Logos'
+                  : 'Import Media'}
+          </span>
           <span className="muted small-print">
             {filter === 'countdown'
               ? 'Countdown videos for before the service. Videos named “countdown” come here by themselves; right-click any video to make it one. As a countdown ends, music on the Audio layer fades out with it.'
               : filter === 'outro'
                 ? 'Videos for the end of the service. Videos named “outro” come here by themselves; right-click any video to make it one. The active outro (marked with a bookmark) plays from the Play Outro button beside the clear buttons.'
-                : 'Images (iPhone HEIC photos become JPEG) and videos (MP4, MOV, WebM). Or drop them here.'}
+                : filter === 'logo'
+                  ? 'Logos: images or videos that cover the audience screen. Ones named “logo” come here by themselves; right-click any item to make it one. The active logo (marked with a bookmark) shows from the Logo button beside the clear buttons.'
+                  : 'Images (iPhone HEIC photos become JPEG) and videos (MP4, MOV, WebM). Or drop them here.'}
           </span>
         </div>
       ) : (
@@ -435,7 +456,7 @@ function MediaGrid() {
               logo={logoId === m.id}
               outro={outroId === m.id}
               playlistId={playlistId}
-              tab={!playlist && (filter === 'countdown' || filter === 'outro') ? filter : null}
+              tab={!playlist && (filter === 'countdown' || filter === 'outro' || filter === 'logo') ? filter : null}
               next={items[i + 1]?.id ?? null}
             />
           ))}

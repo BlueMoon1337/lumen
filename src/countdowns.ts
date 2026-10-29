@@ -47,3 +47,6 @@ export const findMessage = (messages: Message[], id: string | null) =>
 
 /** A video named like an outro ("Church Outro", "Despedida", "Closing Loop"). */
 export const isOutroName = (name: string) => /\boutro|despedida|closing|cierre/i.test(name);
+
+/** An image or video named like a logo ("Church Logo", "logo-white"). */
+export const isLogoName = (name: string) => /logo/i.test(name);

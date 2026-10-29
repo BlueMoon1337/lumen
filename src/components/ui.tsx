@@ -45,6 +45,7 @@ const paths = {
   alignCenter: 'M4 6h16M7 10h10M4 14h16M7 18h10',
   center: 'M12 2v5M12 17v5M2 12h5M17 12h5M8 8h8v8H8z',
   outro: 'M5 4l10 8-10 8zM19 4v16',
+  logo: 'M12 3l7 3v5c0 4.5-3 8-7 10-4-2-7-5.5-7-10V6zM12 8v8M8.5 12h7',
   timer: 'M10 2h4M12 2v3M12 13l3-3M12 21a8 8 0 1 0 0-16 8 8 0 0 0 0 16z',
   alignRight: 'M4 6h16M10 10h10M4 14h16M10 18h10',
   alignTop: 'M4 4h16M8 8h8v8H8z',

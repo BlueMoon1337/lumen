@@ -47,6 +47,7 @@ export function ClearGroupsRow() {
       })}
       <IconButton icon="gear" title="Edit Clear Groups" onClick={editGroups} />
       <PlayOutro />
+      <ShowLogo />
     </div>
   );
 }
@@ -171,5 +172,38 @@ export function ClearGroupsDialog({ onClose }: { onClose: () => void }) {
         </button>
       </div>
     </Dialog>
+  );
+}
+
+/** Logo: shows the active logo (Media ▸ Logo, the one with a bookmark) over everything, or hides it. */
+function ShowLogo() {
+  const logo = useStore((s) => s.media.find((m) => m.id === s.settings.logoMediaId));
+  const on = useStore((s) => s.live.logo);
+  const s = useStore.getState();
+  return (
+    <button
+      type="button"
+      className={`play-outro ${on && logo ? 'active' : ''}`}
+      disabled={!logo}
+      title={
+        logo
+          ? on
+            ? `Showing the logo “${logo.name}”: click to hide it`
+            : `Logo: show “${logo.name}”`
+          : 'Logo: no logo yet. Right-click an image or video in the media bin ▸ Active Logo.'
+      }
+      aria-label="Logo"
+      onClick={s.toggleLogo}
+      onContextMenu={(e) =>
+        openContextMenu(e, [
+          { label: on ? 'Hide Logo' : 'Show Logo', disabled: !logo, action: s.toggleLogo },
+          '-',
+          { label: 'Choose the Logo…', action: () => s.setUI({ mode: 'show', showMediaBin: true, mediaFilter: 'logo' }) },
+        ])
+      }
+    >
+      <Icon name="logo" size={15} />
+      <span>Logo</span>
+    </button>
   );
 }

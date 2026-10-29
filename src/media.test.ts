@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it } from 'vitest';
 import { buildFrame } from './frame';
 import { removeFromTab } from './components/deleting';
-import { isOutroName } from './countdowns';
+import { isLogoName, isOutroName } from './countdowns';
 import { mimeFromName, moveBefore, nextMedia, useStore } from './store';
 import type { MediaItem } from './types';
 
@@ -147,13 +147,13 @@ describe('outros', () => {
     s().playOutro();
     expect(s().live.mediaId).toBeNull();
     // The first video made an outro becomes the active one; it holds its last frame.
-    s().setOutro('v1', true);
+    s().markMedia('outro', 'v1', true);
     expect(s().media.find((m) => m.id === 'v1')).toMatchObject({ outro: true, playback: 'stop' });
     expect(s().settings.outroMediaId).toBe('v1');
-    s().setOutro('v3', true);
+    s().markMedia('outro', 'v3', true);
     expect(s().settings.outroMediaId).toBe('v1');
     // Choosing another as the active one.
-    s().setActiveOutro('v3');
+    s().setActiveMedia('outro', 'v3');
     expect(s().settings.outroMediaId).toBe('v3');
     s().playOutro();
     expect(s().live.mediaId).toBe('v3');
@@ -162,15 +162,15 @@ describe('outros', () => {
     s().playOutro();
     expect(s().live.mediaRestart).toBe(restarts + 1);
     // No longer an outro, or deleted: no active outro.
-    s().setOutro('v3', false);
+    s().markMedia('outro', 'v3', false);
     expect(s().settings.outroMediaId).toBeUndefined();
-    s().setActiveOutro('v1');
+    s().setActiveMedia('outro', 'v1');
     s().deleteMedia('v1');
     expect(s().settings.outroMediaId).toBeUndefined();
   });
 
   it('leave the media bin alone when removed from the Countdowns or Outro tab', () => {
-    s().setActiveOutro('v1');
+    s().setActiveMedia('outro', 'v1');
     s().updateMedia('v2', { countdown: true });
     removeFromTab(
       s().media.find((m) => m.id === 'v1')!,
@@ -190,5 +190,29 @@ describe('outros', () => {
     expect(isOutroName('Church Outro 4K')).toBe(true);
     expect(isOutroName('Despedida')).toBe(true);
     expect(isOutroName('Paint Sweeps Gold')).toBe(false);
+  });
+});
+
+describe('logos', () => {
+  it('work as outros do: a Logo tab, one active logo, and the Logo button shows it', () => {
+    s().updateSettings({ logoMediaId: undefined });
+    // An image becomes a logo; the first is the active one, on the Logo layer when it's turned on.
+    s().markMedia('logo', 'i1', true);
+    expect(s().media.find((m) => m.id === 'i1')?.logo).toBe(true);
+    expect(s().settings.logoMediaId).toBe('i1');
+    s().toggleLogo();
+    expect(buildFrame(s()).logoMediaId).toBe('i1');
+    // Another as the active one (a video can be a logo too; it keeps looping).
+    s().setActiveMedia('logo', 'v2');
+    expect(s().media.find((m) => m.id === 'v2')).toMatchObject({ logo: true, playback: 'stop' });
+    expect(buildFrame(s()).logoMediaId).toBe('v2');
+    // Out of the Logo tab: it stays in the media bin, and isn't the logo any more.
+    removeFromTab(
+      s().media.find((m) => m.id === 'v2')!,
+      'logo',
+    );
+    expect(s().media.some((m) => m.id === 'v2')).toBe(true);
+    expect(s().settings.logoMediaId).toBeUndefined();
+    expect(isLogoName('Church Logo White')).toBe(true);
   });
 });

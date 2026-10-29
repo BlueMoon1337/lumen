@@ -149,13 +149,13 @@ export function deleteMedia(id: string) {
   );
 }
 
-export type SpecialTab = 'countdown' | 'outro';
-export const TAB_NAMES: Record<SpecialTab, string> = { countdown: 'Countdowns', outro: 'Outro' };
+export type SpecialTab = 'countdown' | 'outro' | 'logo';
+export const TAB_NAMES: Record<SpecialTab, string> = { countdown: 'Countdowns', outro: 'Outro', logo: 'Logo' };
 
-/** Takes a video out of the Countdowns or Outro tab; it stays in the media bin (All Media, Videos). */
+/** Takes an item out of the Countdowns, Outro or Logo tab; it stays in the media bin (All Media). */
 export function removeFromTab(m: MediaItem, tab: SpecialTab) {
   if (tab === 'countdown') st().updateMedia(m.id, { countdown: false });
-  else st().setOutro(m.id, false);
+  else st().markMedia(tab, m.id, false);
 }
 
 export function deleteMediaPlaylist(id: string) {

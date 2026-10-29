@@ -4851,7 +4851,7 @@ body.resizing-y * {
   color: var(--text-3);
 }
 
-/* Play Outro, after the clear groups' gear. */
+/* Play Outro and Logo, after the clear groups' gear. */
 .play-outro {
   display: inline-flex;
   align-items: center;
@@ -4883,8 +4883,8 @@ body.resizing-y * {
   cursor: default;
 }
 
-/* The active outro in the media bin: a corner bookmark, like a felt one slipped over a page's corner. */
-.outro-bookmark {
+/* The active outro or logo in the media bin: a corner bookmark, like a felt one slipped over a page's corner. */
+.corner-bookmark {
   position: absolute;
   top: -3px;
   right: -3px;
@@ -4895,7 +4895,7 @@ body.resizing-y * {
   pointer-events: auto;
 }
 
-.outro-bookmark-felt {
+.corner-bookmark-felt {
   position: absolute;
   inset: 0;
   display: flex;
@@ -4907,7 +4907,7 @@ body.resizing-y * {
 }
 
 /* The stitching just inside its long edge. */
-.outro-bookmark-felt::after {
+.corner-bookmark-felt::after {
   content: '';
   position: absolute;
   top: 0;
@@ -4917,6 +4917,26 @@ body.resizing-y * {
   opacity: 0.6;
   transform-origin: top left;
   transform: rotate(45deg);
+}
+
+/* An item that's both the active outro and the active logo: the logo's bookmark on the other corner. */
+.corner-bookmark.left {
+  right: auto;
+  left: -3px;
+  filter: drop-shadow(1px 2px 2px rgba(0, 0, 0, 0.55));
+}
+
+.corner-bookmark.left .corner-bookmark-felt {
+  justify-content: flex-start;
+  padding: 6px 0 0 6px;
+  clip-path: polygon(0 0, 100% 0, 0 100%);
+}
+
+.corner-bookmark.left .corner-bookmark-felt::after {
+  left: auto;
+  right: 7px;
+  transform-origin: top right;
+  transform: rotate(-45deg);
 }
 
 .now-playing {

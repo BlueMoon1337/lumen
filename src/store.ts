@@ -15,7 +15,7 @@ import { ALL_LAYERS, clearLive } from './layers';
 import { DEFAULT_LOOK, lookScreen } from './looks';
 import { DEFAULT_STAGE_LAYOUTS } from './stageLayouts';
 import { deckFileOf, isSlideshow, SLIDESHOW_LIBRARY_ID, SLIDESHOW_LIBRARY_NAME } from './slideshows';
-import { countdownFade, isCountdownName, isOutroName } from './countdowns';
+import { countdownFade, isCountdownName, isLogoName, isOutroName } from './countdowns';
 import type {
   Category,
   Library,
@@ -29,6 +29,7 @@ import type {
   FontMeta,
   Group,
   LiveState,
+  MarkedTab,
   MediaItem,
   Message,
   Playlist,
@@ -120,7 +121,7 @@ interface UIState {
   editingThemeId: string | null;
   showMediaBin: boolean;
   /** What the media bin shows: its images and videos, a media playlist, or the cameras for the Video Input layer. */
-  mediaFilter: 'all' | 'image' | 'video' | 'countdown' | 'outro' | 'playlist' | 'inputs';
+  mediaFilter: 'all' | 'image' | 'video' | 'countdown' | 'outro' | 'logo' | 'playlist' | 'inputs';
   /** The media playlist shown when mediaFilter is "playlist". */
   mediaPlaylistId: string | null;
   liveTab: LiveTab;
@@ -242,15 +243,19 @@ interface Actions {
 
   /** Imports images, videos and audio (into a media playlist, if given) and returns what was added. */
   /** `countdown`, `outro`: the videos are countdowns or outros (imported into that tab). */
-  addMediaFiles(files: File[], playlistId?: string | null, options?: { countdown?: boolean; outro?: boolean }): Promise<MediaItem[]>;
+  addMediaFiles(
+    files: File[],
+    playlistId?: string | null,
+    options?: { countdown?: boolean; outro?: boolean; logo?: boolean },
+  ): Promise<MediaItem[]>;
   /** Adds media whose files are already stored (from an imported bundle). */
   addMedia(items: MediaItem[]): void;
   deleteMedia(id: string): void;
   updateMedia(id: string, patch: Partial<Pick<MediaItem, 'name' | 'loop' | 'playback' | 'countdown'>>): void;
-  /** Makes a video an outro (in the Outro tab) or not. The first outro becomes the active one. */
-  setOutro(id: string, on: boolean): void;
-  /** The video Play Outro plays (it becomes an outro too), or none. */
-  setActiveOutro(id: string | null): void;
+  /** Puts an item in the Outro or Logo tab, or takes it out. The first one in a tab becomes its active one. */
+  markMedia(tab: MarkedTab, id: string, on: boolean): void;
+  /** The tab's active item (it joins the tab too), or none: the outro Play Outro plays, the logo the Logo layer shows. */
+  setActiveMedia(tab: MarkedTab, id: string | null): void;
   /** Play Outro: the active outro on the Media layer, from the start. */
   playOutro(): void;
   createMediaPlaylist(name: string): string;
@@ -517,6 +522,14 @@ export const mimeFromName = (name: string) => MIME_BY_EXTENSION[name.split('.').
 
 /** The video or image after `id`: in its media playlist if it was started from one, else in the media bin. */
 /** The track after `id` in an audio playlist (back to the first if it loops), or null after its last. */
+/** Which setting holds a tab's active item. */
+export const ACTIVE_SETTING = { outro: 'outroMediaId', logo: 'logoMediaId' } as const satisfies Record<MarkedTab, keyof Settings>;
+
+/** An item put in the Outro or Logo tab. An outro video holds its last frame (unless set otherwise). */
+function joinTab(m: MediaItem, tab: MarkedTab): MediaItem {
+  return tab === 'outro' && m.kind === 'video' ? { ...m, outro: true, playback: m.playback ?? 'stop' } : { ...m, [tab]: true };
+}
+
 /** The list with the items whose keys are `ids` moved, in their order, before `beforeId` (or to the end). */
 export function moveBefore<T>(list: T[], key: (x: T) => string, ids: string[], beforeId: string | null): T[] {
   const moving = list.filter((x) => ids.includes(key(x)));
@@ -1020,13 +1033,17 @@ export const useStore = create<AppState>()(
             if (kind === 'video' && (options?.countdown || isCountdownName(item.name)))
               Object.assign(item, { countdown: true, playback: 'stop' });
             // Outros, the same way: they hold their last frame at the end of the service.
-            else if (kind === 'video' && (options?.outro || isOutroName(item.name))) Object.assign(item, { outro: true, playback: 'stop' });
+            else if (kind === 'video' && (options?.outro || isOutroName(item.name))) Object.assign(item, joinTab(item, 'outro'));
+            // Logos: images or videos imported into the Logo tab, or named like one.
+            else if (kind !== 'audio' && (options?.logo || isLogoName(item.name))) item.logo = true;
             await putMediaBlob(item.id, file);
             added.push(item);
           }
           if (added.length) set((s) => ({ media: [...s.media, ...added] }));
-          const outro = added.find((m) => m.outro);
-          if (outro && !get().settings.outroMediaId) get().setActiveOutro(outro.id);
+          for (const tab of ['outro', 'logo'] as const) {
+            const first = added.find((m) => m[tab]);
+            if (first && !get().settings[ACTIVE_SETTING[tab]]) get().setActiveMedia(tab, first.id);
+          }
           if (added.length && playlistId)
             get().addToMediaPlaylist(
               playlistId,
@@ -1078,25 +1095,20 @@ export const useStore = create<AppState>()(
           })),
 
         updateMedia: (id, patch) => set((s) => ({ media: s.media.map((m) => (m.id === id ? { ...m, ...patch } : m)) })),
-        setOutro: (id, on) =>
+        markMedia: (tab, id, on) =>
           set((s) => {
-            const active = s.settings.outroMediaId;
+            const key = ACTIVE_SETTING[tab];
+            const active = s.settings[key];
             return {
-              media: s.media.map((m) =>
-                m.id === id ? { ...m, outro: on || undefined, playback: on ? (m.playback ?? 'stop') : m.playback } : m,
-              ),
+              media: s.media.map((m) => (m.id === id ? (on ? joinTab(m, tab) : { ...m, [tab]: undefined }) : m)),
               settings:
-                on && !active
-                  ? { ...s.settings, outroMediaId: id }
-                  : !on && active === id
-                    ? { ...s.settings, outroMediaId: undefined }
-                    : s.settings,
+                on && !active ? { ...s.settings, [key]: id } : !on && active === id ? { ...s.settings, [key]: undefined } : s.settings,
             };
           }),
-        setActiveOutro: (id) =>
+        setActiveMedia: (tab, id) =>
           set((s) => ({
-            media: id ? s.media.map((m) => (m.id === id && !m.outro ? { ...m, outro: true, playback: m.playback ?? 'stop' } : m)) : s.media,
-            settings: { ...s.settings, outroMediaId: id ?? undefined },
+            media: id ? s.media.map((m) => (m.id === id && !m[tab] ? joinTab(m, tab) : m)) : s.media,
+            settings: { ...s.settings, [ACTIVE_SETTING[tab]]: id ?? undefined },
           })),
         playOutro: () => {
           const s = get();
@@ -1469,7 +1481,7 @@ export const useStore = create<AppState>()(
     },
     {
       name: 'lumen-library',
-      version: 9,
+      version: 10,
       migrate: (persisted, version) => {
         const saved = persisted as Partial<LibraryData>;
         const addTheme = (id: string) => {
@@ -1497,6 +1509,13 @@ export const useStore = create<AppState>()(
           );
           const first = saved.media.find((m) => m.outro);
           if (first && saved.settings && !saved.settings.outroMediaId) saved.settings = { ...saved.settings, outroMediaId: first.id };
+        }
+        // Version 10 added the Logo tab: the logo already chosen, and images and videos named like one, go there.
+        if (version < 10 && saved.media) {
+          const logoId = saved.settings?.logoMediaId;
+          saved.media = saved.media.map((m) =>
+            m.kind !== 'audio' && m.logo === undefined && (m.id === logoId || isLogoName(m.name)) ? { ...m, logo: true } : m,
+          );
         }
         // Version 7 matched the group list (and colors) to ProPresenter's.
         if (version < 7 && saved.settings?.groupPresets)

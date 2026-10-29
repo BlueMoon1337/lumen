@@ -236,7 +236,15 @@ export interface MediaItem {
   countdown?: boolean;
   /** Video: an outro (for the end of the service), in the media bin's Outro tab. */
   outro?: boolean;
+  /** Image or video: a logo, in the media bin's Logo tab. */
+  logo?: boolean;
 }
+
+/**
+ * Media bin tabs whose items have one active item: the outro Play Outro plays, and the logo the
+ * Logo button (the Logo layer) shows.
+ */
+export type MarkedTab = 'outro' | 'logo';
 
 /** When a video ends: start again, hold the last frame, clear the Media layer, or play the next one. */
 export type VideoPlayback = 'loop' | 'stop' | 'clear' | 'next';
