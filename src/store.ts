@@ -1399,9 +1399,17 @@ export const useStore = create<AppState>()(
             if (matches(i)) return s.goLive(p.id, i, s.selectedPlaylistItemId);
           }
         },
+        // Putting media up takes the logo down, as showing a slide does (goLive).
         setLiveMedia: (id, from = null) =>
           set((s) => ({
-            live: { ...s.live, mediaId: id, mediaPaused: false, mediaFrom: id ? from : null, mediaSeek: { to: 0, n: s.live.mediaSeek.n } },
+            live: {
+              ...s.live,
+              mediaId: id,
+              mediaPaused: false,
+              mediaFrom: id ? from : null,
+              mediaSeek: { to: 0, n: s.live.mediaSeek.n },
+              logo: id ? false : s.live.logo,
+            },
           })),
         seekMedia: (seconds) => set((s) => ({ live: { ...s.live, mediaSeek: { to: Math.max(0, seconds), n: s.live.mediaSeek.n + 1 } } })),
         mediaEnded: () => {

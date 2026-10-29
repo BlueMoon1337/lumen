@@ -225,6 +225,13 @@ describe('logos', () => {
     expect(s().live).toMatchObject({ logo: true, slide: null, mediaId: null, messageId: s().messages[0].id });
     s().pressLogo();
     expect(s().live.logo).toBe(false);
+    // Showing a slide, or putting media up, takes the logo down too.
+    s().pressLogo();
+    s().goLive(song, 0);
+    expect(s().live.logo).toBe(false);
+    s().pressLogo();
+    s().setLiveMedia('v3');
+    expect(s().live).toMatchObject({ logo: false, mediaId: 'v3' });
   });
 });
 
