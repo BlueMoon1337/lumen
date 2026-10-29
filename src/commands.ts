@@ -58,7 +58,7 @@ export function newPresentation(category: Category = 'song', title?: string): st
     background: { type: 'none', color: '#000000', color2: '#000000' },
   });
   s.select(id);
-  s.setUI({ mode: 'edit', sidebar: 'library', libraryCategory: category, editSlideId: group.slides[0].id, editTextSelected: false });
+  s.setUI({ mode: 'edit', sidebar: 'library', libraryCategory: category, editSlideId: group.slides[0].id, editTextSelected: true });
   return id;
 }
 

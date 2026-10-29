@@ -503,6 +503,20 @@ export const mimeFromName = (name: string) => MIME_BY_EXTENSION[name.split('.').
 
 /** The video or image after `id`: in its media playlist if it was started from one, else in the media bin. */
 /** The track after `id` in an audio playlist (back to the first if it loops), or null after its last. */
+/**
+ * A new slide (a text slide with nothing on it yet): the editor opens with its text box selected,
+ * its eight handles showing, ready to type into or size.
+ */
+export function isNewSlide(s: Pick<AppState, 'presentations'>, slideId: string | null): boolean {
+  if (!slideId) return false;
+  for (const p of Object.values(s.presentations))
+    for (const g of p.groups) {
+      const slide = g.slides.find((sl) => sl.id === slideId);
+      if (slide) return !slide.text && !slide.source && !slide.media;
+    }
+  return false;
+}
+
 export function nextAudio(s: Pick<LibraryData, 'media' | 'audioPlaylists'>, id: string, playlistId: string | null): string | null {
   const pl = s.audioPlaylists.find((x) => x.id === playlistId);
   if (!pl) return null;
@@ -707,7 +721,12 @@ export const useStore = create<AppState>()(
             set((s) => ({ selectedSlideIds: s.selectedSlideIds.filter((id) => id !== slideId) }));
         },
         openEditor: (slideId = null) =>
-          set({ mode: 'edit', editSlideId: slideId, editTextSelected: false, selectedSlideIds: slideId ? [slideId] : [] }),
+          set((s) => ({
+            mode: 'edit',
+            editSlideId: slideId,
+            editTextSelected: isNewSlide(s, slideId),
+            selectedSlideIds: slideId ? [slideId] : [],
+          })),
         assignGroup: (pid, slideId, preset) => edit(pid, (p) => ops.assignGroup(p, slideId, preset)),
         ungroup: (pid, slideId) => edit(pid, (p) => ops.ungroup(p, slideId)),
         deleteGroup: (pid, groupId) => {

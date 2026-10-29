@@ -2,7 +2,7 @@
 import { groupPresets, LABEL_SWATCHES, labelPresets } from '../labels';
 import { colorForGroup } from '../lyrics';
 import { canUngroup, type SlideScope } from '../slideOps';
-import { useStore } from '../store';
+import { isNewSlide, useStore } from '../store';
 import {
   DEFAULT_TRANSITION,
   directionLabel,
@@ -201,7 +201,7 @@ export function slideMenu(
   const ids = chosen.includes(slide.id) ? chosen : [slide.id];
   const many = ids.length > 1 ? ` ${ids.length} Slides` : '';
   // In Edit mode a new slide becomes the one on the canvas.
-  const select = (id: string | null) => inEdit && id && s.setUI({ editSlideId: id, editTextSelected: false });
+  const select = (id: string | null) => inEdit && id && s.setUI({ editSlideId: id, editTextSelected: isNewSlide(useStore.getState(), id) });
   return [
     // ProPresenter's Quick Edit: type on the slide, larger, without leaving Show (text slides).
     !inEdit &&

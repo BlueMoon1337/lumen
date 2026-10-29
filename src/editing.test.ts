@@ -40,6 +40,11 @@ describe('slide editing', () => {
     const first = get().groups[0].slides[0];
     const added = s.addSlide(get().id, first.id)!;
     expect(get().groups[0].slides.map((sl) => sl.id)).toEqual([first.id, added]);
+    // A new slide opens with its text box selected (its eight handles showing); one with words doesn't.
+    s.openEditor(added);
+    expect(useStore.getState().editTextSelected).toBe(true);
+    s.openEditor(first.id);
+    expect(useStore.getState().editTextSelected).toBe(false);
     const copy = s.duplicateSlide(get().id, first.id)!;
     expect(get().groups[0].slides[1]).toMatchObject({ id: copy, text: 'a' });
 
