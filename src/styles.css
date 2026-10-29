@@ -6242,3 +6242,34 @@ h3.looks-name {
   justify-content: space-between;
   gap: 12px;
 }
+
+/* ---- Countdown Fade (Audio tab) ---- */
+
+.countdown-fade {
+  display: grid;
+  gap: 6px;
+  padding: 8px;
+  font-size: 12px;
+  color: var(--text-2);
+}
+
+.countdown-fade-when {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.countdown-fade-when input {
+  width: 58px;
+}
+
+.countdown-fade-with {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 14px;
+}
+
+.timer-fade {
+  margin: 8px 0 2px;
+  font-size: 12px;
+}

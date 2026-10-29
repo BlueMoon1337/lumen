@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it } from 'vitest';
-import { countdownVolume, isCountdownName } from './countdowns';
+import { countdownFade, countdownVolume, isCountdownName } from './countdowns';
 import { buildFrame } from './frame';
 import { useStore } from './store';
 
@@ -39,6 +39,14 @@ describe('countdowns', () => {
     expect(buildFrame(s()).background).toMatchObject({ fadeOut: 20 });
     // Other videos don't.
     s().setLiveMedia('v', null);
+    expect(buildFrame(s()).background).not.toHaveProperty('fadeOut');
+  });
+
+  it('follow countdown videos and the timer unless turned off, from 10 seconds before the end', () => {
+    expect(countdownFade({})).toEqual({ seconds: 10, videos: true, timer: true });
+    expect(countdownFade({ countdownFadeSeconds: 30, countdownFadeTimer: false })).toEqual({ seconds: 30, videos: true, timer: false });
+    s().updateSettings({ countdownFadeVideos: false });
+    s().setLiveMedia('cd', null);
     expect(buildFrame(s()).background).not.toHaveProperty('fadeOut');
   });
 

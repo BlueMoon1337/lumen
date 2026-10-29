@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { useShallow } from 'zustand/react/shallow';
+import { countdownFade } from '../countdowns';
 import { notify } from '../notices';
 import { useStore } from '../store';
 import type { MediaItem } from '../types';
@@ -37,6 +38,54 @@ function audioMenu(m: MediaItem, playing: boolean) {
 }
 
 /**
+ * Countdown Fade: music on the Audio layer fades out as a countdown ends, starting this many
+ * seconds before. A countdown video, the Timers tab's countdown, or both can set it off.
+ */
+export function CountdownFade() {
+  const fade = useStore(useShallow((s) => countdownFade(s.settings)));
+  const s = useStore.getState();
+  const [draft, setDraft] = useState<string | null>(null);
+  const commit = () => {
+    if (draft === null) return;
+    const v = Number(draft);
+    if (Number.isFinite(v)) s.updateSettings({ countdownFadeSeconds: Math.max(0, Math.min(600, Math.round(v))) });
+    setDraft(null);
+  };
+  return (
+    <>
+      <SectionHeader title="Countdown Fade" />
+      <div className="countdown-fade">
+        <label className="countdown-fade-when">
+          <span>Start fading</span>
+          <input
+            type="number"
+            min={0}
+            max={600}
+            value={draft ?? String(fade.seconds)}
+            onChange={(e) => setDraft(e.target.value)}
+            onBlur={commit}
+            onKeyDown={(e) => e.key === 'Enter' && (e.currentTarget as HTMLInputElement).blur()}
+            aria-label="Seconds before the end that the music starts to fade"
+          />
+          <span>seconds before the end</span>
+        </label>
+        <div className="countdown-fade-with">
+          <label className="check-row inline">
+            <input type="checkbox" checked={fade.videos} onChange={(e) => s.updateSettings({ countdownFadeVideos: e.target.checked })} />
+            Countdown videos
+          </label>
+          <label className="check-row inline">
+            <input type="checkbox" checked={fade.timer} onChange={(e) => s.updateSettings({ countdownFadeTimer: e.target.checked })} />
+            Timer
+          </label>
+        </div>
+        {fade.seconds === 0 && <p className="muted small-print">0 seconds: the music stops at the end without fading.</p>}
+      </div>
+    </>
+  );
+}
+
+/**
  * ProPresenter's audio bin: music and sound effects that play on the Audio layer, from this
  * computer's speakers or sound card. Click one to play it, again to stop.
  */
@@ -61,6 +110,7 @@ export function AudioTab() {
         void importAudio(Array.from(e.dataTransfer.files));
       }}
     >
+      <CountdownFade />
       <SectionHeader title="Audio" onAdd={() => void importAudio()} addTitle="Import audio" />
       <ul className="audio-list">
         {audio.map((m) => {

@@ -286,8 +286,11 @@ export interface Settings {
   /** Advancing past the last slide moves on to the next playlist item. */
   advanceAcrossItems: boolean;
   logoMediaId?: string;
-  /** Seconds over which music fades as a countdown video ends; 10 when unset, 0 for no fade. */
+  /** Countdown Fade (Audio tab): seconds before the end that music starts to fade; 10 when unset. */
   countdownFadeSeconds?: number;
+  /** Countdown Fade follows countdown videos (on when unset) and the Timers tab's countdown (on when unset). */
+  countdownFadeVideos?: boolean;
+  countdownFadeTimer?: boolean;
   defaultThemeId: string;
   gridSize: number;
   /** View ▸ Slide View: Grid, Easy (just the words, large) or Table ('list'). */

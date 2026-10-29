@@ -1,6 +1,7 @@
 import { useShallow } from 'zustand/react/shallow';
 import { useRef, useState, type CSSProperties } from 'react';
 import { timerRemaining, useNow } from '../clock';
+import { countdownFade } from '../countdowns';
 import { useLiveFrame } from '../liveFrame';
 import { useStore, type LiveTab } from '../store';
 import { ALL_LAYERS, isLayerLive, LAYERS } from '../layers';
@@ -274,6 +275,7 @@ function TimersTab() {
   const now = useNow(250);
   const remaining = timerRemaining(timer, now);
   const [draft, setDraft] = useState(() => formatDuration(timer.durationMs));
+  const fade = useStore(useShallow((st) => countdownFade(st.settings)));
 
   return (
     <>
@@ -325,7 +327,14 @@ function TimersTab() {
             <IconButton icon="reset" title="Reset" onClick={s.resetTimer} />
           </div>
         </div>
-        <p className="muted small-print">Shows on the stage display. Put {'{countdown}'} in a message to show it to the audience.</p>
+        <label className="check-row timer-fade">
+          <input type="checkbox" checked={fade.timer} onChange={(e) => s.updateSettings({ countdownFadeTimer: e.target.checked })} />
+          Fade music out over its last {fade.seconds} seconds
+        </label>
+        <p className="muted small-print">
+          Shows on the stage display. Put {'{countdown}'} in a message to show it to the audience. The fade is set in Audio ▸ Countdown
+          Fade.
+        </p>
       </div>
     </>
   );

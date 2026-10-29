@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { create } from 'zustand';
-import { COUNTDOWN_FADE_SECONDS, countdownVolume } from '../countdowns';
+import { useShallow } from 'zustand/react/shallow';
+import { countdownFade, countdownVolume } from '../countdowns';
 import { useMedia } from '../media';
 import { useStore } from '../store';
 import { liveVideoElement } from './MediaClock';
@@ -67,26 +68,35 @@ export function AudioPlayer() {
     }, 30);
   }, [audioId]);
 
-  // A countdown on the Media layer takes the music down with it over its last seconds, and when
-  // it's over, the Audio layer clears. If the countdown goes before its end, the music comes back up.
-  const countdown = useStore((s) => !!s.media.find((m) => m.id === s.live.mediaId)?.countdown);
-  const fadeSeconds = useStore((s) => s.settings.countdownFadeSeconds ?? COUNTDOWN_FADE_SECONDS);
+  // Countdown Fade: a countdown video on the Media layer, or the Timers tab's countdown, takes the
+  // music down over its last seconds, and when it's over the Audio layer clears. If the countdown
+  // goes (or the timer is paused or reset) before its end, the music comes back up.
+  const fadeSettings = useStore(useShallow((s) => countdownFade(s.settings)));
+  const videoCountdown = useStore((s) => fadeSettings.videos && !!s.media.find((m) => m.id === s.live.mediaId)?.countdown);
+  const timerRunning = useStore((s) => fadeSettings.timer && s.timer.running && s.timer.endsAt !== null);
   useEffect(() => {
     const el = ref.current;
-    if (!el || !audioId || fadeSeconds <= 0) return;
-    if (!countdown) {
+    if (!el || !audioId) return;
+    if ((!videoCountdown && !timerRunning) || fadeSettings.seconds <= 0) {
       if (!fade.current) el.volume = 1;
       return;
     }
     const tick = window.setInterval(() => {
-      const v = liveVideoElement();
-      if (!v || !Number.isFinite(v.duration) || v.duration <= 0 || fade.current) return;
-      const remaining = v.duration - v.currentTime;
-      el.volume = countdownVolume(remaining, fadeSeconds);
-      if (v.ended || remaining <= 0.1) useStore.getState().clearLayers(['audio']);
+      if (fade.current) return;
+      const left: number[] = [];
+      // A countdown that's already over (a video holding its last frame, a timer running into overtime)
+      // leaves music started after it alone.
+      const v = videoCountdown ? liveVideoElement() : null;
+      if (v && !v.ended && Number.isFinite(v.duration) && v.duration > 0) left.push(v.duration - v.currentTime);
+      const endsAt = timerRunning ? useStore.getState().timer.endsAt : null;
+      if (endsAt !== null && endsAt - Date.now() > -1000) left.push((endsAt - Date.now()) / 1000);
+      if (!left.length) return;
+      const remaining = Math.min(...left);
+      el.volume = countdownVolume(remaining, fadeSettings.seconds);
+      if (remaining <= 0.1) useStore.getState().clearLayers(['audio']);
     }, 50);
     return () => window.clearInterval(tick);
-  }, [countdown, audioId, fadeSeconds]);
+  }, [videoCountdown, timerRunning, audioId, fadeSettings.seconds]);
 
   // A new track, or the same one again, starts from the top.
   useEffect(() => {
