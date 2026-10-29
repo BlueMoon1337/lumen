@@ -683,6 +683,10 @@ export const useStore = create<AppState>()(
           }
           const gi = p.groups.findIndex((g) => g.slides.some((sl) => sl.id === afterSlideId));
           const target = gi >= 0 ? gi : p.groups.length - 1;
+          // It takes the Text Style of the slide it follows (the last one, added at the end), so it
+          // looks like the rest of the song.
+          const before = p.groups[target].slides.find((sl) => sl.id === afterSlideId) ?? p.groups[target].slides.at(-1);
+          if (before?.style) slide.style = structuredClone(before.style);
           setGroups(pid, (groups) =>
             groups.map((g, i) => {
               if (i !== target) return g;

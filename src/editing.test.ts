@@ -54,6 +54,28 @@ describe('slide editing', () => {
     expect(get().arrangement).toHaveLength(1);
   });
 
+  it('gives a new slide the Text Style of the slide it follows', () => {
+    const get = make('[Verse 1]\na\n\nb\n\n[Chorus]\nc');
+    const s = useStore.getState();
+    const [a, b] = get().groups[0].slides;
+    const chorus = get().groups[1].slides[0];
+    s.updateSlide(get().id, a.id, { style: { fontFamily: 'Impact', fontSize: 120 } });
+    s.updateSlide(get().id, chorus.id, { style: { fontFamily: 'Copperplate', color: '#ffcc00' } });
+    const afterA = s.addSlide(get().id, a.id)!;
+    const afterB = s.addSlide(get().id, b.id)!;
+    // The bottom + adds after the last slide.
+    const atEnd = s.addSlide(get().id, chorus.id)!;
+    const styleOf = (id: string) =>
+      get()
+        .groups.flatMap((g) => g.slides)
+        .find((sl) => sl.id === id)?.style;
+    expect(styleOf(afterA)).toEqual({ fontFamily: 'Impact', fontSize: 120 });
+    expect(styleOf(afterB)).toBeUndefined();
+    expect(styleOf(atEnd)).toEqual({ fontFamily: 'Copperplate', color: '#ffcc00' });
+    // Its own copy: changing one doesn't change the other.
+    expect(styleOf(atEnd)).not.toBe(styleOf(chorus.id));
+  });
+
   it('starts a group when adding to an empty presentation', () => {
     const get = make('');
     const id = useStore.getState().addSlide(get().id);
