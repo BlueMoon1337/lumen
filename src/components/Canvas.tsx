@@ -293,6 +293,8 @@ interface Layer {
   effect: string;
   duration: number;
   easing: string;
+  /** Milliseconds before it starts (an incoming item waiting for the old one to go). */
+  delay?: number;
 }
 
 let layerSeq = 0;
@@ -305,7 +307,8 @@ function effectClass(t: Pick<SlideTransition, 'kind' | 'direction'>, phase: 'in'
 /**
  * Transitions between children whenever `itemKey` changes, with the effect the incoming
  * item brings (a dissolve, a push, a wipe…). "over" keeps the old content still underneath
- * while the new arrives, which avoids a dip to black between backgrounds.
+ * while the new arrives, which avoids a dip to black between backgrounds. "sequence" lets the
+ * old one go before the new one comes (each in half the time), so the two never overlap.
  */
 export function Transition({
   itemKey,
@@ -317,7 +320,7 @@ export function Transition({
   itemKey: string | null;
   duration: number;
   effect?: Pick<SlideTransition, 'kind' | 'direction' | 'easing'>;
-  mode?: 'cross' | 'over';
+  mode?: 'cross' | 'over' | 'sequence';
   children: ReactNode;
 }) {
   const ms = effect.kind === 'cut' ? 0 : duration;
@@ -341,12 +344,14 @@ export function Transition({
           ? 'tr-hold'
           : effectClass(effect, 'out');
     const into = shownKey === null && effect.kind === 'reveal' ? effectClass(fade, 'in') : effectClass(effect, 'in');
+    // One item replacing another in sequence: out in the first half, in during the second.
+    const half = mode === 'sequence' && shownKey !== null && itemKey !== null ? ms / 2 : 0;
     setShownKey(itemKey);
     setLayers((prev) => [
       ...prev
         .filter((l) => l.key !== itemKey)
-        .map((l) => (l.leaving ? l : { ...l, node: outgoing, leaving: true, effect: out, duration: ms, easing })),
-      { id: layerSeq++, key: itemKey, node: null, leaving: false, effect: into, duration: ms, easing },
+        .map((l) => (l.leaving ? l : { ...l, node: outgoing, leaving: true, effect: out, duration: half || ms, easing, delay: 0 })),
+      { id: layerSeq++, key: itemKey, node: null, leaving: false, effect: into, duration: half || ms, easing, delay: half },
     ]);
   }
 
@@ -366,7 +371,15 @@ export function Transition({
   return (
     <div className="tr-group">
       {layers.map((l) => (
-        <div key={l.id} className={`layer ${l.effect}`} style={{ animationDuration: `${l.duration}ms`, animationTimingFunction: l.easing }}>
+        <div
+          key={l.id}
+          className={`layer ${l.effect}`}
+          style={{
+            animationDuration: `${l.duration}ms`,
+            animationTimingFunction: l.easing,
+            animationDelay: l.delay ? `${l.delay}ms` : undefined,
+          }}
+        >
           {l.leaving ? l.node : children}
         </div>
       ))}
@@ -473,7 +486,7 @@ export function OutputView({
       )}
       {layer(
         show?.messages,
-        <Transition itemKey={frame?.message?.key ?? null} duration={d}>
+        <Transition itemKey={frame?.message?.key ?? null} duration={d} mode="sequence">
           {frame?.message && <MessageBanner text={frame.message.text} timer={frame.timer} />}
         </Transition>,
       )}
