@@ -6674,6 +6674,17 @@ h3.looks-name {
   height: 24px;
 }
 
+/* Its buttons stay white, selected or not; one that's on (playing, looping) gets a light backing instead of a color. */
+.audio-library-row .icon-btn,
+.audio-library-row .icon-btn:hover:not(:disabled),
+.audio-library-row .icon-btn.active {
+  color: #fff;
+}
+
+.audio-library-row .icon-btn.active {
+  background: rgba(255, 255, 255, 0.2);
+}
+
 .audio-library-list .empty {
   padding: 24px 14px;
   color: var(--text-3);
