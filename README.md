@@ -124,7 +124,7 @@ npm run format       # Prettier
 - **Announcements**: a presentation can play on its own layer over the slides, and any presentation can advance by itself (an announcement loop).
 - **Video Input**: webcams, capture cards and virtual cameras (OBS, NDI) as a live layer under everything.
 - **Countdown timer**, either a duration or a time of day, shown on the stage display and usable in messages. It stops at 0:00 (no overtime) and goes back to its length, ready to start again; the stage screen shows 0:00 for 5 seconds, then the timer disappears from it until it's started or reset.
-- **Messages** on the audience screen, with `{countdown}` and `{clock}` tokens. A built-in `{countdown}` message, always under the new-message box, shows the timer on its own.
+- **Messages** on the audience screen, with `{countdown}` and `{clock}` tokens. Built-in `{countdown}` and `{clock}` messages, always under the new-message box, show the timer or the time on their own. Press Return in a message to show it; Return in the new-message box adds the message and shows it (+ adds it for later).
 - **Stage display** showing the current and next slide, notes, clock, timer, and a flashing message to the stage.
 - **ProPresenter import** of `.pro` presentations, `.proplaylist` playlists and `.rvbible` Bibles (see below).
 - **PowerPoint and Keynote import** into their own library, with their slides editable in Edit mode (see below).
@@ -455,7 +455,7 @@ Each slide keeps its words (top to bottom), which **Search** finds and the stage
 
 Open a slide in **Edit** (double-click it, or the Edit button). Instead of Lumen's text box, the slide's own shapes, pictures and text boxes are there to change:
 
-- **Click** a shape, picture or text box to select it; **drag** it to move (arrow keys nudge, Shift by 10), drag the **handles** to resize (Shift, and pictures, keep their shape) and the round handle above to **turn** it (Shift: 15° steps). The slide's design (its master and layout: backgrounds, bands, logos) stays put and can't be selected.
+- **Click** a shape, picture or text box to select it; **drag** it to move (it snaps to the middle of the slide, with a yellow guide; ⌘ or Ctrl moves it freely; arrow keys nudge, Shift by 10; **Center** in the toolbar, right-click menu or inspector centers it), drag the **handles** to resize (Shift, and pictures, keep their shape) and the round handle above to **turn** it (Shift: 15° steps). The slide's design (its master and layout: backgrounds, bands, logos) stays put and can't be selected.
 - **Double-click** a text box (or press Return) to type in it. Its fonts, sizes and colors stay as they are; select words and use **B**, **I**, **U** or a color swatch in the inspector to change just them. Click outside or press Escape when done.
 - The inspector's **Shape** tab has the position, size and angle; Front, Forward, Backward and Back; the text's font, size, color, bold, italic, underline, alignment and vertical alignment (for the whole box); and fill and line colors. With nothing selected it's **Slide Design**, with the slide's background color.
 - The buttons above the slide add a **text box**, a **shape** (rectangle, rounded rectangle, oval, triangles, line) or a **picture** (from a file or the media bin).
@@ -550,7 +550,7 @@ Was blind, but now I see.
 | `Delete` / `⌫`                 | Delete the selected slides, presentation, playlist item, or library                                                                                                                                              |
 | `⌥⌘C` / `⌥⌘V` (Ctrl+Alt+C/V)   | Copy / paste the selected slides' text style                                                                                                                                                                     |
 
-Clickers that send arrow keys or Page Up/Down work out of the box. In Edit mode, the arrow keys nudge the selected text box (Shift for 10px), Enter starts typing, and Escape deselects.
+Clickers that send arrow keys or Page Up/Down work out of the box. In Edit mode, the arrow keys nudge the selected text box (Shift for 10px), Enter starts typing, and Escape deselects. Dragging a text box snaps it to the middle of the slide, with a yellow guide line while it's there (hold ⌘ or Ctrl to move it freely); the **Center** button in the floating toolbar, right-click ▸ **Center on Slide**, and **Center / Horizontally / Vertically** under Position in the Text inspector put it in the middle.
 
 ## How it works
 
