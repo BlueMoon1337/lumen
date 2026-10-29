@@ -2,6 +2,7 @@ import { useEffect, useRef } from 'react';
 import { create } from 'zustand';
 import { useMedia } from '../media';
 import { useStore } from '../store';
+import { countdownFade, countdownVolume } from '../countdowns';
 import type { VideoClock } from '../types';
 
 /** Where the live video is, for the transport. */
@@ -19,10 +20,11 @@ let liveVideo: HTMLVideoElement | null = null;
 export const liveVideoElement = () => liveVideo;
 
 /**
- * Keeps time for the video on the Media layer in the operator window: a silent copy that
- * starts, pauses and seeks with the screens, so the transport can show where it is and Lumen
- * knows when it ends (to stop, clear or play the next, as the video is set to). Showing the
- * Stage preview, or no preview, doesn't stop it.
+ * Keeps time for the video on the Media layer in the operator window: a copy that starts, pauses
+ * and seeks with the screens, so the transport can show where it is and Lumen knows when it ends
+ * (to stop, clear or play the next, as the video is set to). It plays the video's sound, from this
+ * computer, as the Audio layer does (the screens are silent: a projector window, never clicked,
+ * may not be let play sound). Showing the Stage preview, or no preview, doesn't stop it.
  */
 export function MediaClock() {
   const mediaId = useStore((s) => s.live.mediaId);
@@ -82,6 +84,20 @@ export function MediaClock() {
     useVideoClock.setState({ ...next, endedAt: null });
   };
 
+  // A countdown's sound goes down with it over its last seconds (Countdown Fade's videos switch).
+  const fadeOut = useStore((s) => (item?.countdown && countdownFade(s.settings).videos ? countdownFade(s.settings).seconds : 0));
+  useEffect(() => {
+    const v = ref.current;
+    if (!v || !fadeOut || !media) return;
+    const tick = window.setInterval(() => {
+      if (Number.isFinite(v.duration) && v.duration > 0) v.volume = countdownVolume(v.duration - v.currentTime, fadeOut);
+    }, 50);
+    return () => {
+      window.clearInterval(tick);
+      v.volume = 1;
+    };
+  }, [fadeOut, media]);
+
   useEffect(() => {
     liveVideo = ref.current;
     return () => {
@@ -98,7 +114,6 @@ export function MediaClock() {
       ref={ref}
       className="media-clock"
       src={media?.url}
-      muted
       playsInline
       preload="auto"
       loop={(item?.playback ?? 'loop') === 'loop'}

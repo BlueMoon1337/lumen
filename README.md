@@ -295,7 +295,7 @@ The function keys are ProPresenter's: F4 now clears the logo and F6 the messages
 - **Clear**: take it off, with the media transition.
 - **Play the Next One**: the next video or image in the playlist it was started from (or the media bin), then clear after the last.
 
-A video's own sound plays from the first audience screen.
+A video's own sound (a video from the media bin, an outro, a countdown, a slide's video) plays from this computer's speakers or sound card, from the control window, as the Audio layer does; the screens themselves are silent, so it plays whether or not a projector is connected, and only once.
 
 **Videos on slides.** Drag a video or image from the media bin onto a slide (or drop an MP4 file straight on it) to give the slide a **media cue**, as in ProPresenter: showing that slide starts the video on the Media layer, and it keeps playing through the next slides until other media or a clear. The slide's thumbnail shows the video behind its words, with a film badge (click it to show it now or take it off). Right-click a slide → **Media**, or the Slide inspector's **Media**, picks one from a list too. A slide whose cue is already playing doesn't restart it.
 
@@ -315,7 +315,7 @@ The column on the right of the preview clears one layer each, top to bottom as i
 
 **Clear Groups** sit under the preview: each clears several layers at once, and lights up while any of them is live. Lumen starts with **Clear Text** (slide, announcements and messages, so the background and music keep going), **Clear All but Audio**, and **Clear Media & Audio**. The gear button, or a right-click there, opens **Clear Groups** to add your own with a name, icon and color, and pick its layers.
 
-**Audio.** The **Audio** tab (music note) holds songs and sound effects. Drop files there or press +, then click one to play it and again to stop. The ↻ button or right-click → **Loop** repeats it. While it plays, the transport under the preview shows the time, a position slider, pause and play from the start. Audio plays from the operator computer's speakers or sound card, as in ProPresenter. A video's own sound plays from the first audience output.
+**Audio.** The **Audio** tab (music note) holds songs and sound effects. Drop files there or press +, then click one to play it and again to stop. The ↻ button or right-click → **Loop** repeats it. While it plays, the transport under the preview shows the time, a position slider, pause and play from the start. Audio plays from the operator computer's speakers or sound card, as in ProPresenter, and so does a video's own sound.
 
 **Announcements.** Right-click a presentation → **Plays On ▸ Announcements**, or set **Plays On** in the Presentation inspector. Its slides then go on the Announcements layer, over whatever slides are up, with their own theme background. Clicking its slides and pressing the arrow keys while it's selected steps the announcements; the lyrics stay where they are. **Auto-Advance** (right-click, or the inspector) moves any presentation to its next slide every so many seconds, and **Loop** starts it again after the last. Choosing a slide by hand restarts the time.
 

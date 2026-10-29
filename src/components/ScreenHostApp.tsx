@@ -87,8 +87,6 @@ interface HostRoute {
   /** Pixel size of the display's signal; unset for a plain full-window output. */
   size?: { width: number; height: number };
   entries: RouteEntry[];
-  /** This window plays the audience output's sound. */
-  audio: boolean;
 }
 
 /**
@@ -106,7 +104,7 @@ function readRoute(): HostRoute {
   });
   if (!entries.length)
     entries.push({ screenId: q.get('screen'), outputId: q.get('output'), kind: route === 'stage' ? 'stage' : 'audience' });
-  return { size: m ? { width: Number(m[1]), height: Number(m[2]) } : undefined, entries, audio: q.has('audio') || route === 'output' };
+  return { size: m ? { width: Number(m[1]), height: Number(m[2]) } : undefined, entries };
 }
 
 function useHostRoute() {
@@ -237,8 +235,7 @@ function OutputRegion({
   output,
   index,
   signal,
-  playsSound,
-}: Resolved & { frame: OutputFrame | null; signal?: { width: number; height: number }; playsSound: boolean }) {
+}: Resolved & { frame: OutputFrame | null; signal?: { width: number; height: number } }) {
   const { w, h } = useWindowSize();
   const r = signal ? targetRect(output.target, signal) : { x: 0, y: 0, width: 1, height: 1 };
   const region = { left: r.x * w, top: r.y * h, width: r.width * w, height: r.height * h };
@@ -279,13 +276,7 @@ function OutputRegion({
           {screen.kind === 'stage' ? (
             <StageView frame={shown} layout={shown?.stageLayouts?.[screen.id]} />
           ) : (
-            <OutputView
-              frame={shown}
-              muted={!playsSound}
-              screenColor={screen.screenColor}
-              alphaKey={alphaKey}
-              look={shown?.looks?.[screen.id]}
-            />
+            <OutputView frame={shown} screenColor={screen.screenColor} alphaKey={alphaKey} look={shown?.looks?.[screen.id]} />
           )}
           {pattern && <TestPatternView pattern={pattern} label={screen.name} width={layout.width} height={layout.height} />}
         </div>
@@ -317,13 +308,11 @@ export default function ScreenHostApp() {
   const shown = route.entries.map((e) => resolve(frame, e)).filter((r): r is Resolved => !!r);
   const title = shown.length ? `Lumen · ${[...new Set(shown.map((r) => r.screen.name))].join(' + ')}` : 'Lumen';
   const idle = useOutputWindowChrome(title);
-  // Only one window, and in it one output, plays video sound (the desktop app's first audience output).
-  const sounding = route.audio && window.lumenDesktop ? shown.find((r) => r.screen.kind === 'audience') : undefined;
 
   return (
     <div className={`output-window ${idle ? 'idle' : ''}`}>
       {shown.map((r) => (
-        <OutputRegion key={`${r.screen.id}:${r.output.id}`} {...r} frame={frame} signal={route.size} playsSound={r === sounding} />
+        <OutputRegion key={`${r.screen.id}:${r.output.id}`} {...r} frame={frame} signal={route.size} />
       ))}
       {!idle && !window.lumenDesktop && <div className="output-hint">Double-click for fullscreen</div>}
       {!frame && <div className="output-waiting">Waiting for the Lumen control window…</div>}

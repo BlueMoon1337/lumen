@@ -223,11 +223,10 @@ export async function requestScreenAccess() {
 /** One window per display (holding every output on it), or per output that has no display. */
 function desired(): { host: OutputHost; route: string; title: string }[] {
   const hosts = planHosts(activeOutputs(useStore.getState().screens, useDisplays.getState().displays));
-  // One window plays video sound: the one with the first audience output.
-  const audio = hosts.find((h) => h.outputs.some((p) => p.kind === 'audience'));
+  // Output windows are silent: the live video's sound plays from the control window (MediaClock).
   return hosts.map((host) => ({
     host,
-    route: `${hostRoute(host)}${host === audio ? '&audio' : ''}`,
+    route: hostRoute(host),
     title: `Lumen · ${[...new Set(host.outputs.map((p) => p.screen.name))].join(' + ')}`,
   }));
 }

@@ -558,12 +558,10 @@ function soundTrack(matrix: CaptureSettings['audio']['matrix']): { track: MediaS
       node.connect(mix);
       connected.push(node);
     }
-    // The operator window's copy of the live video is silent; while recording, its sound goes
-    // to the recording only (the screens play it out loud).
+    // The operator window's copy of the live video plays its sound, out loud and into the recording.
     const video = liveVideoElement();
     if (video) {
-      const node = sourceFor(ctx, video, false);
-      video.muted = false;
+      const node = sourceFor(ctx, video, true);
       node.connect(mix);
       connected.push(node);
     }
@@ -571,7 +569,6 @@ function soundTrack(matrix: CaptureSettings['audio']['matrix']): { track: MediaS
       track: out.stream.getAudioTracks()[0],
       stop: () => {
         for (const node of connected) node.disconnect(mix);
-        if (video) video.muted = true;
         mix.disconnect();
         merge.disconnect();
         gains.forEach((g) => g.disconnect());
