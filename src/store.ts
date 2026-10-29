@@ -413,7 +413,8 @@ function whenTimerEnds(endsAt: number | null) {
       const s = useStore.getState();
       if (!s.timer.running || s.timer.endsAt !== endsAt) return;
       if (Date.now() < endsAt) return whenTimerEnds(endsAt);
-      s.resetTimer();
+      // Back to its length, ready to start again; the stage shows 0:00 for a moment (shownTimer).
+      useStore.setState({ timer: { ...s.timer, running: false, endsAt: null, remainingMs: s.timer.durationMs, endedAt: Date.now() } });
       if (countdownFade(s.settings).timer && s.live.audioId) s.clearLayers(['audio']);
     },
     Math.max(0, endsAt - Date.now()),
@@ -1308,7 +1309,7 @@ export const useStore = create<AppState>()(
 
         setTimer: (patch) =>
           set((s) => {
-            const timer = { ...s.timer, ...patch };
+            const timer = { ...s.timer, ...patch, endedAt: null };
             if (!timer.running) timer.remainingMs = timer.durationMs;
             return { timer };
           }),
@@ -1317,7 +1318,7 @@ export const useStore = create<AppState>()(
             if (s.timer.running) return {};
             const now = Date.now();
             const endsAt = s.timer.mode === 'toTime' ? nextOccurrence(s.timer.targetTime, now) : now + s.timer.remainingMs;
-            return { timer: { ...s.timer, running: true, endsAt } };
+            return { timer: { ...s.timer, running: true, endsAt, endedAt: null } };
           });
           whenTimerEnds(get().timer.endsAt);
         },
@@ -1329,7 +1330,7 @@ export const useStore = create<AppState>()(
           whenTimerEnds(null);
         },
         resetTimer: () => {
-          set((s) => ({ timer: { ...s.timer, running: false, endsAt: null, remainingMs: s.timer.durationMs } }));
+          set((s) => ({ timer: { ...s.timer, running: false, endsAt: null, remainingMs: s.timer.durationMs, endedAt: null } }));
           whenTimerEnds(null);
         },
 

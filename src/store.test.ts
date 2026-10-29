@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { timerRemaining } from './clock';
+import { shownTimer, shownVideoClock, timerRemaining } from './clock';
 import { buildFrame } from './frame';
 import { useStore } from './store';
 import { formatDuration, parseDuration } from './util';
@@ -116,6 +116,11 @@ describe('timer', () => {
       vi.advanceTimersByTime(1_000);
       expect(useStore.getState().timer).toMatchObject({ running: false, endsAt: null, remainingMs: 30_000 });
       expect(useStore.getState().live.audioId).toBeNull();
+      // The stage shows 0:00 for five seconds, then no timer, until it's started or reset.
+      expect(shownTimer(useStore.getState().timer, Date.now() + 4_900)).toBe(0);
+      expect(shownTimer(useStore.getState().timer, Date.now() + 5_000)).toBeNull();
+      s.resetTimer();
+      expect(shownTimer(useStore.getState().timer, Date.now() + 5_000)).toBe(30_000);
       // Paused before the end, it doesn't stop by itself.
       s.startTimer();
       vi.advanceTimersByTime(10_000);
@@ -133,6 +138,17 @@ describe('timer', () => {
     } finally {
       vi.useRealTimers();
     }
+  });
+
+  it('show a countdown video’s 0:00 on the stage for five seconds after it ends, then nothing', () => {
+    const t = 1_000_000;
+    expect(shownVideoClock({ endsAt: t + 4_200, remainingMs: null }, t)).toBe(4_200);
+    expect(shownVideoClock({ endsAt: null, remainingMs: 9_000 }, t)).toBe(9_000);
+    expect(shownVideoClock({ endsAt: null, remainingMs: 0, endedAt: t }, t + 4_900)).toBe(0);
+    expect(shownVideoClock({ endsAt: null, remainingMs: 0, endedAt: t }, t + 5_000)).toBeNull();
+    // Played again, it counts down again.
+    expect(shownVideoClock({ endsAt: t + 60_000, remainingMs: null, endedAt: null }, t)).toBe(60_000);
+    expect(shownVideoClock(undefined, t)).toBeNull();
   });
 
   it('formats and parses durations', () => {

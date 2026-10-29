@@ -604,6 +604,8 @@ export interface TimerState {
   endsAt: number | null;
   /** Remaining time while paused. */
   remainingMs: number;
+  /** When it last ran out: the stage shows 0:00 for a few seconds, then no timer until it's started or reset. */
+  endedAt?: number | null;
 }
 
 export interface LiveSlideRef {
@@ -710,8 +712,16 @@ export interface OutputFrame {
   looks?: Record<string, ScreenLook>;
   /** Each stage screen's layout, by screen id. */
   stageLayouts?: Record<string, StageLayout>;
-  /** The live video's end, for a stage layout's Video Countdown: when it ends if playing, or the time left if paused. */
-  videoClock?: { endsAt: number | null; remainingMs: number | null };
+  /** The live video's end, for a stage layout's Video Countdown. */
+  videoClock?: VideoClock;
+}
+
+/** When the live video ends if it's playing, or the time left if it's paused; and when it last ended. */
+export interface VideoClock {
+  endsAt: number | null;
+  remainingMs: number | null;
+  /** It played to its end then (the stage shows 0:00 for a few seconds, then no countdown). */
+  endedAt?: number | null;
 }
 
 /** A slide as a picture: its words in its theme, over its background or media. */

@@ -123,7 +123,7 @@ npm run format       # Prettier
 - **Audio bin** in the live panel: music and sound effects that play from this computer, loop if you like, and fade out when cleared.
 - **Announcements**: a presentation can play on its own layer over the slides, and any presentation can advance by itself (an announcement loop).
 - **Video Input**: webcams, capture cards and virtual cameras (OBS, NDI) as a live layer under everything.
-- **Countdown timer**, either a duration or a time of day, shown on the stage display and usable in messages. It stops at 0:00 (no overtime) and goes back to its length, ready to start again.
+- **Countdown timer**, either a duration or a time of day, shown on the stage display and usable in messages. It stops at 0:00 (no overtime) and goes back to its length, ready to start again; the stage screen shows 0:00 for 5 seconds, then the timer disappears from it until it's started or reset.
 - **Messages** on the audience screen, with `{countdown}` and `{clock}` tokens.
 - **Stage display** showing the current and next slide, notes, clock, timer, and a flashing message to the stage.
 - **ProPresenter import** of `.pro` presentations, `.proplaylist` playlists and `.rvbible` Bibles (see below).
@@ -375,7 +375,7 @@ A look says what each audience screen shows: which layers (Messages, Logo, Annou
 
 **Edit Layouts…** (⌘4) opens the layout editor in place of the slides, like Edit mode: the layouts down the left with their objects underneath, the layout on a canvas with rulers, and an inspector on the right.
 
-- The toolbar above the canvas adds objects: **Slide** (current or next slide's text, notes or picture, the group name, the presentation title), **Time** (the clock, the countdown timer, the time left in the live video), **Message** (the stage message, shown only while there is one), **Text** and **Shape**.
+- The toolbar above the canvas adds objects: **Slide** (current or next slide's text, notes or picture, the group name, the presentation title), **Time** (the clock, the countdown timer, the time left in the live video; when either countdown runs out it shows 0:00 for 5 seconds, then disappears), **Message** (the stage message, shown only while there is one), **Text** and **Shape**.
 - Drag an object to move it, or its handles to resize it; the arrow keys nudge it (Shift for 10 pixels), ⌘D duplicates it and Delete removes it. Right-click for Bring to Front and the rest.
 - The inspector sets the layout's name, background and size, and each object's position, font, size, weight, color, alignment, label and fill.
 - **+** makes a blank layout, a copy of the current one, or one from the templates (Current + Next Text, Lyrics & Notes, Current & Next Slide). Right-click a layout to rename, duplicate or delete it.

@@ -1599,10 +1599,6 @@ body.resizing-y * {
   padding: 6px 0;
 }
 
-.timer-value.over {
-  color: var(--red);
-}
-
 .timer-controls {
   display: flex;
   align-items: center;

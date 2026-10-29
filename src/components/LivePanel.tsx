@@ -294,7 +294,7 @@ function TimersTab() {
               <option value="toTime">To time of day</option>
             </select>
           </div>
-          <div className={`timer-value ${remaining < 0 ? 'over' : ''}`}>{formatDuration(remaining)}</div>
+          <div className="timer-value">{formatDuration(remaining)}</div>
           <div className="timer-controls">
             {timer.mode === 'duration' ? (
               <input

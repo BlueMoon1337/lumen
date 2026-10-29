@@ -1,5 +1,5 @@
 import { useEffect, useLayoutEffect, useRef, useState, type CSSProperties, type ReactNode } from 'react';
-import { timerRemaining, useNow } from '../clock';
+import { shownTimer, useNow } from '../clock';
 import { countdownVolume } from '../countdowns';
 import { useFontsVersion } from '../fonts';
 import { useMedia } from '../media';
@@ -377,9 +377,7 @@ export function Transition({
 const DISSOLVE = { kind: 'dissolve' } as const;
 
 export function resolveTokens(text: string, timer: OutputFrame['timer'], now: number) {
-  return text
-    .replace(/\{countdown\}/gi, formatDuration(Math.max(0, timerRemaining(timer, now))))
-    .replace(/\{clock\}/gi, formatClock(new Date(now)));
+  return text.replace(/\{countdown\}/gi, formatDuration(shownTimer(timer, now) ?? 0)).replace(/\{clock\}/gi, formatClock(new Date(now)));
 }
 
 function MessageBanner({ text, timer }: { text: string; timer: OutputFrame['timer'] }) {

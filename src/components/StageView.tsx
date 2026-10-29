@@ -1,4 +1,4 @@
-import { timerRemaining, useNow } from '../clock';
+import { shownTimer, shownVideoClock, useNow } from '../clock';
 import { defaultThemes } from '../seed';
 import { DEFAULT_STAGE_LAYOUTS, STAGE_KINDS } from '../stageLayouts';
 import type { OutputFrame, StageLayout, StageObject, Theme } from '../types';
@@ -24,7 +24,7 @@ const objectTheme = (o: StageObject): Theme => ({
 });
 
 /** What a stage object says now, or null for nothing (an empty slot). */
-function objectText(o: StageObject, frame: OutputFrame | null, now: number): { text: string | null; over?: boolean } {
+function objectText(o: StageObject, frame: OutputFrame | null, now: number): { text: string | null } {
   const s = frame?.stage;
   switch (o.kind) {
     case 'currentText':
@@ -47,13 +47,12 @@ function objectText(o: StageObject, frame: OutputFrame | null, now: number): { t
       return { text: formatClock(new Date(now)) };
     case 'timer': {
       if (!frame) return { text: null };
-      const left = timerRemaining(frame.timer, now);
-      return { text: formatDuration(left), over: left < 0 };
+      const left = shownTimer(frame.timer, now);
+      return { text: left == null ? null : formatDuration(left) };
     }
     case 'videoCountdown': {
-      const clock = frame?.videoClock;
-      const left = clock?.endsAt != null ? clock.endsAt - now : clock?.remainingMs;
-      return { text: left == null ? null : formatDuration(Math.max(0, left)) };
+      const left = shownVideoClock(frame?.videoClock, now);
+      return { text: left == null ? null : formatDuration(left) };
     }
     default:
       return { text: null };
@@ -84,11 +83,12 @@ function StageObjectView({ o, frame, now, samples }: { o: StageObject; frame: Ou
       </div>
     );
   }
-  const { text, over } = objectText(o, frame, now);
-  // The message shows only while there is one; other slots show a sample in the editor.
-  if (o.kind === 'message' && !text && !samples) return null;
+  const { text } = objectText(o, frame, now);
+  // The message shows only while there is one, and countdowns go a few seconds after they run
+  // out; other slots show a sample in the editor.
+  if ((o.kind === 'message' || o.kind === 'timer' || o.kind === 'videoCountdown') && !text && !samples) return null;
   const shown = text ?? (samples ? kind.sample : null);
-  const theme = objectTheme(over ? { ...o, color: '#ff5a5a' } : o);
+  const theme = objectTheme(o);
   return (
     <div className={`stage-obj ${!text && samples ? 'sample' : ''}`} style={box}>
       {shown && <SlideText text={shown} theme={theme} />}

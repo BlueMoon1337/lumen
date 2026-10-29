@@ -2,6 +2,7 @@ import { useEffect, useRef } from 'react';
 import { create } from 'zustand';
 import { useMedia } from '../media';
 import { useStore } from '../store';
+import type { VideoClock } from '../types';
 
 /** Where the live video is, for the transport. */
 export const useMediaStatus = create<{ time: number; duration: number }>(() => ({ time: 0, duration: 0 }));
@@ -11,7 +12,7 @@ export const useMediaStatus = create<{ time: number; duration: number }>(() => (
  * the time left while paused. Changes only when the video starts, stops, seeks or loops, so the
  * screens count down by themselves.
  */
-export const useVideoClock = create<{ endsAt: number | null; remainingMs: number | null }>(() => ({ endsAt: null, remainingMs: null }));
+export const useVideoClock = create<VideoClock>(() => ({ endsAt: null, remainingMs: null, endedAt: null }));
 
 /** The live video's element: the capture records its picture and sound. */
 let liveVideo: HTMLVideoElement | null = null;
@@ -72,11 +73,13 @@ export function MediaClock() {
         : v && !v.paused
           ? { endsAt: Math.round(Date.now() + left), remainingMs: null }
           : { endsAt: null, remainingMs: Math.round(left) };
+    // Holding the last frame after it ended (a countdown) is still ended.
+    if (v?.ended && next.endsAt === null) return;
     const now = useVideoClock.getState();
     // Within half a second is the same end: no need to send the screens a new frame.
     if (next.endsAt !== null && now.endsAt !== null && Math.abs(next.endsAt - now.endsAt) < 500) return;
-    if (next.endsAt === now.endsAt && next.remainingMs === now.remainingMs) return;
-    useVideoClock.setState(next);
+    if (next.endsAt === now.endsAt && next.remainingMs === now.remainingMs && now.endedAt == null) return;
+    useVideoClock.setState({ ...next, endedAt: null });
   };
 
   useEffect(() => {
@@ -105,7 +108,10 @@ export function MediaClock() {
       onPause={clock}
       onSeeked={clock}
       onRateChange={clock}
-      onEnded={() => useStore.getState().mediaEnded()}
+      onEnded={() => {
+        useVideoClock.setState({ endsAt: null, remainingMs: 0, endedAt: Date.now() });
+        useStore.getState().mediaEnded();
+      }}
       hidden
     />
   );
