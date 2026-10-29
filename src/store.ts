@@ -99,7 +99,7 @@ export function librariesFor(libraries: Library[] | undefined, presentations: Re
 }
 
 export type Mode = 'show' | 'edit' | 'reflow' | 'bible' | 'layouts';
-export type LiveTab = 'audio' | 'stage' | 'timers' | 'messages' | 'props';
+export type LiveTab = 'audio' | 'timers' | 'stage' | 'messages' | 'props';
 
 interface UIState {
   selectedPresentationId: string | null;

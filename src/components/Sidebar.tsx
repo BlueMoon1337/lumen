@@ -4,7 +4,7 @@ import { useStore } from '../store';
 import type { Category } from '../types';
 import { slideWords } from '../slideshows';
 import { openContextMenu, type ContextEntries } from './ContextMenu';
-import { deleteLibrary, deletePlaylist, deletePresentation, removePlaylistItem } from './deleting';
+import { deleteLibrary, deletePlaylist, removePlaylistItem } from './deleting';
 import { importFileCommand, newLibrary, newPlaylist, newPresentationNamed } from './fileCommands';
 import { libraryMenu, playlistHeaderMenu, playlistMenu, presentationMenu } from './menus';
 import { DRAG_PLAYLIST_ITEM, DRAG_PRESENTATION, FilterField, Icon, IconButton, pickFiles, SectionHeader, type IconName } from './ui';
@@ -292,12 +292,10 @@ function LibraryItems() {
           >
             <ItemIcon category={p.category} announcements={p.destination === 'announcements'} />
             <span className="list-label">{p.title}</span>
-            {(liveId === p.id || announcementId === p.id) && <span className="live-dot" title="Live" />}
             <span className="row-actions">
               <IconButton icon="plus" title="Add to playlist" onClick={() => s.addToPlaylist(p.id)} />
-              <IconButton icon="copy" title="Duplicate" onClick={() => s.duplicatePresentation(p.id)} />
-              <IconButton icon="trash" title="Delete" danger onClick={() => deletePresentation(p.id)} />
             </span>
+            {(liveId === p.id || announcementId === p.id) && <span className="live-dot" title="Live" />}
           </li>
         ))}
         {list.length === 0 && (

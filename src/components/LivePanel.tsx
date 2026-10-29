@@ -169,8 +169,8 @@ function VideoTransport() {
 
 const TABS: { id: LiveTab; icon: IconName; label: string }[] = [
   { id: 'audio', icon: 'music', label: 'Audio' },
-  { id: 'stage', icon: 'person', label: 'Stage' },
   { id: 'timers', icon: 'clock', label: 'Timers' },
+  { id: 'stage', icon: 'person', label: 'Stage' },
   { id: 'messages', icon: 'send', label: 'Messages' },
   { id: 'props', icon: 'layers', label: 'Props' },
 ];
