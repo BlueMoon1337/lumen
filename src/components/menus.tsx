@@ -567,9 +567,10 @@ export function mediaMenu(m: MediaItem, playlistId?: string | null): ContextEntr
 }
 
 /** The text box on Edit mode's canvas. */
-export function canvasMenu(p: Presentation, slide: Slide, group: Group, editText: () => void): ContextEntries {
+export function canvasMenu(p: Presentation, slide: Slide, group: Group, editText: () => void, center: () => void): ContextEntries {
   return [
     { label: 'Edit Text', shortcut: '↩', action: editText },
+    { label: 'Center on Slide', action: center },
     '-',
     ...styleEntries(p, slide, group),
     '-',

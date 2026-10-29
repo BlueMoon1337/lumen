@@ -32,6 +32,7 @@ import {
   type HandleDir,
   type TextFormat,
 } from '../deckEdit';
+import { centerOn, snapToCenter, SNAP_PX } from '../snap';
 import { drawDeckSlide, deckImagePaths, type Images } from '../deckRender';
 import { imagesFor, loadEditable, makeKeynoteEditable, NeedsKeynote, saveEditable, storeSlideImage } from '../deckSlides';
 import { htmlToText, textToHtml } from '../deckTextDom';
@@ -42,7 +43,19 @@ import { useStore } from '../store';
 import type { Group, MediaItem, Presentation, Slide } from '../types';
 import { openContextMenu, type ContextEntries } from './ContextMenu';
 import { setCanvasCommands, type EditCommand } from './editCommands';
-import { Field, HANDLES, PAD, PresentationTab, RULER, Rulers, SlideTab, TOOLBAR_SPACE, type Handle } from './EditView';
+import {
+  CenterButtons,
+  CenterGuides,
+  Field,
+  HANDLES,
+  PAD,
+  PresentationTab,
+  RULER,
+  Rulers,
+  SlideTab,
+  TOOLBAR_SPACE,
+  type Handle,
+} from './EditView';
 import { FontSelect } from './FontSelect';
 import { Icon, pickFiles, Popover, shortcut } from './ui';
 
@@ -164,6 +177,12 @@ export function DeckEditor({ presentation: p, slide, group }: { presentation: Pr
       .finally(() => pending.current--);
   };
   const change = (fn: (e: DeckElement) => DeckElement) => shown && selected !== null && commit(updateElement(shown, selected, fn));
+  /** The selected shape in the middle of the slide: across, down or both. */
+  const center = (axis: 'both' | 'x' | 'y' = 'both') =>
+    change((x) => {
+      const c = centerOn(x, width, height, axis);
+      return moveElement(x, c.x - x.x, c.y - x.y);
+    });
 
   // ---- Edit's commands on the selected shape --------------------------------------------------
   const latest = useRef({ shown, selected, file, commit, editingText });
@@ -243,8 +262,12 @@ export function DeckEditor({ presentation: p, slide, group }: { presentation: Pr
       if (!moved && Math.hypot(dx, dy) * scale < 3) return;
       moved = true;
       let changed: DeckElement;
-      if (how === 'move') changed = moveElement(el, Math.round(dx), Math.round(dy));
-      else if (how === 'rotate') {
+      if (how === 'move') {
+        // It snaps to the middle of the slide (⌘ or Ctrl to move it freely).
+        const moved = { x: el.x + Math.round(dx), y: el.y + Math.round(dy), w: el.w, h: el.h };
+        const to = ev.metaKey || ev.ctrlKey ? moved : snapToCenter(moved, width, height, { x: SNAP_PX / scale, y: SNAP_PX / scale });
+        changed = moveElement(el, to.x - el.x, to.y - el.y);
+      } else if (how === 'rotate') {
         const cx = el.x + el.w / 2;
         const cy = el.y + el.h / 2;
         let deg = (Math.atan2(at.y - cy, at.x - cx) * 180) / Math.PI + 90;
@@ -327,6 +350,8 @@ export function DeckEditor({ presentation: p, slide, group }: { presentation: Pr
     { label: 'Duplicate', shortcut: shortcut('D'), action: duplicate },
     { label: 'Delete', shortcut: '⌫', danger: true, action: remove },
     '-',
+    { label: 'Center on Slide', action: () => center() },
+    '-',
     { label: 'Bring to Front', action: () => restack(Infinity) },
     { label: 'Bring Forward', action: () => restack(1) },
     { label: 'Send Backward', action: () => restack(-1) },
@@ -382,6 +407,9 @@ export function DeckEditor({ presentation: p, slide, group }: { presentation: Pr
           <div className="float-toolbar" style={{ left: RULER + innerW / 2 }}>
             <button title="Add a text box" disabled={!shown} onClick={() => shown && add(newTextBox(shown, width, height))}>
               <span className="ft-glyph">T</span>
+            </button>
+            <button title="Center the selected shape on the slide" disabled={!element || element.template} onClick={() => center()}>
+              <Icon name="center" size={18} />
             </button>
             <div className="popover-anchor">
               <button
@@ -508,6 +536,9 @@ export function DeckEditor({ presentation: p, slide, group }: { presentation: Pr
                 />
               )}
               {drag && element && (
+                <CenterGuides box={element} slideW={width} slideH={height} left={left} top={top} width={cw} height={ch} />
+              )}
+              {drag && element && (
                 <div className="drag-readout" style={{ left: left + element.x * scale, top: top + (element.y + element.h) * scale + 8 }}>
                   {Math.round(element.x)}, {Math.round(element.y)} · {Math.round(element.w)} × {Math.round(element.h)}
                   {element.rotation ? ` · ${Math.round(element.rotation)}°` : ''}
@@ -547,6 +578,7 @@ export function DeckEditor({ presentation: p, slide, group }: { presentation: Pr
                 onDuplicate={duplicate}
                 onDelete={remove}
                 onEditText={startTextEditing}
+                onCenter={center}
               />
             ) : shown ? (
               <SlideDesign slide={shown} onChange={commit} />
@@ -764,6 +796,7 @@ function ElementInspector({
   onDuplicate,
   onDelete,
   onEditText,
+  onCenter,
 }: {
   element: DeckElement;
   editingText: boolean;
@@ -772,6 +805,7 @@ function ElementInspector({
   onDuplicate: () => void;
   onDelete: () => void;
   onEditText: () => void;
+  onCenter: (axis: 'both' | 'x' | 'y') => void;
 }) {
   const text = e.kind === 'shape' ? e.text : undefined;
   const fmt = text ? textFormat(text) : null;
@@ -793,6 +827,7 @@ function ElementInspector({
           <NumberField label="H" value={e.h} onCommit={(v) => onChange((x) => placeElement(x, { ...x, h: Math.max(0, v) }))} />
           <NumberField label="°" value={e.rotation} onCommit={(v) => onChange((x) => rotateElement(x, v))} />
         </div>
+        <CenterButtons onCenter={onCenter} />
         <div className="seg deck-arrange">
           <button onClick={() => onRestack(Infinity)} title="Bring to Front">
             Front

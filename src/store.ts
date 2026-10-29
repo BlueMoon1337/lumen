@@ -270,7 +270,8 @@ interface Actions {
   updateOutput(screenId: string, outputId: string, patch: Partial<ScreenOutput>): void;
   setScreenTools(patch: Partial<ScreenTools>): void;
 
-  addMessage(text: string): void;
+  /** Adds a message; returns its id. */
+  addMessage(text: string): string;
   updateMessage(id: string, text: string): void;
   deleteMessage(id: string): void;
   showMessage(id: string | null): void;
@@ -1122,7 +1123,11 @@ export const useStore = create<AppState>()(
         },
         setScreenTools: (patch) => set((s) => ({ screenTools: { ...s.screenTools, ...patch } })),
 
-        addMessage: (text) => set((s) => ({ messages: [...s.messages, { id: uid(), text }] })),
+        addMessage: (text) => {
+          const id = uid();
+          set((s) => ({ messages: [...s.messages, { id, text }] }));
+          return id;
+        },
         updateMessage: (id, text) => set((s) => ({ messages: s.messages.map((m) => (m.id === id ? { ...m, text } : m)) })),
         deleteMessage: (id) =>
           set((s) => ({

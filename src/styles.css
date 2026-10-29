@@ -2056,6 +2056,39 @@ body.resizing-y * {
   pointer-events: none;
 }
 
+/* The slide's middle, while a box being dragged is on it (ProPresenter's yellow guides). */
+.center-guide {
+  position: absolute;
+  background: #ffcc00;
+  pointer-events: none;
+  z-index: 3;
+}
+
+.center-guide.across {
+  width: 2px;
+  transform: translateX(-1px);
+}
+
+.center-guide.down {
+  height: 2px;
+  transform: translateY(-1px);
+}
+
+.center-buttons {
+  display: flex;
+  width: 100%;
+  margin-top: 8px;
+}
+
+.center-buttons button {
+  flex: 1;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  font-size: 11px;
+}
+
 .edit-empty {
   grid-column: 1 / -1;
   display: flex;

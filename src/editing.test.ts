@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it } from 'vitest';
-import { adjustInset } from './components/EditView';
+import { adjustInset, centerInset } from './components/EditView';
 import { buildFrame } from './frame';
 import { getSequence, presentationToText } from './lyrics';
 import { useStore } from './store';
@@ -137,6 +137,9 @@ describe('helpers', () => {
     const start = { top: 10, right: 10, bottom: 10, left: 10 };
     expect(adjustInset(start, 'move', 5, -20)).toEqual({ top: 0, right: 5, bottom: 20, left: 15 });
     expect(adjustInset(start, 'se', -30, 200)).toEqual({ top: 10, right: 40, bottom: 0, left: 10 });
+    // Center: the same size, in the middle of the slide.
+    expect(centerInset({ top: 10, right: 30, bottom: 50, left: 10 })).toEqual({ top: 30, right: 20, bottom: 30, left: 20 });
+    expect(centerInset({ top: 10, right: 30, bottom: 50, left: 10 }, 'x')).toEqual({ top: 10, right: 20, bottom: 50, left: 20 });
     // Never collapses below the minimum size.
     expect(adjustInset(start, 'w', 500, 0).left).toBe(87);
   });

@@ -1,7 +1,7 @@
 import { useShallow } from 'zustand/react/shallow';
 import { useRef, useState, type CSSProperties } from 'react';
 import { timerRemaining, useNow } from '../clock';
-import { COUNTDOWN_MESSAGE, countdownFade } from '../countdowns';
+import { COUNTDOWN_MESSAGE, BUILT_IN_MESSAGES, countdownFade } from '../countdowns';
 import { useLiveFrame } from '../liveFrame';
 import { useStore, type LiveTab } from '../store';
 import { ALL_LAYERS, isLayerLive, LAYERS } from '../layers';
@@ -352,7 +352,14 @@ function MessagesTab() {
       <ul className="messages">
         {messages.map((m) => (
           <li key={m.id} className={liveId === m.id ? 'live' : ''}>
-            <input value={m.text} onChange={(e) => s.updateMessage(m.id, e.target.value)} aria-label="Message text" />
+            <input
+              value={m.text}
+              onChange={(e) => s.updateMessage(m.id, e.target.value)}
+              // Return sends it to the audience screen.
+              onKeyDown={(e) => e.key === 'Enter' && !e.nativeEvent.isComposing && s.showMessage(m.id)}
+              aria-label="Message text"
+              title="Return to show it"
+            />
             <button className={`btn small ${liveId === m.id ? 'on' : ''}`} onClick={() => s.showMessage(liveId === m.id ? null : m.id)}>
               {liveId === m.id ? 'Hide' : 'Show'}
             </button>
@@ -368,24 +375,35 @@ function MessagesTab() {
           setDraft('');
         }}
       >
-        <input placeholder="New message… use {countdown} or {clock}" value={draft} onChange={(e) => setDraft(e.target.value)} />
+        <input
+          placeholder="New message… use {countdown} or {clock}"
+          value={draft}
+          onChange={(e) => setDraft(e.target.value)}
+          // Return adds the message and sends it to the audience screen; + only adds it.
+          onKeyDown={(e) => {
+            if (e.key !== 'Enter' || e.nativeEvent.isComposing) return;
+            e.preventDefault();
+            if (draft.trim()) s.showMessage(s.addMessage(draft.trim()));
+            setDraft('');
+          }}
+          title="Return to show it, + to keep it for later"
+        />
         <button className="icon-btn" type="submit" title="Add message" aria-label="Add message">
           <Icon name="plus" />
         </button>
       </form>
       <ul className="messages default-messages">
-        <li className={liveId === COUNTDOWN_MESSAGE.id ? 'live' : ''}>
-          <span className="default-message" title="The Timers tab's countdown, always here">
-            <Icon name="clock" size={13} />
-            {COUNTDOWN_MESSAGE.text}
-          </span>
-          <button
-            className={`btn small ${liveId === COUNTDOWN_MESSAGE.id ? 'on' : ''}`}
-            onClick={() => s.showMessage(liveId === COUNTDOWN_MESSAGE.id ? null : COUNTDOWN_MESSAGE.id)}
-          >
-            {liveId === COUNTDOWN_MESSAGE.id ? 'Hide' : 'Show'}
-          </button>
-        </li>
+        {BUILT_IN_MESSAGES.map((m) => (
+          <li key={m.id} className={liveId === m.id ? 'live' : ''}>
+            <span className="default-message" title={m === COUNTDOWN_MESSAGE ? 'The Timers tab’s countdown' : 'The time of day'}>
+              <Icon name={m === COUNTDOWN_MESSAGE ? 'timer' : 'clock'} size={13} />
+              {m.text}
+            </span>
+            <button className={`btn small ${liveId === m.id ? 'on' : ''}`} onClick={() => s.showMessage(liveId === m.id ? null : m.id)}>
+              {liveId === m.id ? 'Hide' : 'Show'}
+            </button>
+          </li>
+        ))}
       </ul>
     </>
   );

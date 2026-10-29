@@ -15,6 +15,7 @@ import { undoBatch } from '../history';
 import { groupPresets, LABEL_SWATCHES, labelPresets } from '../labels';
 import { colorForGroup } from '../lyrics';
 import { canUngroup } from '../slideOps';
+import { centered, centerOn, snapToCenter, SNAP_PX, type Rect } from '../snap';
 import { useMedia } from '../media';
 import { useStore } from '../store';
 import { applyStyles, inkFor, resolveTheme, slideTheme, toFrameBackground } from '../theme';
@@ -244,6 +245,45 @@ export function adjustInset(i: Theme['inset'], handle: Handle, dx: number, dy: n
   if (handle.includes('w')) left = clamp(left + dx, 0, 100 - right - MIN_SIZE);
   if (handle.includes('e')) right = clamp(right - dx, 0, 100 - left - MIN_SIZE);
   return { top: round(top), right: round(right), bottom: round(bottom), left: round(left) };
+}
+
+/** A text box's insets as a box on a 100 × 100 slide, and back. */
+const insetRect = (i: Theme['inset']): Rect => ({ x: i.left, y: i.top, w: 100 - i.left - i.right, h: 100 - i.top - i.bottom });
+const rectInset = (r: Rect): Theme['inset'] => ({
+  left: round(r.x),
+  top: round(r.y),
+  right: round(100 - r.x - r.w),
+  bottom: round(100 - r.y - r.h),
+});
+
+/** The text box in the middle of the slide (across, down or both), the same size. */
+export const centerInset = (i: Theme['inset'], axis: 'both' | 'x' | 'y' = 'both') => rectInset(centerOn(insetRect(i), 100, 100, axis));
+
+/** The slide's middle lines while a box being dragged is on them. */
+export function CenterGuides({
+  box,
+  slideW = 100,
+  slideH = 100,
+  left,
+  top,
+  width,
+  height,
+}: {
+  box: Rect;
+  slideW?: number;
+  slideH?: number;
+  left: number;
+  top: number;
+  width: number;
+  height: number;
+}) {
+  const on = centered(box, slideW, slideH);
+  return (
+    <>
+      {on.x && <div className="center-guide across" style={{ left: left + width / 2, top, height }} />}
+      {on.y && <div className="center-guide down" style={{ left, top: top + height / 2, width }} />}
+    </>
+  );
 }
 
 export function Rulers({ left, top, scale, width, height }: { left: number; top: number; scale: number; width: number; height: number }) {
@@ -519,6 +559,7 @@ export function EditCanvas({ presentation: p, slide }: { presentation: Presentat
   };
 
   const commitInset = (next: Theme['inset']) => slide && s.updateSlide(p.id, slide.id, { style: { ...slide.style, inset: next } });
+  const center = () => commitInset(centerInset(theme.inset));
 
   const startEditing = () => {
     if (!slide) return;
@@ -539,7 +580,10 @@ export function EditCanvas({ presentation: p, slide }: { presentation: Presentat
     const onMove = (ev: PointerEvent) => {
       if (!moved && Math.abs(ev.clientX - start.x) + Math.abs(ev.clientY - start.y) < 3) return;
       moved = true;
-      setDraft(adjustInset(start.inset, handle, ((ev.clientX - start.x) / cw) * 100, ((ev.clientY - start.y) / ch) * 100));
+      const next = adjustInset(start.inset, handle, ((ev.clientX - start.x) / cw) * 100, ((ev.clientY - start.y) / ch) * 100);
+      // Moving, it snaps to the middle of the slide (⌘ or Ctrl to move freely).
+      const free = handle !== 'move' || ev.metaKey || ev.ctrlKey;
+      setDraft(free ? next : rectInset(snapToCenter(insetRect(next), 100, 100, { x: (SNAP_PX / cw) * 100, y: (SNAP_PX / ch) * 100 })));
     };
     const onUp = () => {
       window.removeEventListener('pointermove', onMove);
@@ -589,6 +633,9 @@ export function EditCanvas({ presentation: p, slide }: { presentation: Presentat
         <button title="Edit text (Enter)" disabled={!slide} onClick={startEditing}>
           <span className="ft-glyph">T</span>
         </button>
+        <button title="Center the text box on the slide" disabled={!slide} onClick={center}>
+          <Icon name="center" size={18} />
+        </button>
         {(['image', 'video', 'color'] as const).map((kind) => (
           <div key={kind} className="popover-anchor">
             <button
@@ -637,7 +684,7 @@ export function EditCanvas({ presentation: p, slide }: { presentation: Presentat
               onDoubleClick={startEditing}
               onContextMenu={(e) => {
                 s.setUI({ editTextSelected: true });
-                if (group) openContextMenu(e, canvasMenu(p, slide, group, startEditing));
+                if (group) openContextMenu(e, canvasMenu(p, slide, group, startEditing, center));
               }}
               title="Drag to move · Double-click to edit text · Right-click for more"
             >
@@ -645,6 +692,7 @@ export function EditCanvas({ presentation: p, slide }: { presentation: Presentat
               {selected && HANDLES.map((h) => <span key={h} className={`handle ${h}`} onPointerDown={(e) => startDrag(e, h)} />)}
             </div>
           )}
+          {draft && <CenterGuides box={insetRect(draft)} left={left} top={top} width={cw} height={ch} />}
           {draft && (
             <div className="drag-readout" style={{ left: box.left, top: box.top + box.height + 6 }}>
               {Math.round((inset.left / 100) * CANVAS_W)}, {Math.round((inset.top / 100) * CANVAS_H)} ·{' '}
@@ -1124,6 +1172,23 @@ export function SlideTab({ presentation: p, slide, group }: { presentation: Pres
   );
 }
 
+/** Center: puts the box in the middle of the slide, across, down or both. */
+export function CenterButtons({ onCenter }: { onCenter: (axis: 'both' | 'x' | 'y') => void }) {
+  return (
+    <div className="seg center-buttons">
+      <button onClick={() => onCenter('both')} title="Center on the slide">
+        <Icon name="center" size={14} /> Center
+      </button>
+      <button onClick={() => onCenter('x')} title="Center across (left to right)">
+        Horizontally
+      </button>
+      <button onClick={() => onCenter('y')} title="Center down (top to bottom)">
+        Vertically
+      </button>
+    </div>
+  );
+}
+
 function TextTab({ presentation: p, slide }: { presentation: Presentation; slide: Slide }) {
   const base = useBaseTheme(p);
   const clipboard = useStore((s) => s.styleClipboard);
@@ -1191,7 +1256,11 @@ function TextTab({ presentation: p, slide }: { presentation: Presentation; slide
           {num('w', 'Width')}
           {num('h', 'Height')}
         </div>
-        <p className="small-print muted">Drag the text box on the canvas, or nudge it with the arrow keys (Shift for 10px).</p>
+        <CenterButtons onCenter={(axis) => set({ inset: centerInset(inset, axis) })} />
+        <p className="small-print muted">
+          Drag the text box on the canvas (it snaps to the middle; hold ⌘ or Ctrl to move it freely), or nudge it with the arrow keys (Shift
+          for 10px).
+        </p>
       </section>
       <section className="insp-section">
         <div className="insp-heading">Text Style</div>

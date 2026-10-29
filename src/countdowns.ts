@@ -37,7 +37,10 @@ export function countdownVolume(remaining: number, fadeSeconds: number): number 
 
 /** The Messages tab's built-in message: the Timers tab's countdown on its own. It's always there. */
 export const COUNTDOWN_MESSAGE: Message = { id: 'message-countdown', text: '{countdown}' };
+/** The other built-in message: the time of day. */
+export const CLOCK_MESSAGE: Message = { id: 'message-clock', text: '{clock}' };
+export const BUILT_IN_MESSAGES = [COUNTDOWN_MESSAGE, CLOCK_MESSAGE];
 
-/** A message by its id, the built-in countdown one included. */
+/** A message by its id, the built-in ones included. */
 export const findMessage = (messages: Message[], id: string | null) =>
-  id === COUNTDOWN_MESSAGE.id ? COUNTDOWN_MESSAGE : messages.find((m) => m.id === id);
+  BUILT_IN_MESSAGES.find((m) => m.id === id) ?? messages.find((m) => m.id === id);
