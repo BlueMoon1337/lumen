@@ -521,6 +521,13 @@ export function mediaMenu(m: MediaItem, playlistId?: string | null): ContextEntr
       // A countdown has its own tab, and music fades out as it ends.
       action: () => s.updateMedia(m.id, m.countdown ? { countdown: false } : { countdown: true, playback: m.playback ?? 'stop' }),
     },
+    // Outros have their own tab; Play Outro (beside the clear buttons) plays the active one.
+    m.kind === 'video' && { label: 'Outro', checked: !!m.outro, action: () => s.setOutro(m.id, !m.outro) },
+    m.kind === 'video' && {
+      label: 'Active Outro',
+      checked: s.settings.outroMediaId === m.id,
+      action: () => s.setActiveOutro(s.settings.outroMediaId === m.id ? null : m.id),
+    },
     { label: 'Use as Logo', checked: logo, action: () => s.updateSettings({ logoMediaId: logo ? undefined : m.id }) },
     { label: 'Media Transition…', action: () => openPopupAtMenu(<TargetTransitionPicker target="media" />) },
     '-',

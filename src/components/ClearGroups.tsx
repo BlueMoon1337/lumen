@@ -46,7 +46,41 @@ export function ClearGroupsRow() {
         );
       })}
       <IconButton icon="gear" title="Edit Clear Groups" onClick={editGroups} />
+      <PlayOutro />
     </div>
+  );
+}
+
+/** Play Outro: the active outro (Media ▸ Outro, the one with a bookmark) on the Media layer. */
+function PlayOutro() {
+  const outro = useStore((s) => s.media.find((m) => m.id === s.settings.outroMediaId));
+  const playing = useStore((s) => !!outro && s.live.mediaId === outro.id);
+  const s = useStore.getState();
+  return (
+    <button
+      type="button"
+      className={`play-outro ${playing ? 'active' : ''}`}
+      disabled={!outro}
+      title={
+        outro
+          ? playing
+            ? `Playing the outro “${outro.name}”: click to play it from the start`
+            : `Play Outro: “${outro.name}”`
+          : 'Play Outro: no outro yet. Right-click a video in the media bin ▸ Active Outro.'
+      }
+      aria-label="Play Outro"
+      onClick={s.playOutro}
+      onContextMenu={(e) =>
+        openContextMenu(e, [
+          { label: 'Play Outro', disabled: !outro, action: s.playOutro },
+          '-',
+          { label: 'Choose the Outro…', action: () => s.setUI({ mode: 'show', showMediaBin: true, mediaFilter: 'outro' }) },
+        ])
+      }
+    >
+      <Icon name="outro" size={15} />
+      <span>Outro</span>
+    </button>
   );
 }
 

@@ -234,6 +234,8 @@ export interface MediaItem {
   playback?: VideoPlayback;
   /** Video: a countdown, in the media bin's Countdowns tab; music fades out as it ends (src/countdowns.ts). */
   countdown?: boolean;
+  /** Video: an outro (for the end of the service), in the media bin's Outro tab. */
+  outro?: boolean;
 }
 
 /** When a video ends: start again, hold the last frame, clear the Media layer, or play the next one. */
@@ -288,6 +290,8 @@ export interface Settings {
   /** Advancing past the last slide moves on to the next playlist item. */
   advanceAcrossItems: boolean;
   logoMediaId?: string;
+  /** The active outro: the video Play Outro (beside the clear buttons) puts on the Media layer. */
+  outroMediaId?: string;
   /** Countdown Fade (Audio tab): seconds before the end that music starts to fade; 10 when unset. */
   countdownFadeSeconds?: number;
   /** Countdown Fade follows countdown videos (on when unset) and the Timers tab's countdown (on when unset). */

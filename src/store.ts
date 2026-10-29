@@ -15,7 +15,7 @@ import { ALL_LAYERS, clearLive } from './layers';
 import { DEFAULT_LOOK, lookScreen } from './looks';
 import { DEFAULT_STAGE_LAYOUTS } from './stageLayouts';
 import { deckFileOf, isSlideshow, SLIDESHOW_LIBRARY_ID, SLIDESHOW_LIBRARY_NAME } from './slideshows';
-import { countdownFade, isCountdownName } from './countdowns';
+import { countdownFade, isCountdownName, isOutroName } from './countdowns';
 import type {
   Category,
   Library,
@@ -120,7 +120,7 @@ interface UIState {
   editingThemeId: string | null;
   showMediaBin: boolean;
   /** What the media bin shows: its images and videos, a media playlist, or the cameras for the Video Input layer. */
-  mediaFilter: 'all' | 'image' | 'video' | 'countdown' | 'playlist' | 'inputs';
+  mediaFilter: 'all' | 'image' | 'video' | 'countdown' | 'outro' | 'playlist' | 'inputs';
   /** The media playlist shown when mediaFilter is "playlist". */
   mediaPlaylistId: string | null;
   liveTab: LiveTab;
@@ -241,12 +241,18 @@ interface Actions {
   deleteTheme(id: string): void;
 
   /** Imports images, videos and audio (into a media playlist, if given) and returns what was added. */
-  /** `countdown`: the videos are countdowns (imported into the Countdowns tab). */
-  addMediaFiles(files: File[], playlistId?: string | null, options?: { countdown?: boolean }): Promise<MediaItem[]>;
+  /** `countdown`, `outro`: the videos are countdowns or outros (imported into that tab). */
+  addMediaFiles(files: File[], playlistId?: string | null, options?: { countdown?: boolean; outro?: boolean }): Promise<MediaItem[]>;
   /** Adds media whose files are already stored (from an imported bundle). */
   addMedia(items: MediaItem[]): void;
   deleteMedia(id: string): void;
   updateMedia(id: string, patch: Partial<Pick<MediaItem, 'name' | 'loop' | 'playback' | 'countdown'>>): void;
+  /** Makes a video an outro (in the Outro tab) or not. The first outro becomes the active one. */
+  setOutro(id: string, on: boolean): void;
+  /** The video Play Outro plays (it becomes an outro too), or none. */
+  setActiveOutro(id: string | null): void;
+  /** Play Outro: the active outro on the Media layer, from the start. */
+  playOutro(): void;
   createMediaPlaylist(name: string): string;
   renameMediaPlaylist(id: string, name: string): void;
   deleteMediaPlaylist(id: string): void;
@@ -1013,10 +1019,14 @@ export const useStore = create<AppState>()(
             // Countdowns (imported into their tab, or named like one) hold their last frame rather than loop.
             if (kind === 'video' && (options?.countdown || isCountdownName(item.name)))
               Object.assign(item, { countdown: true, playback: 'stop' });
+            // Outros, the same way: they hold their last frame at the end of the service.
+            else if (kind === 'video' && (options?.outro || isOutroName(item.name))) Object.assign(item, { outro: true, playback: 'stop' });
             await putMediaBlob(item.id, file);
             added.push(item);
           }
           if (added.length) set((s) => ({ media: [...s.media, ...added] }));
+          const outro = added.find((m) => m.outro);
+          if (outro && !get().settings.outroMediaId) get().setActiveOutro(outro.id);
           if (added.length && playlistId)
             get().addToMediaPlaylist(
               playlistId,
@@ -1054,13 +1064,47 @@ export const useStore = create<AppState>()(
               ...(s.live.mediaId === id ? (['media'] as const) : []),
               ...(s.live.audioId === id ? (['audio'] as const) : []),
             ]),
-            settings: s.settings.logoMediaId === id ? { ...s.settings, logoMediaId: undefined } : s.settings,
+            settings:
+              s.settings.logoMediaId === id || s.settings.outroMediaId === id
+                ? {
+                    ...s.settings,
+                    logoMediaId: s.settings.logoMediaId === id ? undefined : s.settings.logoMediaId,
+                    outroMediaId: s.settings.outroMediaId === id ? undefined : s.settings.outroMediaId,
+                  }
+                : s.settings,
             themes: s.themes.map((t) =>
               t.background.mediaId === id ? { ...t, background: { ...t.background, type: 'color', mediaId: undefined } } : t,
             ),
           })),
 
         updateMedia: (id, patch) => set((s) => ({ media: s.media.map((m) => (m.id === id ? { ...m, ...patch } : m)) })),
+        setOutro: (id, on) =>
+          set((s) => {
+            const active = s.settings.outroMediaId;
+            return {
+              media: s.media.map((m) =>
+                m.id === id ? { ...m, outro: on || undefined, playback: on ? (m.playback ?? 'stop') : m.playback } : m,
+              ),
+              settings:
+                on && !active
+                  ? { ...s.settings, outroMediaId: id }
+                  : !on && active === id
+                    ? { ...s.settings, outroMediaId: undefined }
+                    : s.settings,
+            };
+          }),
+        setActiveOutro: (id) =>
+          set((s) => ({
+            media: id ? s.media.map((m) => (m.id === id && !m.outro ? { ...m, outro: true, playback: m.playback ?? 'stop' } : m)) : s.media,
+            settings: { ...s.settings, outroMediaId: id ?? undefined },
+          })),
+        playOutro: () => {
+          const s = get();
+          const id = s.settings.outroMediaId;
+          if (!id || !s.media.some((m) => m.id === id)) return;
+          if (s.live.mediaId === id) s.restartMedia();
+          else s.setLiveMedia(id);
+        },
         createMediaPlaylist: (name) => {
           const pl: MediaPlaylist = { id: uid(), name, items: [] };
           set((s) => ({ mediaPlaylists: [...s.mediaPlaylists, pl], mediaFilter: 'playlist', mediaPlaylistId: pl.id }));
@@ -1425,7 +1469,7 @@ export const useStore = create<AppState>()(
     },
     {
       name: 'lumen-library',
-      version: 8,
+      version: 9,
       migrate: (persisted, version) => {
         const saved = persisted as Partial<LibraryData>;
         const addTheme = (id: string) => {
@@ -1446,6 +1490,14 @@ export const useStore = create<AppState>()(
           saved.media = saved.media.map((m) =>
             m.kind === 'video' && m.countdown === undefined && isCountdownName(m.name) ? { ...m, countdown: true } : m,
           );
+        // Version 9 put outro videos (by their names) in the media bin's Outro tab, the first as the active one.
+        if (version < 9 && saved.media) {
+          saved.media = saved.media.map((m) =>
+            m.kind === 'video' && m.outro === undefined && !m.countdown && isOutroName(m.name) ? { ...m, outro: true } : m,
+          );
+          const first = saved.media.find((m) => m.outro);
+          if (first && saved.settings && !saved.settings.outroMediaId) saved.settings = { ...saved.settings, outroMediaId: first.id };
+        }
         // Version 7 matched the group list (and colors) to ProPresenter's.
         if (version < 7 && saved.settings?.groupPresets)
           saved.settings = { ...saved.settings, groupPresets: upgradeGroupPresets(saved.settings.groupPresets) };

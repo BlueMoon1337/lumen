@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, it } from 'vitest';
 import { buildFrame } from './frame';
+import { isOutroName } from './countdowns';
 import { mimeFromName, moveBefore, nextMedia, useStore } from './store';
 import type { MediaItem } from './types';
 
@@ -136,5 +137,40 @@ describe('reordering', () => {
     expect(ids()).toEqual(['v1', 'v2', 'i1', 'v3']);
     expect(moveBefore(['a', 'b', 'c'], (x) => x, ['a', 'b'], null)).toEqual(['c', 'a', 'b']);
     expect(moveBefore(['a', 'b', 'c'], (x) => x, ['z'], 'a')).toEqual(['a', 'b', 'c']);
+  });
+});
+
+describe('outros', () => {
+  it('have one active outro, which Play Outro puts on the Media layer', () => {
+    s().updateSettings({ outroMediaId: undefined });
+    s().playOutro();
+    expect(s().live.mediaId).toBeNull();
+    // The first video made an outro becomes the active one; it holds its last frame.
+    s().setOutro('v1', true);
+    expect(s().media.find((m) => m.id === 'v1')).toMatchObject({ outro: true, playback: 'stop' });
+    expect(s().settings.outroMediaId).toBe('v1');
+    s().setOutro('v3', true);
+    expect(s().settings.outroMediaId).toBe('v1');
+    // Choosing another as the active one.
+    s().setActiveOutro('v3');
+    expect(s().settings.outroMediaId).toBe('v3');
+    s().playOutro();
+    expect(s().live.mediaId).toBe('v3');
+    // Again while it plays: from the start.
+    const restarts = s().live.mediaRestart;
+    s().playOutro();
+    expect(s().live.mediaRestart).toBe(restarts + 1);
+    // No longer an outro, or deleted: no active outro.
+    s().setOutro('v3', false);
+    expect(s().settings.outroMediaId).toBeUndefined();
+    s().setActiveOutro('v1');
+    s().deleteMedia('v1');
+    expect(s().settings.outroMediaId).toBeUndefined();
+  });
+
+  it('are known by their names', () => {
+    expect(isOutroName('Church Outro 4K')).toBe(true);
+    expect(isOutroName('Despedida')).toBe(true);
+    expect(isOutroName('Paint Sweeps Gold')).toBe(false);
   });
 });

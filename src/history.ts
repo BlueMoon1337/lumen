@@ -23,6 +23,7 @@ const SETTING_KEYS = [
   'labelPresets',
   'defaultThemeId',
   'logoMediaId',
+  'outroMediaId',
   'ccliLicense',
 ] as const;
 type SettingKey = (typeof SETTING_KEYS)[number];
@@ -355,6 +356,8 @@ const LABELS: Record<string, string | ((args: unknown[]) => string)> = {
   addToMediaPlaylist: 'Add to Media Playlist',
   removeFromMediaPlaylist: 'Remove from Media Playlist',
   moveMedia: 'Move Media',
+  setOutro: 'Outro',
+  setActiveOutro: 'Active Outro',
   moveInMediaPlaylist: 'Move in Media Playlist',
   createAudioPlaylist: 'New Audio Playlist',
   applyStyleToAll: 'Apply to All Slides',
@@ -376,6 +379,7 @@ const LABELS: Record<string, string | ((args: unknown[]) => string)> = {
         ['groupPresets', 'Edit Groups'],
         ['labelPresets', 'Edit Labels'],
         ['logoMediaId', 'Logo'],
+        ['outroMediaId', 'Active Outro'],
         ['clearGroups', 'Edit Clear Groups'],
       ],
       'Settings',

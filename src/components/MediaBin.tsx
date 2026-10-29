@@ -18,11 +18,14 @@ const FILTERS = [
   { value: 'image', label: 'Images', icon: 'image' },
   { value: 'video', label: 'Videos', icon: 'video' },
   { value: 'countdown', label: 'Countdowns', icon: 'clock' },
+  { value: 'outro', label: 'Outro', icon: 'outro' },
 ] as const;
 
 /** Whether an item belongs under a media bin filter (a countdown is a video too). */
 const inFilter = (m: MediaItem, filter: string) =>
-  filter === 'all' || filter === 'playlist' || (filter === 'countdown' ? !!m.countdown : m.kind === filter);
+  filter === 'all' ||
+  filter === 'playlist' ||
+  (filter === 'countdown' ? !!m.countdown : filter === 'outro' ? !!m.outro : m.kind === filter);
 
 /** The media bin holds images and videos; audio lives in the Audio tab. */
 const isVisual = (m: MediaItem) => m.kind !== 'audio';
@@ -57,7 +60,7 @@ function canPlay(id: string): Promise<boolean> {
 export async function importMediaFiles(
   chosen: File[],
   playlistId?: string | null,
-  options?: { countdown?: boolean },
+  options?: { countdown?: boolean; outro?: boolean },
 ): Promise<MediaItem[]> {
   // iPhone photos (HEIC) become JPEGs first, so every screen can show them.
   let working: number | null = null;
@@ -67,9 +70,10 @@ export async function importMediaFiles(
   if (working !== null) dismiss(working);
   if (converted) notify(`${converted === 1 ? 'A HEIC photo was' : `${converted} HEIC photos were`} added as JPEG.`, 'success', 3500);
   for (const name of failed) notify(`“${name}” couldn’t be converted from HEIC: the photo may be damaged.`, 'error', 9000);
-  // Imported in the Countdowns tab, videos are countdowns.
+  // Imported in the Countdowns or Outro tab, videos are countdowns or outros.
   const countdown = options?.countdown ?? useStore.getState().mediaFilter === 'countdown';
-  const added = await useStore.getState().addMediaFiles(files, playlistId, { countdown });
+  const outro = options?.outro ?? useStore.getState().mediaFilter === 'outro';
+  const added = await useStore.getState().addMediaFiles(files, playlistId, { countdown, outro });
   const audio = added.filter((m) => m.kind === 'audio').length;
   if (audio) notify(`${audio === 1 ? 'The audio file went' : 'Audio files went'} to the Audio tab, in the live panel.`, 'info');
   const skipped = files.length - added.length;
@@ -236,12 +240,15 @@ function MediaTile({
   item,
   live,
   logo,
+  outro,
   playlistId,
   next,
 }: {
   item: MediaItem;
   live: boolean;
   logo: boolean;
+  /** The active outro: a bookmark on its corner. */
+  outro: boolean;
   playlistId: string | null;
   /** The item after this one, for dropping after it. */
   next: string | null;
@@ -289,6 +296,11 @@ function MediaTile({
       title="Click to show on the Media layer, click again to clear. Drag onto a slide to play it with that slide, or between items to reorder."
     >
       <div className="media-tile-frame">
+        {outro && (
+          <span className="outro-bookmark" title="The active outro: Play Outro plays it">
+            <Icon name="outro" size={10} />
+          </span>
+        )}
         {!media ? (
           <div className="media-thumb-img" />
         ) : media.isVideo ? (
@@ -339,6 +351,7 @@ function MediaGrid() {
   const media = useMemo(() => all.filter(isVisual), [all]);
   const liveMedia = useStore((s) => s.live.mediaId);
   const logoId = useStore((s) => s.settings.logoMediaId);
+  const outroId = useStore((s) => s.settings.outroMediaId);
   const [query, setQuery] = useState('');
   const [size, setSize] = useState(160);
   const [dropping, setDropping] = useState(false);
@@ -351,7 +364,9 @@ function MediaGrid() {
       : media.filter((m) => inFilter(m, filter));
     return shown.filter((m) => !q || m.name.toLowerCase().includes(q));
   }, [media, filter, playlist, query]);
-  const empty = playlist ? playlist.items.length === 0 : media.length === 0 || (filter === 'countdown' && items.length === 0 && !query);
+  const empty = playlist
+    ? playlist.items.length === 0
+    : media.length === 0 || ((filter === 'countdown' || filter === 'outro') && items.length === 0 && !query);
 
   return (
     <section
@@ -387,11 +402,13 @@ function MediaGrid() {
           <button className="import-tile" onClick={() => void importInto(playlistId)}>
             <Icon name="download" size={40} />
           </button>
-          <span>{filter === 'countdown' ? 'Import Countdowns' : 'Import Media'}</span>
+          <span>{filter === 'countdown' ? 'Import Countdowns' : filter === 'outro' ? 'Import Outros' : 'Import Media'}</span>
           <span className="muted small-print">
             {filter === 'countdown'
               ? 'Countdown videos for before the service. Videos named “countdown” come here by themselves; right-click any video to make it one. As a countdown ends, music on the Audio layer fades out with it.'
-              : 'Images (iPhone HEIC photos become JPEG) and videos (MP4, MOV, WebM). Or drop them here.'}
+              : filter === 'outro'
+                ? 'Videos for the end of the service. Videos named “outro” come here by themselves; right-click any video to make it one. The active outro (marked with a bookmark) plays from the Play Outro button beside the clear buttons.'
+                : 'Images (iPhone HEIC photos become JPEG) and videos (MP4, MOV, WebM). Or drop them here.'}
           </span>
         </div>
       ) : (
@@ -402,6 +419,7 @@ function MediaGrid() {
               item={m}
               live={liveMedia === m.id}
               logo={logoId === m.id}
+              outro={outroId === m.id}
               playlistId={playlistId}
               next={items[i + 1]?.id ?? null}
             />

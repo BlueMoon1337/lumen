@@ -44,3 +44,6 @@ export const BUILT_IN_MESSAGES = [COUNTDOWN_MESSAGE, CLOCK_MESSAGE];
 /** A message by its id, the built-in ones included. */
 export const findMessage = (messages: Message[], id: string | null) =>
   BUILT_IN_MESSAGES.find((m) => m.id === id) ?? messages.find((m) => m.id === id);
+
+/** A video named like an outro ("Church Outro", "Despedida", "Closing Loop"). */
+export const isOutroName = (name: string) => /\boutro|despedida|closing|cierre/i.test(name);
