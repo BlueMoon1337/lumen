@@ -6,7 +6,7 @@
  */
 import { notify } from '../notices';
 import { useStore } from '../store';
-import type { Presentation } from '../types';
+import type { MediaItem, Presentation } from '../types';
 import { confirmThen } from './Ask';
 import { shortcut } from './ui';
 
@@ -147,6 +147,15 @@ export function deleteMedia(id: string) {
     },
     () => st().deleteMedia(id),
   );
+}
+
+export type SpecialTab = 'countdown' | 'outro';
+export const TAB_NAMES: Record<SpecialTab, string> = { countdown: 'Countdowns', outro: 'Outro' };
+
+/** Takes a video out of the Countdowns or Outro tab; it stays in the media bin (All Media, Videos). */
+export function removeFromTab(m: MediaItem, tab: SpecialTab) {
+  if (tab === 'countdown') st().updateMedia(m.id, { countdown: false });
+  else st().setOutro(m.id, false);
 }
 
 export function deleteMediaPlaylist(id: string) {

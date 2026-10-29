@@ -27,7 +27,9 @@ import {
   deletePresentation,
   deleteSlide,
   deleteSlides,
+  removeFromTab,
   removePlaylistItem,
+  TAB_NAMES,
 } from './deleting';
 import { selectedSlides } from './editCommands';
 import {
@@ -507,8 +509,11 @@ export function playbackEntries(mediaId: string): ContextEntries {
   ];
 }
 
-/** A media bin item; `playlistId` when it's shown in a media playlist. */
-export function mediaMenu(m: MediaItem, playlistId?: string | null): ContextEntries {
+/**
+ * A media bin item; `playlistId` when it's shown in a media playlist, `tab` in the Countdowns or
+ * Outro tab (where removing it only takes it out of the tab).
+ */
+export function mediaMenu(m: MediaItem, playlistId?: string | null, tab?: 'countdown' | 'outro' | null): ContextEntries {
   const s = st();
   const live = s.live.mediaId === m.id;
   const logo = s.settings.logoMediaId === m.id;
@@ -569,7 +574,9 @@ export function mediaMenu(m: MediaItem, playlistId?: string | null): ContextEntr
           />,
         ),
     },
-    { label: 'Delete…', danger: true, action: () => deleteMedia(m.id) },
+    tab
+      ? { label: `Remove from ${TAB_NAMES[tab]}`, danger: true, action: () => removeFromTab(m, tab) }
+      : { label: 'Delete…', danger: true, action: () => deleteMedia(m.id) },
   ];
 }
 

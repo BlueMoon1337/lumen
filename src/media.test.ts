@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, it } from 'vitest';
 import { buildFrame } from './frame';
+import { removeFromTab } from './components/deleting';
 import { isOutroName } from './countdowns';
 import { mimeFromName, moveBefore, nextMedia, useStore } from './store';
 import type { MediaItem } from './types';
@@ -165,6 +166,23 @@ describe('outros', () => {
     expect(s().settings.outroMediaId).toBeUndefined();
     s().setActiveOutro('v1');
     s().deleteMedia('v1');
+    expect(s().settings.outroMediaId).toBeUndefined();
+  });
+
+  it('leave the media bin alone when removed from the Countdowns or Outro tab', () => {
+    s().setActiveOutro('v1');
+    s().updateMedia('v2', { countdown: true });
+    removeFromTab(
+      s().media.find((m) => m.id === 'v1')!,
+      'outro',
+    );
+    removeFromTab(
+      s().media.find((m) => m.id === 'v2')!,
+      'countdown',
+    );
+    expect(s().media.map((m) => m.id)).toEqual(['v1', 'v2', 'i1', 'v3']);
+    expect(s().media.find((m) => m.id === 'v1')?.outro).toBeFalsy();
+    expect(s().media.find((m) => m.id === 'v2')?.countdown).toBe(false);
     expect(s().settings.outroMediaId).toBeUndefined();
   });
 

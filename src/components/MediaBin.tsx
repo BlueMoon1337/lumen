@@ -8,7 +8,7 @@ import type { MediaItem, MediaPlaylist } from '../types';
 import { formatDuration } from '../util';
 import { CameraFill } from './Canvas';
 import { NamePopup, openContextMenu, openPopupBelow } from './ContextMenu';
-import { deleteMedia, deleteMediaPlaylist } from './deleting';
+import { deleteMedia, deleteMediaPlaylist, removeFromTab, TAB_NAMES, type SpecialTab } from './deleting';
 import { mediaMenu } from './menus';
 import { TransitionButton } from './TransitionPicker';
 import { DRAG_MEDIA, FilterField, Icon, IconButton, pickFiles, SectionHeader } from './ui';
@@ -194,7 +194,7 @@ export function MediaSidebar() {
             className={`collection-row ${filter === f.value ? 'selected' : ''}`}
             onClick={() => setUI({ mediaFilter: f.value })}
           >
-            <span className="collection-icon media">
+            <span className={`collection-icon ${f.value === 'countdown' || f.value === 'outro' ? 'special' : 'media'}`}>
               <Icon name={f.icon} size={14} />
             </span>
             <span className="list-label">{f.label}</span>
@@ -242,11 +242,14 @@ function MediaTile({
   logo,
   outro,
   playlistId,
+  tab,
   next,
 }: {
   item: MediaItem;
   live: boolean;
   logo: boolean;
+  /** Shown in the Countdowns or Outro tab: removing it there only takes it out of the tab. */
+  tab: SpecialTab | null;
   /** The active outro: a bookmark on its corner. */
   outro: boolean;
   playlistId: string | null;
@@ -292,13 +295,15 @@ function MediaTile({
         s.moveInMediaPlaylist(pl.id, [id], before);
       }}
       onClick={() => s.setLiveMedia(live ? null : item.id, playlistId)}
-      onContextMenu={(e) => openContextMenu(e, mediaMenu(item, playlistId))}
+      onContextMenu={(e) => openContextMenu(e, mediaMenu(item, playlistId, tab))}
       title="Click to show on the Media layer, click again to clear. Drag onto a slide to play it with that slide, or between items to reorder."
     >
       <div className="media-tile-frame">
         {outro && (
           <span className="outro-bookmark" title="The active outro: Play Outro plays it">
-            <Icon name="outro" size={10} />
+            <span className="outro-bookmark-felt">
+              <Icon name="outro" size={11} />
+            </span>
           </span>
         )}
         {!media ? (
@@ -331,7 +336,16 @@ function MediaTile({
             active={logo}
             onClick={() => s.updateSettings({ logoMediaId: logo ? undefined : item.id })}
           />
-          <IconButton icon="trash" title="Delete" danger onClick={() => deleteMedia(item.id)} />
+          {tab ? (
+            <IconButton
+              icon="trash"
+              title={`Remove from ${TAB_NAMES[tab]} (it stays in All Media)`}
+              danger
+              onClick={() => removeFromTab(item, tab)}
+            />
+          ) : (
+            <IconButton icon="trash" title="Delete" danger onClick={() => deleteMedia(item.id)} />
+          )}
         </span>
       </div>
     </div>
@@ -421,6 +435,7 @@ function MediaGrid() {
               logo={logoId === m.id}
               outro={outroId === m.id}
               playlistId={playlistId}
+              tab={!playlist && (filter === 'countdown' || filter === 'outro') ? filter : null}
               next={items[i + 1]?.id ?? null}
             />
           ))}

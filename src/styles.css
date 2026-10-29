@@ -29,6 +29,9 @@
   --library-icon-ink: #1f2a07;
   /* Playlist icons: deep blue with the pink highlight, red with the blue. */
   --playlist-icon: #0e029b;
+  /* The media bin's Countdowns and Outro, and the active outro's bookmark: light blue with the pink highlight, red with the blue. */
+  --special-icon: #7ed6d7;
+  --special-icon-ink: #0b3b3c;
   --orange: #f7941d;
   --yellow: #f5c518;
   --purple: #9b3b97;
@@ -62,6 +65,8 @@
   --library-icon: #f08a24;
   --library-icon-ink: #fff;
   --playlist-icon: #e93325;
+  --special-icon: #e2392d;
+  --special-icon-ink: #fff;
 }
 
 * {
@@ -950,6 +955,11 @@ body.resizing-y * {
 
 .collection-icon.media {
   background: #8e5cf0;
+}
+
+.collection-icon.special {
+  background: var(--special-icon);
+  color: var(--special-icon-ink);
 }
 
 .items {
@@ -4873,22 +4883,40 @@ body.resizing-y * {
   cursor: default;
 }
 
-/* The active outro in the media bin: a bookmark on its corner. */
+/* The active outro in the media bin: a corner bookmark, like a felt one slipped over a page's corner. */
 .outro-bookmark {
   position: absolute;
   top: -3px;
-  right: 10px;
+  right: -3px;
   z-index: 1;
-  display: grid;
-  justify-items: center;
-  width: 20px;
-  height: 28px;
-  padding-top: 5px;
-  background: var(--pink);
-  color: #fff;
-  clip-path: polygon(0 0, 100% 0, 100% 100%, 50% 74%, 0 100%);
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.5);
+  width: 42px;
+  height: 42px;
+  filter: drop-shadow(-1px 2px 2px rgba(0, 0, 0, 0.55));
   pointer-events: auto;
+}
+
+.outro-bookmark-felt {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  justify-content: flex-end;
+  padding: 6px 6px 0 0;
+  background: var(--special-icon);
+  color: var(--special-icon-ink);
+  clip-path: polygon(0 0, 100% 0, 100% 100%);
+}
+
+/* The stitching just inside its long edge. */
+.outro-bookmark-felt::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 7px;
+  width: 50px;
+  border-top: 1.5px dashed currentColor;
+  opacity: 0.6;
+  transform-origin: top left;
+  transform: rotate(45deg);
 }
 
 .now-playing {
