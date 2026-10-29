@@ -155,6 +155,9 @@ function useDuration(id: string): number {
   return seconds;
 }
 
+/** Tracks by name, as people read them: "Song 2" before "Song 10", accents and case aside. */
+const byName = (a: MediaItem, b: MediaItem) => a.name.localeCompare(b.name, undefined, { numeric: true, sensitivity: 'base' });
+
 const length = (seconds: number) => (seconds > 0 ? formatDuration(Math.round(seconds) * 1000) : '');
 
 /**
@@ -387,7 +390,8 @@ function AudioRow({ m }: { m: MediaItem }) {
  * Library window has every audio file.
  */
 export function AudioTab() {
-  const audio = useStore(useShallow((s) => s.media.filter((m) => m.kind === 'audio')));
+  // In alphabetical order.
+  const audio = useStore(useShallow((s) => s.media.filter((m) => m.kind === 'audio').sort(byName)));
   const playlists = useStore((s) => s.audioPlaylists);
   const s = st();
   const [dropping, setDropping] = useState(false);
@@ -528,7 +532,7 @@ export function AudioLibraryDialog({ onClose }: { onClose: () => void }) {
   const audio = useStore(useShallow((s) => s.media.filter((m) => m.kind === 'audio')));
   const playlists = useStore((s) => s.audioPlaylists);
   const [query, setQuery] = useState('');
-  const [sort, setSort] = useState<Sort>('added');
+  const [sort, setSort] = useState<Sort>('name');
   const [selection, setSelection] = useState<string[]>([]);
   const [anchor, setAnchor] = useState<string | null>(null);
   const [lengths, setLengths] = useState<Record<string, number>>({});
@@ -537,7 +541,7 @@ export function AudioLibraryDialog({ onClose }: { onClose: () => void }) {
   const shown = useMemo(() => {
     const q = query.trim().toLowerCase();
     const found = q ? audio.filter((m) => m.name.toLowerCase().includes(q)) : audio;
-    if (sort === 'name') return [...found].sort((a, b) => a.name.localeCompare(b.name, undefined, { numeric: true }));
+    if (sort === 'name') return [...found].sort(byName);
     if (sort === 'length') return [...found].sort((a, b) => (lengths[a.id] ?? 0) - (lengths[b.id] ?? 0));
     return found;
   }, [audio, query, sort, lengths]);
@@ -578,8 +582,8 @@ export function AudioLibraryDialog({ onClose }: { onClose: () => void }) {
           <label className="audio-library-sort">
             Sort
             <select value={sort} onChange={(e) => setSort(e.target.value as Sort)} aria-label="Sort by">
-              <option value="added">Date Added</option>
               <option value="name">Name</option>
+              <option value="added">Date Added</option>
               <option value="length">Length</option>
             </select>
           </label>
