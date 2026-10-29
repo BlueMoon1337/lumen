@@ -228,22 +228,65 @@ export function MediaSidebar() {
 
 const length = (seconds: number) => formatDuration(Math.round(seconds) * 1000);
 
-/** A media bin item: a still of it, its name, and for a video its length. Drag it onto a slide or a media playlist. */
-function MediaTile({ item, live, logo, playlistId }: { item: MediaItem; live: boolean; logo: boolean; playlistId: string | null }) {
+/**
+ * A media bin item: a still of it, its name, and for a video its length. Drag it onto a slide or a
+ * media playlist, or onto another item to put it there (before or after it, by which half).
+ */
+function MediaTile({
+  item,
+  live,
+  logo,
+  playlistId,
+  next,
+}: {
+  item: MediaItem;
+  live: boolean;
+  logo: boolean;
+  playlistId: string | null;
+  /** The item after this one, for dropping after it. */
+  next: string | null;
+}) {
   const media = useMedia(item.id);
   const [duration, setDuration] = useState(0);
+  const [drop, setDrop] = useState<'before' | 'after' | null>(null);
   const s = useStore.getState();
+  const side = (e: DragEvent) => {
+    const r = e.currentTarget.getBoundingClientRect();
+    return e.clientX < r.left + r.width / 2 ? 'before' : 'after';
+  };
   return (
     <div
-      className={`media-tile ${live ? 'live' : ''}`}
+      className={`media-tile ${live ? 'live' : ''} ${drop ? `drop-${drop}` : ''}`}
       draggable
       onDragStart={(e) => {
         e.dataTransfer.setData(DRAG_MEDIA, item.id);
-        e.dataTransfer.effectAllowed = 'copy';
+        e.dataTransfer.effectAllowed = 'copyMove';
+      }}
+      onDragOver={(e) => {
+        if (!hasDrag(e, DRAG_MEDIA)) return;
+        e.preventDefault();
+        e.stopPropagation();
+        e.dataTransfer.dropEffect = 'move';
+        setDrop(side(e));
+      }}
+      onDragLeave={() => setDrop(null)}
+      onDrop={(e) => {
+        const id = e.dataTransfer.getData(DRAG_MEDIA);
+        setDrop(null);
+        if (!id) return;
+        e.preventDefault();
+        e.stopPropagation();
+        const before = side(e) === 'before' ? item.id : next;
+        if (id === item.id || id === before) return;
+        const pl = playlistId ? s.mediaPlaylists.find((x) => x.id === playlistId) : undefined;
+        if (!pl) return s.moveMedia([id], before);
+        // Into a playlist from elsewhere, it joins the playlist there.
+        if (!pl.items.includes(id)) s.addToMediaPlaylist(pl.id, [id]);
+        s.moveInMediaPlaylist(pl.id, [id], before);
       }}
       onClick={() => s.setLiveMedia(live ? null : item.id, playlistId)}
       onContextMenu={(e) => openContextMenu(e, mediaMenu(item, playlistId))}
-      title="Click to show on the Media layer, click again to clear. Drag onto a slide to play it with that slide."
+      title="Click to show on the Media layer, click again to clear. Drag onto a slide to play it with that slide, or between items to reorder."
     >
       <div className="media-tile-frame">
         {!media ? (
@@ -353,8 +396,15 @@ function MediaGrid() {
         </div>
       ) : (
         <div className="media-grid" style={{ gridTemplateColumns: `repeat(auto-fill, minmax(${size}px, 1fr))` }}>
-          {items.map((m) => (
-            <MediaTile key={m.id} item={m} live={liveMedia === m.id} logo={logoId === m.id} playlistId={playlistId} />
+          {items.map((m, i) => (
+            <MediaTile
+              key={m.id}
+              item={m}
+              live={liveMedia === m.id}
+              logo={logoId === m.id}
+              playlistId={playlistId}
+              next={items[i + 1]?.id ?? null}
+            />
           ))}
           {items.length === 0 && <p className="muted">No media matches.</p>}
         </div>

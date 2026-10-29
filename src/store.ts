@@ -252,6 +252,10 @@ interface Actions {
   deleteMediaPlaylist(id: string): void;
   addToMediaPlaylist(playlistId: string, mediaIds: string[]): void;
   removeFromMediaPlaylist(playlistId: string, mediaId: string): void;
+  /** Reorders the media bin: `ids` go before `beforeId` (or to the end). */
+  moveMedia(ids: string[], beforeId: string | null): void;
+  /** Reorders a media playlist: `ids` (already in it) go before `beforeId` (or to the end). */
+  moveInMediaPlaylist(playlistId: string, ids: string[], beforeId: string | null): void;
   createAudioPlaylist(name: string): string;
   renameAudioPlaylist(id: string, name: string): void;
   deleteAudioPlaylist(id: string): void;
@@ -507,6 +511,15 @@ export const mimeFromName = (name: string) => MIME_BY_EXTENSION[name.split('.').
 
 /** The video or image after `id`: in its media playlist if it was started from one, else in the media bin. */
 /** The track after `id` in an audio playlist (back to the first if it loops), or null after its last. */
+/** The list with the items whose keys are `ids` moved, in their order, before `beforeId` (or to the end). */
+export function moveBefore<T>(list: T[], key: (x: T) => string, ids: string[], beforeId: string | null): T[] {
+  const moving = list.filter((x) => ids.includes(key(x)));
+  if (!moving.length || (beforeId !== null && ids.includes(beforeId))) return list;
+  const rest = list.filter((x) => !ids.includes(key(x)));
+  const at = beforeId === null ? -1 : rest.findIndex((x) => key(x) === beforeId);
+  return at < 0 ? [...rest, ...moving] : [...rest.slice(0, at), ...moving, ...rest.slice(at)];
+}
+
 /**
  * A new slide (a text slide with nothing on it yet): the editor opens with its text box selected,
  * its eight handles showing, ready to type into or size.
@@ -1064,6 +1077,13 @@ export const useStore = create<AppState>()(
           set((s) => ({
             mediaPlaylists: s.mediaPlaylists.map((pl) =>
               pl.id === playlistId ? { ...pl, items: [...pl.items, ...mediaIds.filter((id) => !pl.items.includes(id))] } : pl,
+            ),
+          })),
+        moveMedia: (ids, beforeId) => set((s) => ({ media: moveBefore(s.media, (m) => m.id, ids, beforeId) })),
+        moveInMediaPlaylist: (playlistId, ids, beforeId) =>
+          set((s) => ({
+            mediaPlaylists: s.mediaPlaylists.map((pl) =>
+              pl.id === playlistId ? { ...pl, items: moveBefore(pl.items, (x) => x, ids, beforeId) } : pl,
             ),
           })),
         removeFromMediaPlaylist: (playlistId, mediaId) =>

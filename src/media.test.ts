@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it } from 'vitest';
 import { buildFrame } from './frame';
-import { mimeFromName, nextMedia, useStore } from './store';
+import { mimeFromName, moveBefore, nextMedia, useStore } from './store';
 import type { MediaItem } from './types';
 
 const s = () => useStore.getState();
@@ -116,5 +116,25 @@ describe('media cues on slides', () => {
     });
     s().deleteMedia('v1');
     expect(get().groups[0].slides[0].media).toBeUndefined();
+  });
+});
+
+describe('reordering', () => {
+  it('moves media in the bin, and in a playlist, by dragging one onto another', () => {
+    const ids = () => s().media.map((m) => m.id);
+    s().moveMedia(['v3'], 'v1');
+    expect(ids()).toEqual(['v3', 'v1', 'v2', 'i1']);
+    s().moveMedia(['v3'], null);
+    expect(ids()).toEqual(['v1', 'v2', 'i1', 'v3']);
+    // Onto itself: nothing changes.
+    s().moveMedia(['v1'], 'v1');
+    expect(ids()).toEqual(['v1', 'v2', 'i1', 'v3']);
+    const pl = s().createMediaPlaylist('Walk-in');
+    s().addToMediaPlaylist(pl, ['v1', 'v2', 'v3']);
+    s().moveInMediaPlaylist(pl, ['v3'], 'v1');
+    expect(s().mediaPlaylists[0].items).toEqual(['v3', 'v1', 'v2']);
+    expect(ids()).toEqual(['v1', 'v2', 'i1', 'v3']);
+    expect(moveBefore(['a', 'b', 'c'], (x) => x, ['a', 'b'], null)).toEqual(['c', 'a', 'b']);
+    expect(moveBefore(['a', 'b', 'c'], (x) => x, ['z'], 'a')).toEqual(['a', 'b', 'c']);
   });
 });

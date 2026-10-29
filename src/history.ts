@@ -354,6 +354,8 @@ const LABELS: Record<string, string | ((args: unknown[]) => string)> = {
   deleteMediaPlaylist: 'Delete Media Playlist',
   addToMediaPlaylist: 'Add to Media Playlist',
   removeFromMediaPlaylist: 'Remove from Media Playlist',
+  moveMedia: 'Move Media',
+  moveInMediaPlaylist: 'Move in Media Playlist',
   createAudioPlaylist: 'New Audio Playlist',
   applyStyleToAll: 'Apply to All Slides',
   resetSlideStyle: 'Reset to Theme',

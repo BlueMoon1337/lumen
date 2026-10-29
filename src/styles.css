@@ -1312,7 +1312,29 @@ body.resizing-y * {
 }
 
 .media-tile {
+  position: relative;
   cursor: pointer;
+}
+
+/* Dropping an item here to reorder: a bar on the side it will go. */
+.media-tile.drop-before::before,
+.media-tile.drop-after::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 3px;
+  border-radius: 2px;
+  background: var(--pink);
+  pointer-events: none;
+}
+
+.media-tile.drop-before::before {
+  left: -7px;
+}
+
+.media-tile.drop-after::after {
+  right: -7px;
 }
 
 .media-tile-frame {
