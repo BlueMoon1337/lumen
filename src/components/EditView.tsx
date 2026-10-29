@@ -11,7 +11,6 @@ import {
   type Ref,
 } from 'react';
 import { useShallow } from 'zustand/react/shallow';
-import { undoBatch } from '../history';
 import { groupPresets, LABEL_SWATCHES, labelPresets } from '../labels';
 import { colorForGroup } from '../lyrics';
 import { canUngroup } from '../slideOps';
@@ -1296,18 +1295,12 @@ function TextTab({ presentation: p, slide }: { presentation: Presentation; slide
       <div className="button-row">
         <button
           className="btn"
-          disabled={!slide.style}
-          onClick={() =>
-            undoBatch('Apply to All Slides', () => {
-              s.updatePresentation(p.id, { style: { ...p.style, ...slide.style } });
-              s.updateSlide(p.id, slide.id, { style: undefined });
-            })
-          }
-          title="Use this slide's formatting for every slide in the presentation"
+          onClick={() => s.applyStyleToAll(p.id, slide.id)}
+          title="Give every slide in the presentation this slide's Text Style"
         >
           Apply to All Slides
         </button>
-        <button className="btn" disabled={!slide.style} onClick={() => s.updateSlide(p.id, slide.id, { style: undefined })}>
+        <button className="btn" onClick={() => s.resetSlideStyle(p.id, slide.id, base)} title="Put this slide back to the theme's look">
           Reset to Theme
         </button>
       </div>

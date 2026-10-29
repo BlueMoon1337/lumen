@@ -3,7 +3,7 @@ import { adjustInset, centerInset } from './components/EditView';
 import { buildFrame } from './frame';
 import { getSequence, presentationToText } from './lyrics';
 import { useStore } from './store';
-import { applyStyles, copyrightLine } from './theme';
+import { applyStyles, copyrightLine, resolveTheme } from './theme';
 import { defaultThemes } from './seed';
 
 const make = (text: string) => {
@@ -74,6 +74,37 @@ describe('slide editing', () => {
     expect(styleOf(atEnd)).toEqual({ fontFamily: 'Copperplate', color: '#ffcc00' });
     // Its own copy: changing one doesn't change the other.
     expect(styleOf(atEnd)).not.toBe(styleOf(chorus.id));
+  });
+
+  it('applies the active slide’s Text Style to all slides, and resets a slide to the theme', () => {
+    const get = make('[Verse 1]\na\n\nb\n\n[Chorus]\nc');
+    const s = useStore.getState();
+    const [a, b] = get().groups[0].slides;
+    const c = get().groups[1].slides[0];
+    s.updatePresentation(get().id, { style: { fontFamily: 'Impact', color: '#ff0000' } });
+    s.updateSlide(get().id, a.id, { style: { fontSize: 140 } });
+    s.updateSlide(get().id, c.id, { style: { fontFamily: 'Copperplate', color: '#ffffff' } });
+    // From the chorus: every slide now looks like it.
+    s.applyStyleToAll(get().id, c.id);
+    expect(get().style).toEqual({ fontFamily: 'Copperplate', color: '#ffffff' });
+    expect(
+      get()
+        .groups.flatMap((g) => g.slides)
+        .map((sl) => sl.style),
+    ).toEqual([undefined, undefined, undefined]);
+    // A slide with no style of its own applies the presentation's (still clickable, nothing lost).
+    s.applyStyleToAll(get().id, b.id);
+    expect(get().style).toEqual({ fontFamily: 'Copperplate', color: '#ffffff' });
+    // Reset to Theme: this slide looks as the theme does, the others keep the presentation's style.
+    const theme = resolveTheme(useStore.getState(), get());
+    s.resetSlideStyle(get().id, b.id, theme);
+    const look = applyStyles(theme, get().style, get().groups[0].slides[1].style);
+    expect([look.fontFamily, look.color]).toEqual([theme.fontFamily, theme.color]);
+    expect(applyStyles(theme, get().style, get().groups[0].slides[0].style).fontFamily).toBe('Copperplate');
+    // With no presentation style, it just drops the slide's own.
+    s.updatePresentation(get().id, { style: undefined });
+    s.resetSlideStyle(get().id, b.id, theme);
+    expect(get().groups[0].slides[1].style).toBeUndefined();
   });
 
   it('starts a group when adding to an empty presentation', () => {

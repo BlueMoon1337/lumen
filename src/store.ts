@@ -169,6 +169,10 @@ interface Actions {
   assignGroup(presentationId: string, slideId: string, preset: ColorLabel): void;
   /** Ungroup: the slide's group joins the group before it (or, first, becomes unnamed); see ungroup in src/slideOps.ts. */
   ungroup(presentationId: string, slideId: string): void;
+  /** Apply to All Slides: the slide's Text Style (as it looks) becomes the presentation's, and no slide keeps its own. */
+  applyStyleToAll(presentationId: string, slideId: string): void;
+  /** Reset to Theme: the slide looks as `theme` (the presentation's theme) does, whatever the presentation's style. */
+  resetSlideStyle(presentationId: string, slideId: string, theme: Theme): void;
   deleteGroup(presentationId: string, groupId: string): void;
   duplicateGroup(presentationId: string, groupId: string): void;
   setSlideLabel(presentationId: string, slideId: string, label: ColorLabel | undefined): void;
@@ -733,6 +737,24 @@ export const useStore = create<AppState>()(
           })),
         assignGroup: (pid, slideId, preset) => edit(pid, (p) => ops.assignGroup(p, slideId, preset)),
         ungroup: (pid, slideId) => edit(pid, (p) => ops.ungroup(p, slideId)),
+        applyStyleToAll: (pid, slideId) =>
+          edit(pid, (p) => {
+            const slide = p.groups.flatMap((g) => g.slides).find((sl) => sl.id === slideId);
+            const style = { ...p.style, ...slide?.style };
+            return {
+              style: Object.keys(style).length ? style : undefined,
+              groups: p.groups.map((g) =>
+                g.slides.some((sl) => sl.style) ? { ...g, slides: g.slides.map(({ style: _own, ...sl }) => sl) } : g,
+              ),
+            };
+          }),
+        resetSlideStyle: (pid, slideId, theme) => {
+          const p = get().presentations[pid];
+          if (!p) return;
+          // Over the presentation's own style, the slide puts back the theme's values for what it sets.
+          const back = Object.fromEntries(Object.keys(p.style ?? {}).map((k) => [k, structuredClone(theme[k as keyof TextStyle])]));
+          get().updateSlide(pid, slideId, { style: Object.keys(back).length ? (back as TextStyle) : undefined });
+        },
         deleteGroup: (pid, groupId) => {
           edit(pid, (p) => ops.deleteGroup(p, groupId));
           const p = get().presentations[pid];
