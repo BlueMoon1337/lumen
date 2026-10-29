@@ -6300,6 +6300,11 @@ h3.looks-name {
   white-space: nowrap;
 }
 
+.audio-playlist-row.playing .row-actions,
+.audio-playlist-row .row-actions:has(.active) {
+  display: flex;
+}
+
 .audio-playlist-row.playing .list-label {
   color: var(--orange);
 }
