@@ -2616,10 +2616,6 @@ body.resizing-y * {
   background: #000;
 }
 
-.logo-layer .media-fill {
-  object-fit: contain;
-}
-
 /* Slide transitions. Each layer gets "tr-in" or "tr-out", the kind, and a direction (the way it moves).
    The length and easing are set on the layer itself. */
 .tr-group {

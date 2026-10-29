@@ -395,8 +395,9 @@ export class ScreenRenderer {
             draw: (c) => {
               c.fillStyle = '#000';
               c.fillRect(0, 0, CANVAS_W, CANVAS_H);
+              // Filling the screen, as the Media layer and the media bin's thumbnail show it.
               const src = this.source(logo, false);
-              if (src) drawContain(c, src);
+              if (src) drawCover(c, src);
             },
           }
         : null,
