@@ -4869,9 +4869,16 @@ body.resizing-y * {
   color: #fff;
 }
 
+.play-outro.active:hover:not(:disabled) {
+  background: color-mix(in srgb, var(--special-icon) 18%, transparent);
+  border-color: var(--special-icon);
+  color: var(--special-icon);
+}
+
 .play-outro.active {
-  border-color: var(--orange);
-  color: var(--orange);
+  /* The Outro and Logo tabs' icon color: light blue with the pink highlight, red with the blue. */
+  border-color: var(--special-icon);
+  color: var(--special-icon);
 }
 
 .play-outro:disabled {
