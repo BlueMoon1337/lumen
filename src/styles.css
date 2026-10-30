@@ -29,7 +29,7 @@
   --library-icon-ink: #1f2a07;
   /* Playlist icons: deep blue with the pink highlight, red with the blue. */
   --playlist-icon: #0e029b;
-  /* The media bin's Countdowns and Outro, and the active outro's bookmark: light blue with the pink highlight, red with the blue. */
+  /* The media bin's own tabs (Backgrounds, Countdowns, Outro, Logo) and their bookmarks: light blue with the pink highlight, yellow (black icons) with the blue. */
   --special-icon: #75fbfd;
   --special-icon-ink: #0b3b3c;
   --orange: #f7941d;
@@ -65,8 +65,8 @@
   --library-icon: #f08a24;
   --library-icon-ink: #fff;
   --playlist-icon: #e93325;
-  --special-icon: #e2392d;
-  --special-icon-ink: #fff;
+  --special-icon: #ffd60a;
+  --special-icon-ink: #000;
 }
 
 * {
@@ -4895,7 +4895,7 @@ body.resizing-y * {
 }
 
 .play-outro.active {
-  /* The Outro and Logo tabs' icon color: light blue with the pink highlight, red with the blue. */
+  /* The Outro and Logo tabs' icon color: light blue with the pink highlight, yellow with the blue. */
   border-color: var(--special-icon);
   color: var(--special-icon);
 }
