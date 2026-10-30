@@ -313,7 +313,8 @@ function MediaTile({
       }}
       onClick={() => s.setLiveMedia(live ? null : item.id, playlistId)}
       onContextMenu={(e) => openContextMenu(e, mediaMenu(item, playlistId, tab))}
-      title="Click to show on the Media layer, click again to clear. Drag onto a slide to play it with that slide, or between items to reorder."
+      // Its full name, which the tile may cut short.
+      title={item.name}
     >
       <div className="media-tile-frame">
         {outro && <CornerBookmark icon="outro" title="The active outro: Play Outro plays it" />}
