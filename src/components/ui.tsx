@@ -15,7 +15,7 @@ const paths = {
   list: 'M8 6h13M8 12h13M8 18h13M3 6h.01M3 12h.01M3 18h.01',
   heading: 'M6 4v16M18 4v16M6 12h12',
   play: 'M6 4l14 8-14 8z',
-  pause: 'M7 4h4v16H7zM13 4h4v16h-4z',
+  pause: 'M6.5 4.5h4v15h-4zM13.5 4.5h4v15h-4z',
   reset: 'M3 12a9 9 0 1 0 3-6.7L3 8M3 3v5h5',
   search: 'M11 19a8 8 0 1 0 0-16 8 8 0 0 0 0 16zM21 21l-4.3-4.3',
   theme: 'M4 4h7v7H4zM13 4h7v7h-7zM4 13h7v7H4zM16.5 12.5l4 4-4 4-4-4z',
@@ -65,7 +65,16 @@ const paths = {
 
 export type IconName = keyof typeof paths;
 
+/** Icons drawn solid rather than as outlines, to read at a glance (pause: two bars). */
+const SOLID = new Set<IconName>(['pause']);
+
 export function Icon({ name, size = 16 }: { name: IconName; size?: number }) {
+  if (SOLID.has(name))
+    return (
+      <svg width={size} height={size} viewBox="0 0 24 24" fill="currentColor" aria-hidden>
+        <path d={paths[name]} />
+      </svg>
+    );
   return (
     <svg
       width={size}
