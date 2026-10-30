@@ -24,7 +24,7 @@
   --pink-soft: #ffd6e7;
   /* The dot on a library or playlist item that's live: lime with the pink highlight, orange with the blue. */
   --live-dot: #bae64a;
-  /* Library icons: lime with the pink highlight (with a dark glyph, as white doesn't show on it), orange with the blue. */
+  /* Library icons: lime with the pink highlight (with a dark glyph, as white doesn't show on it), orange (black glyph) with the blue. */
   --library-icon: #bae64a;
   --library-icon-ink: #1f2a07;
   /* Playlist icons: deep blue with the pink highlight, red with the blue. */
@@ -63,7 +63,7 @@
   --pink-soft: #d6e4ff;
   --live-dot: var(--orange);
   --library-icon: #f08a24;
-  --library-icon-ink: #fff;
+  --library-icon-ink: #000;
   --playlist-icon: #e93325;
   --special-icon: #ffd60a;
   --special-icon-ink: #000;
