@@ -6,7 +6,7 @@
  */
 import { notify } from '../notices';
 import { useStore } from '../store';
-import type { MediaItem, Presentation } from '../types';
+import type { MediaItem, Presentation, SpecialTab } from '../types';
 import { confirmThen } from './Ask';
 import { shortcut } from './ui';
 
@@ -149,14 +149,11 @@ export function deleteMedia(id: string) {
   );
 }
 
-export type SpecialTab = 'background' | 'countdown' | 'outro' | 'logo';
-export const TAB_NAMES: Record<SpecialTab, string> = { background: 'Backgrounds', countdown: 'Countdowns', outro: 'Outro', logo: 'Logo' };
+export { TAB_NAMES, type SpecialTab } from '../types';
 
 /** Takes an item out of the Backgrounds, Countdowns, Outro or Logo tab; it stays in the media bin (All Media). */
 export function removeFromTab(m: MediaItem, tab: SpecialTab) {
-  if (tab === 'countdown') st().updateMedia(m.id, { countdown: false });
-  else if (tab === 'background') st().updateMedia(m.id, { background: false });
-  else st().markMedia(tab, m.id, false);
+  st().setInTab(tab, [m.id], false);
 }
 
 export function deleteMediaPlaylist(id: string) {

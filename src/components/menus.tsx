@@ -14,6 +14,7 @@ import {
   transitionLabel,
   withChanges,
 } from '../transitions';
+import { fitsTab } from '../types';
 import type { Group, Library, MediaItem, Playlist, PlaylistItem, Presentation, Slide, SlideTransition, VideoPlayback } from '../types';
 import { ColorPickerPanel } from './ColorPicker';
 import { QuickEdit } from './EditView';
@@ -521,21 +522,20 @@ export function mediaMenu(m: MediaItem, playlistId?: string | null, tab?: Specia
   return [
     { label: live ? 'Clear from Screen' : 'Show on Media Layer', action: () => s.setLiveMedia(live ? null : m.id, playlistId ?? null) },
     m.kind === 'video' && { label: 'When It Ends', submenu: () => playbackEntries(m.id).slice(1) },
-    m.kind === 'video' && {
-      label: 'Countdown',
-      checked: !!m.countdown,
-      // A countdown has its own tab, and music fades out as it ends.
-      action: () => s.updateMedia(m.id, m.countdown ? { countdown: false } : { countdown: true, playback: m.playback ?? 'stop' }),
+    // The media bin's own tabs, by hand: ticked ones it's in; choosing one adds it or takes it out.
+    {
+      label: 'Tabs',
+      submenu: () =>
+        (['background', 'countdown', 'outro', 'logo'] as const)
+          .filter((tab) => fitsTab(m, tab))
+          .map((tab) => ({ label: TAB_NAMES[tab], checked: !!m[tab], action: () => s.setInTab(tab, [m.id], !m[tab]) })),
     },
-    { label: 'Background', checked: !!m.background, action: () => s.updateMedia(m.id, { background: !m.background }) },
-    // Outros and logos have their own tabs; Play Outro and Logo (beside the clear buttons) play the active one.
-    m.kind === 'video' && { label: 'Outro', checked: !!m.outro, action: () => s.markMedia('outro', m.id, !m.outro) },
+    // Play Outro and Logo (beside the clear buttons) play the active one.
     m.kind === 'video' && {
       label: 'Active Outro',
       checked: s.settings.outroMediaId === m.id,
       action: () => s.setActiveMedia('outro', s.settings.outroMediaId === m.id ? null : m.id),
     },
-    { label: 'Logo', checked: !!m.logo, action: () => s.markMedia('logo', m.id, !m.logo) },
     { label: 'Active Logo', checked: logo, action: () => s.setActiveMedia('logo', logo ? null : m.id) },
     { label: 'Media Transition…', action: () => openPopupAtMenu(<TargetTransitionPicker target="media" />) },
     '-',

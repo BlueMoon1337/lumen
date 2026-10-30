@@ -11,7 +11,7 @@ import { create } from 'zustand';
 import { findMessage } from './countdowns';
 import { notify } from './notices';
 import { useStore, type AppState } from './store';
-import type { Presentation, Settings } from './types';
+import { TAB_NAMES, type Presentation, type Settings, type SpecialTab } from './types';
 import { isTypingTarget } from './util';
 
 /** The settings undo covers; the rest are preferences (pane sizes, grid size, app icon…). */
@@ -357,6 +357,7 @@ const LABELS: Record<string, string | ((args: unknown[]) => string)> = {
   removeFromMediaPlaylist: 'Remove from Media Playlist',
   moveMedia: 'Move Media',
   markMedia: ([tab]) => (tab === 'outro' ? 'Outro' : 'Logo'),
+  setInTab: ([tab, , on]) => `${on ? 'Add to' : 'Remove from'} ${TAB_NAMES[tab as SpecialTab]}`,
   setActiveMedia: ([tab]) => (tab === 'outro' ? 'Active Outro' : 'Active Logo'),
   moveInMediaPlaylist: 'Move in Media Playlist',
   createAudioPlaylist: 'New Audio Playlist',

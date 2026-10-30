@@ -253,6 +253,14 @@ export interface MediaItem {
  */
 export type MarkedTab = 'outro' | 'logo';
 
+/** The media bin's own tabs, which items are added to and taken out of. */
+export type SpecialTab = 'background' | 'countdown' | 'outro' | 'logo';
+export const TAB_NAMES: Record<SpecialTab, string> = { background: 'Backgrounds', countdown: 'Countdowns', outro: 'Outro', logo: 'Logo' };
+
+/** Whether an item can go in a tab: countdowns and outros are videos; backgrounds and logos, images or videos. */
+export const fitsTab = (m: Pick<MediaItem, 'kind'>, tab: SpecialTab) =>
+  tab === 'countdown' || tab === 'outro' ? m.kind === 'video' : m.kind !== 'audio';
+
 /** When a video ends: start again, hold the last frame, clear the Media layer, or play the next one. */
 export type VideoPlayback = 'loop' | 'stop' | 'clear' | 'next';
 

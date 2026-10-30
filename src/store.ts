@@ -30,6 +30,7 @@ import type {
   Group,
   LiveState,
   MarkedTab,
+  SpecialTab,
   MediaItem,
   Message,
   Playlist,
@@ -47,6 +48,7 @@ import type {
   Theme,
   TimerState,
 } from './types';
+import { fitsTab } from './types';
 import { nextOccurrence, uid } from './util';
 
 /** The part of the state that is saved and exported. */
@@ -254,6 +256,8 @@ interface Actions {
   updateMedia(id: string, patch: Partial<Pick<MediaItem, 'name' | 'loop' | 'playback' | 'countdown' | 'background'>>): void;
   /** Puts an item in the Outro or Logo tab, or takes it out. The first one in a tab becomes its active one. */
   markMedia(tab: MarkedTab, id: string, on: boolean): void;
+  /** Adds items to (or takes them out of) the Backgrounds, Countdowns, Outro or Logo tab, by hand. They stay in the media bin. */
+  setInTab(tab: SpecialTab, ids: string[], on: boolean): void;
   /** The tab's active item (it joins the tab too), or none: the outro Play Outro plays, the logo the Logo layer shows. */
   setActiveMedia(tab: MarkedTab, id: string | null): void;
   /** Play Outro: the active outro on the Media layer, from the start. */
@@ -1143,6 +1147,16 @@ export const useStore = create<AppState>()(
                 on && !active ? { ...s.settings, [key]: id } : !on && active === id ? { ...s.settings, [key]: undefined } : s.settings,
             };
           }),
+        setInTab: (tab, ids, on) => {
+          for (const id of ids) {
+            const m = get().media.find((x) => x.id === id);
+            if (!m || (on && !fitsTab(m, tab))) continue;
+            // A countdown holds its last frame (unless set otherwise), as one imported does.
+            if (tab === 'countdown') get().updateMedia(id, on ? { countdown: true, playback: m.playback ?? 'stop' } : { countdown: false });
+            else if (tab === 'background') get().updateMedia(id, { background: on });
+            else get().markMedia(tab, id, on);
+          }
+        },
         setActiveMedia: (tab, id) =>
           set((s) => ({
             media: id ? s.media.map((m) => (m.id === id && !m[tab] ? joinTab(m, tab) : m)) : s.media,

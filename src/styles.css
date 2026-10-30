@@ -6703,3 +6703,87 @@ h3.looks-name {
   flex: 1;
   font-size: 12px;
 }
+
+/* ---- Adding to the media bin's own tabs (Backgrounds, Countdowns, Outro, Logo) ---- */
+
+.tab-add {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  margin-right: 8px;
+}
+
+.import-empty .btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  margin-top: 6px;
+}
+
+.tab-picker {
+  display: grid;
+  gap: 8px;
+  width: 320px;
+  padding: 10px;
+}
+
+.tab-picker-head {
+  font-weight: 600;
+}
+
+.tab-picker-list {
+  max-height: 340px;
+  margin: 0;
+  padding: 0;
+  overflow-y: auto;
+  list-style: none;
+}
+
+.tab-picker-list .empty {
+  padding: 12px 4px;
+  color: var(--text-3);
+  font-size: 12px;
+}
+
+.tab-picker-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  padding: 5px 6px;
+  border: 0;
+  border-radius: 5px;
+  background: transparent;
+  color: var(--text);
+  text-align: left;
+  cursor: pointer;
+}
+
+.tab-picker-row:hover {
+  background: var(--pink);
+  color: #fff;
+}
+
+.tab-picker-row .list-label {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.tab-picker-thumb {
+  flex: none;
+  width: 56px;
+  height: 32px;
+  overflow: hidden;
+  border-radius: 3px;
+  background: #000;
+}
+
+.tab-picker-thumb img,
+.tab-picker-thumb video {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}

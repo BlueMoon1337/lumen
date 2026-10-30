@@ -303,3 +303,33 @@ describe('backgrounds', () => {
     expect(isBackgroundName('Paint Sweeps')).toBe(false);
   });
 });
+
+describe('the media bin’s own tabs, by hand', () => {
+  it('take items in and out, whatever their names', () => {
+    s().updateSettings({ outroMediaId: undefined, logoMediaId: undefined });
+    s().setInTab('background', ['i1', 'v1'], true);
+    s().setInTab('countdown', ['v2'], true);
+    s().setInTab('outro', ['v3'], true);
+    s().setInTab('logo', ['i1'], true);
+    const inTab = (k: 'background' | 'countdown' | 'outro' | 'logo') =>
+      s()
+        .media.filter((m) => m[k])
+        .map((m) => m.id);
+    expect(inTab('background')).toEqual(['v1', 'i1']);
+    expect(inTab('countdown')).toEqual(['v2']);
+    expect(inTab('outro')).toEqual(['v3']);
+    expect(inTab('logo')).toEqual(['i1']);
+    // The first outro and logo become the active ones.
+    expect(s().settings).toMatchObject({ outroMediaId: 'v3', logoMediaId: 'i1' });
+    // Countdowns and outros are videos: an image isn't added.
+    s().setInTab('countdown', ['i1'], true);
+    expect(inTab('countdown')).toEqual(['v2']);
+    // Out again: they stay in the media bin.
+    s().setInTab('background', ['v1'], false);
+    s().setInTab('outro', ['v3'], false);
+    expect(inTab('background')).toEqual(['i1']);
+    expect(inTab('outro')).toEqual([]);
+    expect(s().settings.outroMediaId).toBeUndefined();
+    expect(s().media).toHaveLength(4);
+  });
+});

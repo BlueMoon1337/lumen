@@ -4,7 +4,7 @@ import { loadMedia, useMedia } from '../media';
 import { convertHeicPhotos } from '../heic';
 import { dismiss, notify } from '../notices';
 import { useStore } from '../store';
-import type { MediaItem, MediaPlaylist } from '../types';
+import { fitsTab, type MediaItem, type MediaPlaylist } from '../types';
 import { formatDuration } from '../util';
 import { CameraFill } from './Canvas';
 import { NamePopup, openContextMenu, openPopupBelow } from './ContextMenu';
@@ -106,8 +106,10 @@ export async function importMediaFiles(
   return added;
 }
 
-const importInto = (playlistId?: string | null) =>
-  pickFiles('image/*,video/*,.heic,.heif,.mp4,.m4v,.mov,.webm').then((files) => importMediaFiles(files, playlistId));
+const importInto = (playlistId?: string | null, tab?: SpecialTab) =>
+  pickFiles('image/*,video/*,.heic,.heif,.mp4,.m4v,.mov,.webm').then((files) =>
+    importMediaFiles(files, playlistId, tab ? intoTab(tab) : undefined),
+  );
 
 const hasDrag = (e: DragEvent, type: string) => e.dataTransfer.types.includes(type);
 
@@ -203,19 +205,13 @@ export function MediaSidebar() {
       />
       {mediaOpen &&
         FILTERS.map((f) => (
-          <div
+          <FilterRow
             key={f.value}
-            className={`collection-row ${filter === f.value ? 'selected' : ''}`}
-            onClick={() => setUI({ mediaFilter: f.value })}
-          >
-            <span
-              className={`collection-icon ${f.value === 'background' || f.value === 'countdown' || f.value === 'outro' || f.value === 'logo' ? 'special' : 'media'}`}
-            >
-              <Icon name={f.icon} size={14} />
-            </span>
-            <span className="list-label">{f.label}</span>
-            <span className="count">{media.filter((m) => inFilter(m, f.value)).length}</span>
-          </div>
+            filter={f}
+            selected={filter === f.value}
+            count={media.filter((m) => inFilter(m, f.value)).length}
+            onSelect={() => setUI({ mediaFilter: f.value })}
+          />
         ))}
       <SectionHeader title="Playlists" collapsed={!playlistsOpen} onToggle={() => setPlaylistsOpen(!playlistsOpen)}>
         <button
@@ -256,6 +252,116 @@ function CornerBookmark({ icon, title, left }: { icon: 'outro' | 'logo'; title: 
     </span>
   );
 }
+
+const isTab = (v: string): v is SpecialTab => v in TAB_NAMES;
+
+/** Imported straight into one of the media bin's own tabs (and no other). */
+const intoTab = (tab: SpecialTab) => ({
+  background: tab === 'background',
+  countdown: tab === 'countdown',
+  outro: tab === 'outro',
+  logo: tab === 'logo',
+});
+
+/**
+ * A row under Media: All Media, Images, Videos, or one of the bin's own tabs. Media dragged onto
+ * one of those tabs (or files dropped there) goes in it; right-click it to add items by hand.
+ */
+function FilterRow({
+  filter: f,
+  selected,
+  count,
+  onSelect,
+}: {
+  filter: (typeof FILTERS)[number];
+  selected: boolean;
+  count: number;
+  onSelect: () => void;
+}) {
+  const tab = isTab(f.value) ? f.value : null;
+  const [drop, setDrop] = useState(false);
+  const s = useStore.getState();
+  return (
+    <div
+      className={`collection-row ${selected ? 'selected' : ''} ${drop ? 'drop' : ''}`}
+      onClick={onSelect}
+      onDragOver={(e) => {
+        if (!tab || !(hasDrag(e, DRAG_MEDIA) || hasDrag(e, 'Files'))) return;
+        e.preventDefault();
+        setDrop(true);
+      }}
+      onDragLeave={() => setDrop(false)}
+      onDrop={(e) => {
+        if (!tab) return;
+        e.preventDefault();
+        setDrop(false);
+        const id = e.dataTransfer.getData(DRAG_MEDIA);
+        if (id) {
+          const m = s.media.find((x) => x.id === id);
+          if (m && !fitsTab(m, tab)) return void notify(`${TAB_NAMES[tab]} takes videos only.`, 'info');
+          s.setInTab(tab, [id], true);
+        } else void importMediaFiles(Array.from(e.dataTransfer.files), null, intoTab(tab));
+      }}
+      onContextMenu={(e) => {
+        if (!tab) return;
+        const row = e.currentTarget;
+        openContextMenu(e, [
+          { label: 'Add from Media Bin…', action: () => openTabPicker(row, tab) },
+          { label: 'Import into ' + TAB_NAMES[tab] + '…', action: () => void importInto(null, tab) },
+        ]);
+      }}
+      title={tab ? `Drag media here to add it to ${TAB_NAMES[tab]} · Right-click to add from the media bin` : undefined}
+    >
+      <span className={`collection-icon ${tab ? 'special' : 'media'}`}>
+        <Icon name={f.icon} size={14} />
+      </span>
+      <span className="list-label">{f.label}</span>
+      <span className="count">{count}</span>
+    </div>
+  );
+}
+
+/** Adding items already in the media bin to one of its tabs: click one to add it. */
+function TabPicker({ tab }: { tab: SpecialTab }) {
+  const media = useStore((s) => s.media);
+  const [query, setQuery] = useState('');
+  const s = useStore.getState();
+  const q = query.trim().toLowerCase();
+  const choices = media.filter((m) => fitsTab(m, tab) && !m[tab] && (!q || m.name.toLowerCase().includes(q)));
+  const kinds = tab === 'countdown' || tab === 'outro' ? 'videos' : 'images and videos';
+  return (
+    <div className="tab-picker">
+      <div className="tab-picker-head">Add to {TAB_NAMES[tab]}</div>
+      <FilterField value={query} onChange={setQuery} placeholder="Search media" />
+      <ul className="tab-picker-list">
+        {choices.map((m) => (
+          <TabPickerRow key={m.id} item={m} onAdd={() => s.setInTab(tab, [m.id], true)} />
+        ))}
+        {choices.length === 0 && (
+          <li className="empty">{q ? 'No media matches.' : `All your ${kinds} are in ${TAB_NAMES[tab]} already.`}</li>
+        )}
+      </ul>
+      <p className="muted small-print">Click one to add it. Or drag media onto {TAB_NAMES[tab]} in the sidebar.</p>
+    </div>
+  );
+}
+
+function TabPickerRow({ item, onAdd }: { item: MediaItem; onAdd: () => void }) {
+  const media = useMedia(item.id);
+  return (
+    <li>
+      <button type="button" className="tab-picker-row" onClick={onAdd} title={`Add “${item.name}”`}>
+        <span className="tab-picker-thumb">
+          {media && (media.isVideo ? <video src={`${media.url}#t=0.5`} muted preload="metadata" /> : <img src={media.url} alt="" />)}
+        </span>
+        <span className="list-label">{item.name}</span>
+        <Icon name="plus" size={14} />
+      </button>
+    </li>
+  );
+}
+
+const openTabPicker = (anchor: Element, tab: SpecialTab) => openPopupBelow(anchor, <TabPicker tab={tab} />);
 
 const length = (seconds: number) => formatDuration(Math.round(seconds) * 1000);
 
@@ -432,11 +538,16 @@ function MediaGrid() {
         <span className="crumb-sep">›</span>
         <span className="crumb">{playlist?.name ?? FILTERS.find((f) => f.value === filter)?.label}</span>
         <span className="pane-footer-spacer" />
+        {!playlist && isTab(filter) && (
+          <button type="button" className="btn small tab-add" onClick={(e) => openTabPicker(e.currentTarget, filter)}>
+            <Icon name="plus" size={12} /> Add from Media Bin
+          </button>
+        )}
         <TransitionButton target="media" className="media-transition" prefix="Media" />
       </div>
       {empty ? (
         <div className="import-empty">
-          <button className="import-tile" onClick={() => void importInto(playlistId)}>
+          <button className="import-tile" onClick={() => void importInto(playlistId, !playlist && isTab(filter) ? filter : undefined)}>
             <Icon name="download" size={40} />
           </button>
           <span>
@@ -452,15 +563,20 @@ function MediaGrid() {
           </span>
           <span className="muted small-print">
             {filter === 'background'
-              ? 'Backgrounds for slides: images and videos to show behind the words. Ones named “background” come here by themselves; right-click any item to make it one.'
+              ? 'Backgrounds for slides: images and videos to show behind the words. Ones named “background” come here by themselves; or add them from the media bin, drag them onto Backgrounds in the sidebar, or right-click ▸ Tabs.'
               : filter === 'countdown'
-                ? 'Countdown videos for before the service. Videos named “countdown” come here by themselves; right-click any video to make it one. As a countdown ends, music on the Audio layer fades out with it.'
+                ? 'Countdown videos for before the service. Videos named “countdown” come here by themselves; or add them from the media bin, drag them onto Countdowns in the sidebar, or right-click ▸ Tabs. As a countdown ends, music on the Audio layer fades out with it.'
                 : filter === 'outro'
-                  ? 'Videos for the end of the service. Videos named “outro” come here by themselves; right-click any video to make it one. The active outro (marked with a bookmark) plays from the Play Outro button beside the clear buttons.'
+                  ? 'Videos for the end of the service. Videos named “outro” come here by themselves; or add them from the media bin, drag them onto Outro in the sidebar, or right-click ▸ Tabs. The active outro (marked with a bookmark) plays from the Play Outro button beside the clear buttons.'
                   : filter === 'logo'
-                    ? 'Logos: images or videos that cover the audience screen. Ones named “logo” come here by themselves; right-click any item to make it one. The active logo (marked with a bookmark) shows from the Logo button beside the clear buttons.'
+                    ? 'Logos: images or videos that cover the audience screen. Ones named “logo” come here by themselves; or add them from the media bin, drag them onto Logo in the sidebar, or right-click ▸ Tabs. The active logo (marked with a bookmark) shows from the Logo button beside the clear buttons.'
                     : 'Images (iPhone HEIC photos become JPEG) and videos (MP4, MOV, WebM). Or drop them here.'}
           </span>
+          {!playlist && isTab(filter) && media.length > 0 && (
+            <button type="button" className="btn" onClick={(e) => openTabPicker(e.currentTarget, filter)}>
+              <Icon name="plus" size={13} /> Add from Media Bin
+            </button>
+          )}
         </div>
       ) : (
         <div className="media-grid" style={{ gridTemplateColumns: `repeat(auto-fill, minmax(${size}px, 1fr))` }}>
