@@ -53,22 +53,21 @@ def main() -> None:
 
     centred(d, 146, "Drag the Lumen icon to the Applications folder", font("SemiBold", 18), (28, 28, 32))
 
-    # A curved arrow from Lumen to Applications, yellow to orange, with a soft shadow. Drawn four
+    # A straight arrow from Lumen to Applications, yellow to orange, with a soft shadow. Drawn four
     # times larger and scaled down, so its edges are smooth.
     k = 4
     arrow = Image.new("RGBA", (W * k, H * k), (0, 0, 0, 0))
     a = ImageDraw.Draw(arrow)
-    (x1, y1), (x2, y2) = (APP[0] + 80, APP[1] - 8), (APPS[0] - 96, APPS[1] - 8)
+    x1, x2, y = APP[0] + 80, APPS[0] - 104, APP[1] - 8
     steps = 400
     for i in range(steps + 1):
         t = i / steps
         x = (x1 + (x2 - x1) * t) * k
-        y = (y1 - 50 * 4 * t * (1 - t)) * k  # a shallow arc above the straight line
         r = (4 + 5 * t) * k
-        a.ellipse([x - r, y - r, x + r, y + r], fill=(255, int(216 - 76 * t), int(90 - 72 * t), int(70 + 185 * t)))
-    # The head, pointing along the end of the arc (slightly down, to the right).
-    hx, hy = x2 * k, y1 * k
-    a.polygon([(hx + 26 * k, hy + 8 * k), (hx - 4 * k, hy - 18 * k), (hx, hy + 26 * k)], fill=(247, 140, 22, 255))
+        a.ellipse([x - r, y * k - r, x + r, y * k + r], fill=(255, int(216 - 76 * t), int(90 - 72 * t), int(70 + 185 * t)))
+    # The head, pointing right.
+    hx, hy = x2 * k, y * k
+    a.polygon([(hx + 30 * k, hy), (hx - 2 * k, hy - 22 * k), (hx - 2 * k, hy + 22 * k)], fill=(247, 140, 22, 255))
     arrow = arrow.resize((W, H), Image.LANCZOS)
     shadow = arrow.getchannel("A").filter(ImageFilter.GaussianBlur(4)).point(lambda v: v // 6)
     img.paste((0, 0, 0), (0, 3), shadow)
