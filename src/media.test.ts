@@ -256,3 +256,29 @@ describe('a theme that keeps its background', () => {
     expect(buildFrame(s()).background).toMatchObject({ kind: 'color' });
   });
 });
+
+describe('after the outro', () => {
+  it('shows the logo and plays the chosen audio playlist when Settings say so', () => {
+    useStore.setState({ media: [...s().media, { id: 'song', name: 'Song', kind: 'audio', mime: 'audio/mpeg' }], audioPlaylists: [] });
+    s().setActiveMedia('outro', 'v1');
+    s().setActiveMedia('logo', 'i1');
+    const pl = s().createAudioPlaylist('After service');
+    s().addToAudioPlaylist(pl, ['song']);
+    const song = s().createPresentation({ title: 'Song' }, 'Amazing grace');
+    // Off (the default): the outro just holds its last frame.
+    s().goLive(song, 0);
+    s().setLiveMedia('v1');
+    s().mediaEnded();
+    expect(s().live).toMatchObject({ mediaId: 'v1', logo: false, audioId: null });
+    // On: the logo comes up, the words and background go, and the playlist plays.
+    s().updateSettings({ logoAfterOutro: true, outroPlaylistId: pl });
+    s().mediaEnded();
+    expect(s().live).toMatchObject({ mediaId: null, slide: null, logo: true, audioId: 'song', audioFrom: pl });
+    // Another video ending doesn't.
+    s().pressLogo();
+    s().clearLayers(['audio']);
+    s().setLiveMedia('v3');
+    s().mediaEnded();
+    expect(s().live).toMatchObject({ logo: false, audioId: null });
+  });
+});

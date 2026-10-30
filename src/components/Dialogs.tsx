@@ -28,6 +28,52 @@ const ALT = IS_MAC ? '⌥' : 'Alt';
  * Settings ▸ Startup: open Lumen when the computer starts (when the operator logs in). The
  * system keeps the setting, so it's read from there rather than from Lumen's own settings.
  */
+/** Settings ▸ Outro: what happens when the outro (Media ▸ Outro) ends. */
+function OutroSection() {
+  const settings = useStore((st) => st.settings);
+  const playlists = useStore((st) => st.audioPlaylists);
+  const logo = useStore((st) => st.media.find((m) => m.id === st.settings.logoMediaId));
+  const s = useStore.getState();
+  const playlistId = playlists.some((pl) => pl.id === settings.outroPlaylistId) ? settings.outroPlaylistId : '';
+  return (
+    <section className="settings-section">
+      <h4>Outro</h4>
+      <label className="check-row">
+        <input
+          type="checkbox"
+          checked={!!settings.logoAfterOutro}
+          onChange={(e) => s.updateSettings({ logoAfterOutro: e.target.checked || undefined })}
+        />
+        When the outro ends, show the logo
+      </label>
+      <label className="field-row">
+        <span>With the logo, play</span>
+        <select
+          value={playlistId}
+          disabled={!settings.logoAfterOutro}
+          onChange={(e) => s.updateSettings({ outroPlaylistId: e.target.value || undefined })}
+          aria-label="Audio playlist to play with the logo"
+        >
+          <option value="">No music</option>
+          {playlists.map((pl) => (
+            <option key={pl.id} value={pl.id}>
+              {pl.name}
+              {pl.shuffle ? ' (shuffled)' : ''}
+            </option>
+          ))}
+        </select>
+      </label>
+      <p className="muted small-print">
+        {!logo
+          ? 'There’s no logo yet: choose one in Media ▸ Logo (right-click ▸ Active Logo).'
+          : `When the outro video finishes, “${logo.name}” comes up and the words and the background clear${
+              playlistId ? `, and “${playlists.find((pl) => pl.id === playlistId)?.name}” starts playing with it` : ''
+            }. Audio playlists are made in the Audio tab.`}
+      </p>
+    </section>
+  );
+}
+
 function StartupSection() {
   const bridge = window.lumenDesktop!;
   const [on, setOn] = useState<boolean | null>(null);
@@ -193,6 +239,7 @@ export function SettingsDialog({ onClose, onScreens }: { onClose: () => void; on
           After the last slide, continue to the next playlist item
         </label>
       </section>
+      <OutroSection />
       <section className="settings-section">
         <h4>Groups & Labels</h4>
         <p className="muted small-print">

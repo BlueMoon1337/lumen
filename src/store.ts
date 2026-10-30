@@ -332,6 +332,8 @@ interface Actions {
   /** The live video ended: loop, stop, clear or play the next, as the video says. */
   mediaEnded(): void;
   toggleLogo(): void;
+  /** An outro ended (Settings ▸ Outro): the logo comes up, and the chosen audio playlist plays with it. */
+  afterOutro(): void;
   /** The Logo button: shows the logo, clearing the slide's words and the background (Media layer); or hides it. */
   pressLogo(): void;
   /** Presentation ▸ Clear to Logo: everything off the screens but the logo. */
@@ -1473,11 +1475,24 @@ export const useStore = create<AppState>()(
           const s = get();
           const item = s.media.find((m) => m.id === s.live.mediaId);
           if (!item || item.kind !== 'video') return;
+          // Settings ▸ Outro: the logo (and a playlist with it) when the outro is over.
+          if (item.outro && s.settings.logoAfterOutro) return s.afterOutro();
           if (item.playback === 'clear') s.clearLayers(['media']);
           if (item.playback === 'next') {
             const next = nextMedia(s, item.id, s.live.mediaFrom);
             if (next) s.setLiveMedia(next, s.live.mediaFrom);
             else s.clearLayers(['media']);
+          }
+        },
+        afterOutro: () => {
+          const s = get();
+          if (s.settings.logoMediaId && s.media.some((m) => m.id === s.settings.logoMediaId))
+            set((st) => ({ live: { ...clearLive(st.live, ['slide', 'media']), logo: true } }));
+          const pl = s.audioPlaylists.find((x) => x.id === s.settings.outroPlaylistId);
+          const first = pl?.items.find((id) => s.media.some((m) => m.id === id && m.kind === 'audio'));
+          if (pl && first) {
+            if (pl.shuffle) s.shuffleAudio(pl.id);
+            else s.playAudio(first, pl.id);
           }
         },
         toggleLogo: () => set((s) => ({ live: { ...s.live, logo: !s.live.logo } })),

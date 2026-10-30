@@ -307,6 +307,10 @@ export interface Settings {
   logoMediaId?: string;
   /** The active outro: the video Play Outro (beside the clear buttons) puts on the Media layer. */
   outroMediaId?: string;
+  /** When an outro ends, the logo comes up (clearing the words and the background). */
+  logoAfterOutro?: boolean;
+  /** An audio playlist that starts with the logo when an outro ends. */
+  outroPlaylistId?: string;
   /** Countdown Fade (Audio tab): seconds before the end that music starts to fade; 10 when unset. */
   countdownFadeSeconds?: number;
   /** Countdown Fade follows countdown videos (on when unset) and the Timers tab's countdown (on when unset). */
