@@ -59,7 +59,16 @@ export function MediaClock() {
   }, [seek]);
 
   useEffect(() => {
-    if (!media) useMediaStatus.setState({ time: 0, duration: 0 });
+    if (media) return;
+    useMediaStatus.setState({ time: 0, duration: 0 });
+    // Cleared (the Logo button, a clear, another layer taking over): stop it. Taking its src away
+    // isn't enough, as a video keeps playing what it loaded, and this copy plays the sound.
+    const v = ref.current;
+    if (v) {
+      v.pause();
+      v.removeAttribute('src');
+      v.load();
+    }
   }, [media]);
 
   const report = () => {
