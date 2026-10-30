@@ -527,6 +527,7 @@ export function mediaMenu(m: MediaItem, playlistId?: string | null, tab?: Specia
       // A countdown has its own tab, and music fades out as it ends.
       action: () => s.updateMedia(m.id, m.countdown ? { countdown: false } : { countdown: true, playback: m.playback ?? 'stop' }),
     },
+    { label: 'Background', checked: !!m.background, action: () => s.updateMedia(m.id, { background: !m.background }) },
     // Outros and logos have their own tabs; Play Outro and Logo (beside the clear buttons) play the active one.
     m.kind === 'video' && { label: 'Outro', checked: !!m.outro, action: () => s.markMedia('outro', m.id, !m.outro) },
     m.kind === 'video' && {

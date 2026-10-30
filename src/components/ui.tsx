@@ -45,6 +45,7 @@ const paths = {
   alignCenter: 'M4 6h16M7 10h10M4 14h16M7 18h10',
   center: 'M12 2v5M12 17v5M2 12h5M17 12h5M8 8h8v8H8z',
   outro: 'M5 4l10 8-10 8zM19 4v16',
+  backdrop: 'M3 4h18v12H3zM8 20h8M12 16v4M3 13l5-4 4 3 3-2 6 4',
   shuffle: 'M16 3h5v5M4 20 21 3M21 16v5h-5M15 15l6 6M4 4l5 5',
   layout: 'M3 4h18v16H3zM9 4v16M9 12h12',
   logo: 'M12 3l7 3v5c0 4.5-3 8-7 10-4-2-7-5.5-7-10V6zM12 8v8M8.5 12h7',

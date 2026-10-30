@@ -50,3 +50,6 @@ export const isOutroName = (name: string) => /\boutro|despedida|closing|cierre/i
 
 /** An image or video named like a logo ("Church Logo", "logo-white"). */
 export const isLogoName = (name: string) => /logo/i.test(name);
+
+/** An image or video named like a background ("Worship Background", "Fondo azul", "backdrop"). */
+export const isBackgroundName = (name: string) => /background|backdrop|fondo/i.test(name);

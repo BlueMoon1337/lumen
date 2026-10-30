@@ -149,12 +149,13 @@ export function deleteMedia(id: string) {
   );
 }
 
-export type SpecialTab = 'countdown' | 'outro' | 'logo';
-export const TAB_NAMES: Record<SpecialTab, string> = { countdown: 'Countdowns', outro: 'Outro', logo: 'Logo' };
+export type SpecialTab = 'background' | 'countdown' | 'outro' | 'logo';
+export const TAB_NAMES: Record<SpecialTab, string> = { background: 'Backgrounds', countdown: 'Countdowns', outro: 'Outro', logo: 'Logo' };
 
-/** Takes an item out of the Countdowns, Outro or Logo tab; it stays in the media bin (All Media). */
+/** Takes an item out of the Backgrounds, Countdowns, Outro or Logo tab; it stays in the media bin (All Media). */
 export function removeFromTab(m: MediaItem, tab: SpecialTab) {
   if (tab === 'countdown') st().updateMedia(m.id, { countdown: false });
+  else if (tab === 'background') st().updateMedia(m.id, { background: false });
   else st().markMedia(tab, m.id, false);
 }
 

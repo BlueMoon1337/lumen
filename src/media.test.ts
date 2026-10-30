@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it } from 'vitest';
 import { buildFrame } from './frame';
 import { removeFromTab } from './components/deleting';
-import { isLogoName, isOutroName } from './countdowns';
+import { isBackgroundName, isLogoName, isOutroName } from './countdowns';
 import { mimeFromName, moveBefore, nextMedia, useStore } from './store';
 import type { MediaItem } from './types';
 
@@ -280,5 +280,26 @@ describe('after the outro', () => {
     s().setLiveMedia('v3');
     s().mediaEnded();
     expect(s().live).toMatchObject({ logo: false, audioId: null });
+  });
+});
+
+describe('backgrounds', () => {
+  it('have their own tab, which removing from leaves the media bin alone', () => {
+    s().updateMedia('i1', { background: true });
+    s().updateMedia('v2', { background: true });
+    expect(
+      s()
+        .media.filter((m) => m.background)
+        .map((m) => m.id),
+    ).toEqual(['v2', 'i1']);
+    removeFromTab(
+      s().media.find((m) => m.id === 'v2')!,
+      'background',
+    );
+    expect(s().media.find((m) => m.id === 'v2')?.background).toBe(false);
+    expect(s().media.some((m) => m.id === 'v2')).toBe(true);
+    expect(isBackgroundName('Worship Background 4K')).toBe(true);
+    expect(isBackgroundName('Fondo Azul')).toBe(true);
+    expect(isBackgroundName('Paint Sweeps')).toBe(false);
   });
 });

@@ -15,7 +15,7 @@ import { ALL_LAYERS, clearLive } from './layers';
 import { DEFAULT_LOOK, lookScreen } from './looks';
 import { DEFAULT_STAGE_LAYOUTS } from './stageLayouts';
 import { deckFileOf, isSlideshow, SLIDESHOW_LIBRARY_ID, SLIDESHOW_LIBRARY_NAME } from './slideshows';
-import { countdownFade, isCountdownName, isLogoName, isOutroName } from './countdowns';
+import { countdownFade, isBackgroundName, isCountdownName, isLogoName, isOutroName } from './countdowns';
 import type {
   Category,
   Library,
@@ -121,7 +121,7 @@ interface UIState {
   editingThemeId: string | null;
   showMediaBin: boolean;
   /** What the media bin shows: its images and videos, a media playlist, or the cameras for the Video Input layer. */
-  mediaFilter: 'all' | 'image' | 'video' | 'countdown' | 'outro' | 'logo' | 'playlist' | 'inputs';
+  mediaFilter: 'all' | 'image' | 'video' | 'background' | 'countdown' | 'outro' | 'logo' | 'playlist' | 'inputs';
   /** The media playlist shown when mediaFilter is "playlist". */
   mediaPlaylistId: string | null;
   liveTab: LiveTab;
@@ -246,12 +246,12 @@ interface Actions {
   addMediaFiles(
     files: File[],
     playlistId?: string | null,
-    options?: { countdown?: boolean; outro?: boolean; logo?: boolean },
+    options?: { background?: boolean; countdown?: boolean; outro?: boolean; logo?: boolean },
   ): Promise<MediaItem[]>;
   /** Adds media whose files are already stored (from an imported bundle). */
   addMedia(items: MediaItem[]): void;
   deleteMedia(id: string): void;
-  updateMedia(id: string, patch: Partial<Pick<MediaItem, 'name' | 'loop' | 'playback' | 'countdown'>>): void;
+  updateMedia(id: string, patch: Partial<Pick<MediaItem, 'name' | 'loop' | 'playback' | 'countdown' | 'background'>>): void;
   /** Puts an item in the Outro or Logo tab, or takes it out. The first one in a tab becomes its active one. */
   markMedia(tab: MarkedTab, id: string, on: boolean): void;
   /** The tab's active item (it joins the tab too), or none: the outro Play Outro plays, the logo the Logo layer shows. */
@@ -1072,6 +1072,8 @@ export const useStore = create<AppState>()(
             else if (kind === 'video' && (options?.outro || isOutroName(item.name))) Object.assign(item, joinTab(item, 'outro'));
             // Logos: images or videos imported into the Logo tab, or named like one.
             else if (kind !== 'audio' && (options?.logo || isLogoName(item.name))) item.logo = true;
+            // Backgrounds: images or videos imported into the Backgrounds tab, or named like one.
+            else if (kind !== 'audio' && (options?.background || isBackgroundName(item.name))) item.background = true;
             await putMediaBlob(item.id, file);
             added.push(item);
           }
@@ -1569,7 +1571,7 @@ export const useStore = create<AppState>()(
     },
     {
       name: 'lumen-library',
-      version: 10,
+      version: 11,
       migrate: (persisted, version) => {
         const saved = persisted as Partial<LibraryData>;
         const addTheme = (id: string) => {
@@ -1605,6 +1607,11 @@ export const useStore = create<AppState>()(
             m.kind !== 'audio' && m.logo === undefined && (m.id === logoId || isLogoName(m.name)) ? { ...m, logo: true } : m,
           );
         }
+        // Version 11 added the Backgrounds tab: images and videos named like a background go there.
+        if (version < 11 && saved.media)
+          saved.media = saved.media.map((m) =>
+            m.kind !== 'audio' && m.background === undefined && isBackgroundName(m.name) ? { ...m, background: true } : m,
+          );
         // Version 7 matched the group list (and colors) to ProPresenter's.
         if (version < 7 && saved.settings?.groupPresets)
           saved.settings = { ...saved.settings, groupPresets: upgradeGroupPresets(saved.settings.groupPresets) };

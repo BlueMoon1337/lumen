@@ -243,6 +243,8 @@ export interface MediaItem {
   outro?: boolean;
   /** Image or video: a logo, in the media bin's Logo tab. */
   logo?: boolean;
+  /** Image or video: a background, in the media bin's Backgrounds tab. */
+  background?: boolean;
 }
 
 /**
