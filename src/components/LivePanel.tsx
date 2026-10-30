@@ -223,7 +223,7 @@ export function LivePanel() {
             <option value="audience">Audience</option>
             <option value="stage">Stage</option>
           </select>
-          <span className="screen-label">{frame.stage.currentLabel ?? ''}</span>
+          <span className="screen-label" />
           <TransitionButton target="global" className="live-transition" prefix="Global" />
         </div>
         <ClearGroupsRow />
@@ -279,7 +279,7 @@ function TimersTab() {
 
   return (
     <>
-      <SectionHeader title="Timers" />
+      <SectionHeader title="Timers · Stage Display" />
       <div className="tab-pad">
         <div className="timer-card">
           <div className="timer-card-head">
@@ -332,8 +332,8 @@ function TimersTab() {
           Fade music out over its last {fade.seconds} seconds
         </label>
         <p className="muted small-print">
-          Shows on the stage display. Put {'{countdown}'} in a message to show it to the audience. The fade is set in Audio ▸ Countdown
-          Fade.
+          This countdown is for the stage display only: the audience screen doesn't show it. To put it in front of the audience too, show
+          the {'{countdown}'} message in Messages. The fade is set in Audio ▸ Countdown Fade.
         </p>
       </div>
     </>

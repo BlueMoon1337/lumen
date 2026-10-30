@@ -224,6 +224,22 @@ export function SettingsDialog({ onClose, onScreens }: { onClose: () => void; on
         <p className="muted small-print">For selections, the open library or playlist, and buttons that are on.</p>
       </section>
       <section className="settings-section">
+        <h4>Layout</h4>
+        <div className="field-row">
+          <button
+            className="btn"
+            disabled={!settings.panes || Object.keys(settings.panes).length === 0}
+            onClick={() => s.updateSettings({ panes: undefined })}
+          >
+            Reset Section Sizes
+          </button>
+        </div>
+        <p className="muted small-print">
+          Puts the library, live panel, preview, media bin, slide list and inspector back to their original sizes. Drag the line between two
+          sections to resize them, or double-click it to reset just that one.
+        </p>
+      </section>
+      <section className="settings-section">
         <h4>App Icon</h4>
         <IconPicker value={settings.appIcon ?? DEFAULT_APP_ICON} onChange={(appIcon) => s.updateSettings({ appIcon })} />
         {window.lumenDesktop?.platform === 'darwin' && (
