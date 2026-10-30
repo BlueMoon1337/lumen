@@ -273,7 +273,7 @@ interface Actions {
   /** Adds tracks to an audio playlist, before `before` (or at the end); tracks already in it move there. */
   addToAudioPlaylist(playlistId: string, mediaIds: string[], before?: string | null): void;
   removeFromAudioPlaylist(playlistId: string, mediaId: string): void;
-  updateAudioPlaylist(id: string, patch: Partial<Pick<MediaPlaylist, 'loop'>>): void;
+  updateAudioPlaylist(id: string, patch: Partial<Pick<MediaPlaylist, 'loop' | 'shuffle'>>): void;
 
   addBible(meta: BibleMeta): void;
   deleteBible(id: string): void;
@@ -305,6 +305,10 @@ interface Actions {
   playAudio(mediaId: string, playlistId?: string | null): void;
   /** The track ended: the next one in its playlist plays, or the Audio layer clears. */
   audioEnded(): void;
+  /** Plays a playlist (or AUDIO_LIBRARY, the whole library) shuffled, from a random track. */
+  shuffleAudio(from: string): void;
+  /** A random countdown video (not the one up now) on the Media layer. */
+  playRandomCountdown(): void;
   setAudioPaused(paused: boolean): void;
   restartAudio(): void;
   setVideoInput(input: LiveState['videoInput']): void;
@@ -404,6 +408,7 @@ const emptyLive: LiveState = {
   audioPaused: false,
   audioRestart: 0,
   audioFrom: null,
+  audioPlayed: [],
   announcement: null,
   videoInput: null,
 };
@@ -555,15 +560,42 @@ export function isNewSlide(s: Pick<AppState, 'presentations'>, slideId: string |
   return false;
 }
 
-export function nextAudio(s: Pick<LibraryData, 'media' | 'audioPlaylists'>, id: string, playlistId: string | null): string | null {
-  const pl = s.audioPlaylists.find((x) => x.id === playlistId);
+/** Where audio plays from when the Audio Library is shuffled (in place of a playlist id). */
+export const AUDIO_LIBRARY = 'audio-library';
+
+/** The tracks a playlist (or the whole Audio Library) plays, and how. */
+function audioSource(s: Pick<LibraryData, 'media' | 'audioPlaylists'>, from: string | null) {
+  const audio = s.media.filter((m) => m.kind === 'audio').map((m) => m.id);
+  if (from === AUDIO_LIBRARY) return { order: audio, loop: false, shuffle: true };
+  const pl = s.audioPlaylists.find((x) => x.id === from);
   if (!pl) return null;
-  const audio = new Set(s.media.filter((m) => m.kind === 'audio').map((m) => m.id));
-  const order = pl.items.filter((x) => audio.has(x));
-  if (!order.length) return null;
+  const known = new Set(audio);
+  return { order: pl.items.filter((x) => known.has(x)), loop: !!pl.loop, shuffle: !!pl.shuffle };
+}
+
+const pick = <T>(list: T[]): T => list[Math.floor(Math.random() * list.length)];
+
+/**
+ * The track after `id` where it was played from: the next in the playlist (back to the first if it
+ * loops), or, shuffled, one not yet played this round (a new round if it loops). Null after the last.
+ */
+export function nextAudio(
+  s: Pick<LibraryData, 'media' | 'audioPlaylists'>,
+  id: string,
+  playlistId: string | null,
+  played: string[] = [],
+): string | null {
+  const src = audioSource(s, playlistId);
+  if (!src || !src.order.length) return null;
+  const { order, loop } = src;
+  if (src.shuffle) {
+    let left = order.filter((x) => x !== id && !played.includes(x));
+    if (!left.length && loop) left = order.length > 1 ? order.filter((x) => x !== id) : order;
+    return left.length ? pick(left) : null;
+  }
   const at = order.indexOf(id);
   if (at + 1 < order.length) return order[at + 1];
-  return pl.loop ? order[0] : null;
+  return loop ? order[0] : null;
 }
 
 export function nextMedia(s: Pick<LibraryData, 'media' | 'mediaPlaylists'>, id: string, playlistId: string | null): string | null {
@@ -1283,14 +1315,39 @@ export const useStore = create<AppState>()(
           else if (p.autoAdvance.loop && length) s.goLive(p.id, 0, ref.playlistItemId);
         },
         playAudio: (mediaId, playlistId = null) =>
-          set((s) => ({
-            live: { ...s.live, audioId: mediaId, audioPaused: false, audioRestart: s.live.audioRestart + 1, audioFrom: playlistId },
-          })),
+          set((s) => {
+            // From the same place, the round goes on; a track played again starts a new one.
+            const same = !!playlistId && playlistId === s.live.audioFrom && !s.live.audioPlayed.includes(mediaId);
+            return {
+              live: {
+                ...s.live,
+                audioId: mediaId,
+                audioPaused: false,
+                audioRestart: s.live.audioRestart + 1,
+                audioFrom: playlistId,
+                audioPlayed: same ? [...s.live.audioPlayed, mediaId] : [mediaId],
+              },
+            };
+          }),
         audioEnded: () => {
           const s = get();
-          const next = s.live.audioId ? nextAudio(s, s.live.audioId, s.live.audioFrom) : null;
+          const next = s.live.audioId ? nextAudio(s, s.live.audioId, s.live.audioFrom, s.live.audioPlayed) : null;
           if (next) s.playAudio(next, s.live.audioFrom);
           else s.clearLayers(['audio']);
+        },
+        shuffleAudio: (from) => {
+          const s = get();
+          const order = audioSource(s, from)?.order ?? [];
+          if (!order.length) return;
+          // A fresh round: forget what was played.
+          set((st) => ({ live: { ...st.live, audioFrom: null, audioPlayed: [] } }));
+          s.playAudio(pick(order), from);
+        },
+        playRandomCountdown: () => {
+          const s = get();
+          const countdowns = s.media.filter((m) => m.kind === 'video' && m.countdown).map((m) => m.id);
+          const choices = countdowns.length > 1 ? countdowns.filter((id) => id !== s.live.mediaId) : countdowns;
+          if (choices.length) s.setLiveMedia(pick(choices));
         },
         setAudioPaused: (paused) => set((s) => ({ live: { ...s.live, audioPaused: paused } })),
         restartAudio: () => set((s) => ({ live: { ...s.live, audioPaused: false, audioRestart: s.live.audioRestart + 1 } })),

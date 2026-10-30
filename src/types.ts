@@ -261,6 +261,8 @@ export interface MediaPlaylist {
   items: string[];
   /** An audio playlist that starts over after its last track. */
   loop?: boolean;
+  /** An audio playlist that plays its tracks in a random order (each once a round). */
+  shuffle?: boolean;
 }
 
 export type PlaylistItem = { id: string; type: 'presentation'; presentationId: string } | { id: string; type: 'header'; label: string };
@@ -649,8 +651,10 @@ export interface LiveState {
   audioId: string | null;
   audioPaused: boolean;
   audioRestart: number;
-  /** The audio playlist the playing track was started from: its next track follows when it ends. */
+  /** The audio playlist the playing track was started from (or AUDIO_LIBRARY, shuffling it): its next track follows when it ends. */
   audioFrom: string | null;
+  /** Tracks played from there this round, so shuffling doesn't repeat one before the rest have played. */
+  audioPlayed: string[];
   /** A slide on the Announcements layer, over the slide layer. */
   announcement: LiveSlideRef | null;
   /** A camera or capture card on the Video Input layer, under everything. */

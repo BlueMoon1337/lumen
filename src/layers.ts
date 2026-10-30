@@ -66,7 +66,7 @@ export function isLayerLive(live: LiveState, layer: ClearLayer): boolean {
 export function clearLive(live: LiveState, layers: ClearLayer[]): LiveState {
   const next = { ...live };
   for (const layer of layers) {
-    if (layer === 'audio') Object.assign(next, { audioId: null, audioPaused: false, audioFrom: null });
+    if (layer === 'audio') Object.assign(next, { audioId: null, audioPaused: false, audioFrom: null, audioPlayed: [] });
     if (layer === 'messages') next.messageId = null;
     if (layer === 'logo') next.logo = false;
     if (layer === 'announcements') next.announcement = null;

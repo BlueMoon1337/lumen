@@ -61,6 +61,24 @@ function Tool({
   );
 }
 
+/** Reset Section Sizes: every pane back to its original size (also in Settings ▸ Layout). */
+function ResetSizesTool() {
+  const resized = useStore((s) => !!s.settings.panes && Object.keys(s.settings.panes).length > 0);
+  return (
+    <Tool
+      icon="layout"
+      label="Reset Sizes"
+      title={
+        resized
+          ? 'Reset Section Sizes: put every section back to its original size'
+          : 'Reset Section Sizes: the sections are their original sizes'
+      }
+      disabled={!resized}
+      onClick={() => useStore.getState().updateSettings({ panes: undefined })}
+    />
+  );
+}
+
 /** Settings, with a dot when a newer Lumen is ready to install (its Update button is in Settings). */
 function SettingsTool({ onClick }: { onClick: () => void }) {
   const u = useUpdates();
@@ -192,6 +210,7 @@ export function Toolbar({ onSettings, onScreens }: { onSettings: () => void; onS
       </div>
       <div className="toolbar-spacer" data-tauri-drag-region />
       <div className="tool-group">
+        <ResetSizesTool />
         <Tool
           icon="image"
           label="Media"

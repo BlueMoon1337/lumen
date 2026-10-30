@@ -1,6 +1,6 @@
-import { beforeEach, describe, expect, it } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { installHistory, redo, undo } from './history';
-import { nextAudio, useStore } from './store';
+import { AUDIO_LIBRARY, nextAudio, useStore } from './store';
 import type { MediaItem } from './types';
 
 const s = () => useStore.getState();
@@ -68,5 +68,70 @@ describe('audio playlists', () => {
     expect(items(pl)).toEqual(['a', 'b']);
     redo();
     expect(s().audioPlaylists).toEqual([]);
+  });
+});
+
+describe('shuffle', () => {
+  afterEach(() => vi.restoreAllMocks());
+
+  /** Plays from `from` until the Audio layer clears; the tracks it played. */
+  const playThrough = (limit = 10) => {
+    const out: string[] = [];
+    while (s().live.audioId && out.length < limit) {
+      out.push(s().live.audioId!);
+      s().audioEnded();
+    }
+    return out;
+  };
+
+  it('plays a playlist’s tracks in a random order, each once, then stops (or goes round again if it loops)', () => {
+    const pl = s().createAudioPlaylist('Walk-in');
+    s().addToAudioPlaylist(pl, ['a', 'b', 'c']);
+    s().updateAudioPlaylist(pl, { shuffle: true });
+    for (let i = 0; i < 5; i++) {
+      s().shuffleAudio(pl);
+      expect(playThrough().sort()).toEqual(['a', 'b', 'c']);
+    }
+    s().updateAudioPlaylist(pl, { loop: true });
+    s().shuffleAudio(pl);
+    const many = playThrough(9);
+    expect(many).toHaveLength(9);
+    // No track twice in a row.
+    expect(many.every((id, i) => i === 0 || id !== many[i - 1])).toBe(true);
+    s().clearLayers(['audio']);
+  });
+
+  it('follows the random choice', () => {
+    const pl = s().createAudioPlaylist('Walk-in');
+    s().addToAudioPlaylist(pl, ['a', 'b', 'c']);
+    s().updateAudioPlaylist(pl, { shuffle: true });
+    vi.spyOn(Math, 'random').mockReturnValue(0.99);
+    s().shuffleAudio(pl);
+    expect(s().live.audioId).toBe('c');
+    expect(nextAudio(s(), 'c', pl, ['c'])).toBe('b');
+  });
+
+  it('shuffles the whole Audio Library', () => {
+    s().shuffleAudio(AUDIO_LIBRARY);
+    expect(s().live.audioFrom).toBe(AUDIO_LIBRARY);
+    expect(playThrough().sort()).toEqual(['a', 'b', 'c']);
+  });
+});
+
+describe('a random countdown', () => {
+  it('puts one of the countdown videos up, not the one already up', () => {
+    useStore.setState({
+      media: [
+        { id: 'cd1', name: 'Countdown 1', kind: 'video', mime: 'video/mp4', countdown: true },
+        { id: 'cd2', name: 'Countdown 2', kind: 'video', mime: 'video/mp4', countdown: true },
+        { id: 'v', name: 'v', kind: 'video', mime: 'video/mp4' },
+      ],
+    });
+    for (let i = 0; i < 6; i++) {
+      const before = s().live.mediaId;
+      s().playRandomCountdown();
+      expect(['cd1', 'cd2']).toContain(s().live.mediaId);
+      if (before) expect(s().live.mediaId).not.toBe(before);
+    }
   });
 });

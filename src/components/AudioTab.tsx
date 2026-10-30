@@ -3,7 +3,7 @@ import { useShallow } from 'zustand/react/shallow';
 import { countdownFade } from '../countdowns';
 import { loadMedia } from '../media';
 import { notify } from '../notices';
-import { useStore } from '../store';
+import { AUDIO_LIBRARY, useStore } from '../store';
 import type { MediaItem, MediaPlaylist } from '../types';
 import { formatDuration } from '../util';
 import { NamePopup, openContextMenu, openPopupAtMenu, openPopupBelow, type ContextEntries } from './ContextMenu';
@@ -276,7 +276,13 @@ function AudioPlaylistRow({ playlist, open, onToggle }: { playlist: MediaPlaylis
         onSave={(v) => s.renameAudioPlaylist(playlist.id, v.name)}
       />,
     );
-  const play = () => (playing ? s.clearLayers(['audio']) : tracks[0] && s.playAudio(tracks[0].id, playlist.id));
+  // Shuffled, it starts on a random track.
+  const play = () =>
+    playing
+      ? s.clearLayers(['audio'])
+      : playlist.shuffle
+        ? s.shuffleAudio(playlist.id)
+        : tracks[0] && s.playAudio(tracks[0].id, playlist.id);
   return (
     <div className="audio-playlist">
       <div
@@ -291,6 +297,11 @@ function AudioPlaylistRow({ playlist, open, onToggle }: { playlist: MediaPlaylis
               label: 'Loop Playlist',
               checked: !!playlist.loop,
               action: () => s.updateAudioPlaylist(playlist.id, { loop: !playlist.loop }),
+            },
+            {
+              label: 'Shuffle',
+              checked: !!playlist.shuffle,
+              action: () => s.updateAudioPlaylist(playlist.id, { shuffle: !playlist.shuffle }),
             },
             '-',
             { label: 'Add from Audio Library…', action: () => s.setUI({ dialog: 'audioLibrary' }) },
@@ -325,6 +336,12 @@ function AudioPlaylistRow({ playlist, open, onToggle }: { playlist: MediaPlaylis
         <span className="list-label">{playlist.name}</span>
         {playing && <span className="live-dot" title="Playing" />}
         <span className="row-actions">
+          <IconButton
+            icon="shuffle"
+            title={playlist.shuffle ? 'Shuffle on: click to play in order' : 'Shuffle: play the tracks in a random order'}
+            active={!!playlist.shuffle}
+            onClick={() => s.updateAudioPlaylist(playlist.id, { shuffle: !playlist.shuffle })}
+          />
           <IconButton
             icon="repeat"
             title={playlist.loop ? 'Looping: click to stop after the last track' : 'Click to start over after the last track'}
@@ -533,6 +550,8 @@ export function AudioLibraryDialog({ onClose }: { onClose: () => void }) {
   const playlists = useStore((s) => s.audioPlaylists);
   const [query, setQuery] = useState('');
   const [sort, setSort] = useState<Sort>('name');
+  const shuffling = useStore((st) => st.live.audioFrom === AUDIO_LIBRARY && !!st.live.audioId);
+  const s = st();
   const [selection, setSelection] = useState<string[]>([]);
   const [anchor, setAnchor] = useState<string | null>(null);
   const [lengths, setLengths] = useState<Record<string, number>>({});
@@ -587,6 +606,15 @@ export function AudioLibraryDialog({ onClose }: { onClose: () => void }) {
               <option value="length">Length</option>
             </select>
           </label>
+          <button
+            type="button"
+            className={`btn ${shuffling ? 'on' : ''}`}
+            disabled={!audio.length}
+            onClick={() => (shuffling ? s.clearLayers(['audio']) : s.shuffleAudio(AUDIO_LIBRARY))}
+            title={shuffling ? 'Shuffling the library: click to stop' : 'Play every track in the library in a random order'}
+          >
+            <Icon name="shuffle" size={13} /> {shuffling ? 'Stop Shuffle' : 'Shuffle'}
+          </button>
           <button type="button" className="btn" onClick={() => void importAudio()}>
             <Icon name="upload" size={13} /> Import…
           </button>
