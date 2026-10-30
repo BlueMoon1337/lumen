@@ -195,7 +195,8 @@ export function MediaSidebar() {
   const [playlistsOpen, setPlaylistsOpen] = useState(true);
   const [inputsOpen, setInputsOpen] = useState(true);
   return (
-    <aside className="media-sidebar">
+    // Focusable, so a click in it lets the arrow keys move through its rows (mediaKeys).
+    <aside className="media-sidebar" tabIndex={-1}>
       <SectionHeader
         title="Media"
         onAdd={() => void importInto()}
@@ -254,6 +255,57 @@ function CornerBookmark({ icon, title, left }: { icon: 'outro' | 'logo'; title: 
 }
 
 const isTab = (v: string): v is SpecialTab => v in TAB_NAMES;
+
+/**
+ * The arrow keys in the media bin, once it's been clicked: in the sidebar, up and down move
+ * through its rows (All Media, Images… the playlists, Cameras); in the grid, all four move to the
+ * item beside, above or below the one on screen, showing it as clicking it would. False when
+ * neither has the focus.
+ */
+export function mediaKeys(key: string): boolean {
+  const active = document.activeElement;
+  const side = active?.closest<HTMLElement>('.media-sidebar');
+  if (side && (key === 'ArrowUp' || key === 'ArrowDown')) {
+    const rows = [...side.querySelectorAll<HTMLElement>('.collection-row')];
+    const at = rows.findIndex((r) => r.classList.contains('selected'));
+    const next = rows[at < 0 ? 0 : Math.max(0, Math.min(rows.length - 1, at + (key === 'ArrowDown' ? 1 : -1)))];
+    if (next && next !== rows[at]) {
+      next.click();
+      next.scrollIntoView({ block: 'nearest' });
+    }
+    return true;
+  }
+  const grid = active?.closest<HTMLElement>('.media-grid');
+  if (!grid || !['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'].includes(key)) return false;
+  const tiles = [...grid.querySelectorAll<HTMLElement>('.media-tile')];
+  if (!tiles.length) return true;
+  const from = tiles.find((t) => t.classList.contains('live'));
+  let target: HTMLElement | undefined;
+  if (!from) target = tiles[0];
+  else if (key === 'ArrowLeft' || key === 'ArrowRight') target = tiles[tiles.indexOf(from) + (key === 'ArrowRight' ? 1 : -1)];
+  else {
+    // The nearest row in that direction, then the item in it nearest straight above or below.
+    const r = from.getBoundingClientRect();
+    const middle = r.left + r.width / 2;
+    const down = key === 'ArrowDown';
+    const ahead = tiles
+      .map((el) => ({ el, r: el.getBoundingClientRect() }))
+      .filter(({ r: o }) => (down ? o.top >= r.bottom - 4 : o.bottom <= r.top + 4));
+    if (ahead.length) {
+      const rowTop = down ? Math.min(...ahead.map((a) => a.r.top)) : Math.max(...ahead.map((a) => a.r.top));
+      target = ahead
+        .filter((a) => Math.abs(a.r.top - rowTop) < 4)
+        .reduce((best, a) =>
+          Math.abs(a.r.left + a.r.width / 2 - middle) < Math.abs(best.r.left + best.r.width / 2 - middle) ? a : best,
+        ).el;
+    }
+  }
+  if (target && target !== from) {
+    target.click();
+    target.scrollIntoView({ block: 'nearest' });
+  }
+  return true;
+}
 
 /** Imported straight into one of the media bin's own tabs (and no other). */
 const intoTab = (tab: SpecialTab) => ({
@@ -579,7 +631,7 @@ function MediaGrid() {
           )}
         </div>
       ) : (
-        <div className="media-grid" style={{ gridTemplateColumns: `repeat(auto-fill, minmax(${size}px, 1fr))` }}>
+        <div className="media-grid" tabIndex={-1} style={{ gridTemplateColumns: `repeat(auto-fill, minmax(${size}px, 1fr))` }}>
           {items.map((m, i) => (
             <MediaTile
               key={m.id}

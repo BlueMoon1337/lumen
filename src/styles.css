@@ -1357,8 +1357,18 @@ body.resizing-y * {
   border-color: #5a5a5a;
 }
 
+/* The item on screen: gold while the media bin is being worked in, gray once something else is clicked. */
 .media-tile.live .media-tile-frame {
+  border-color: #8a8a8a;
+}
+
+.media-grid:focus-within .media-tile.live .media-tile-frame {
   border-color: var(--orange);
+}
+
+.media-sidebar:focus,
+.media-grid:focus {
+  outline: none;
 }
 
 .media-thumb-img {

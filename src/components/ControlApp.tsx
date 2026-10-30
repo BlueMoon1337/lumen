@@ -26,7 +26,7 @@ import { ExportThemesDialog, SlideImagesDialog, TextImportDialog } from './FileD
 import { WelcomeDialog } from './IconChooser';
 import { LivePanel } from './LivePanel';
 import { LooksDialog } from './LooksDialog';
-import { MediaContent, MediaSidebar } from './MediaBin';
+import { MediaContent, MediaSidebar, mediaKeys } from './MediaBin';
 import { ReflowView } from './ReflowView';
 import { ScreenConfigDialog } from './ScreenConfig';
 import { useScreensCommands } from './screensCommands';
@@ -102,6 +102,8 @@ function useShortcuts(enabled: boolean) {
         ArrowUp: () => s.bibleStep(-1),
         PageUp: () => s.bibleStep(-1),
       };
+      // The arrows in the media bin, once it's been clicked: its sidebar's rows, or the items in its grid.
+      if (s.mode === 'show' && e.key.startsWith('Arrow') && !e.shiftKey && mediaKeys(e.key)) return void e.preventDefault();
       // Up and down: through the library or playlist list being worked in, or to the slide above or below.
       if ((e.key === 'ArrowDown' || e.key === 'ArrowUp') && !e.shiftKey && (s.mode === 'show' || s.mode === 'bible')) {
         const by = e.key === 'ArrowDown' ? 1 : -1;
