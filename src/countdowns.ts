@@ -22,6 +22,15 @@ export function countdownFade(settings: Pick<Settings, 'countdownFadeSeconds' | 
   };
 }
 
+export const CROSSFADE_SECONDS = 3;
+export const CROSSFADE_MAX = 5;
+
+/** Crossfade Songs: whether one track fades into the next, and over how many seconds (1 to 5). */
+export function songCrossfade(settings: Pick<Settings, 'crossfadeSongs' | 'crossfadeSeconds'>) {
+  const seconds = Math.round(settings.crossfadeSeconds ?? CROSSFADE_SECONDS);
+  return { on: !!settings.crossfadeSongs, seconds: Math.max(1, Math.min(CROSSFADE_MAX, seconds)) };
+}
+
 /**
  * The fade's curve. Sound seems half as loud for every 10 dB it drops, so a volume of t^1.66
  * (t: the share of the fade left) sounds like it goes down evenly. Volume going down in a

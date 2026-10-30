@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it } from 'vitest';
-import { CLOCK_MESSAGE, COUNTDOWN_MESSAGE, countdownFade, countdownVolume, isCountdownName } from './countdowns';
+import { CLOCK_MESSAGE, COUNTDOWN_MESSAGE, countdownFade, countdownVolume, isCountdownName, songCrossfade } from './countdowns';
 import { buildFrame } from './frame';
 import { useStore } from './store';
 
@@ -44,6 +44,13 @@ describe('countdowns', () => {
     // Other videos don't.
     s().setLiveMedia('v', null);
     expect(buildFrame(s()).background).not.toHaveProperty('fadeOut');
+  });
+
+  it('crossfade songs only when turned on, for 1 to 5 seconds (3 unless set)', () => {
+    expect(songCrossfade({})).toEqual({ on: false, seconds: 3 });
+    expect(songCrossfade({ crossfadeSongs: true, crossfadeSeconds: 5 })).toEqual({ on: true, seconds: 5 });
+    expect(songCrossfade({ crossfadeSongs: true, crossfadeSeconds: 12 }).seconds).toBe(5);
+    expect(songCrossfade({ crossfadeSeconds: 0 }).seconds).toBe(1);
   });
 
   it('follow countdown videos and the timer unless turned off, from 10 seconds before the end', () => {

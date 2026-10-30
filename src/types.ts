@@ -326,6 +326,10 @@ export interface Settings {
   /** Countdown Fade follows countdown videos (on when unset) and the Timers tab's countdown (on when unset). */
   countdownFadeVideos?: boolean;
   countdownFadeTimer?: boolean;
+  /** Crossfade Songs (Settings ▸ Audio, or the Audio tab's crossfade button): a track fades into the next. */
+  crossfadeSongs?: boolean;
+  /** How long a crossfade lasts, 1 to CROSSFADE_MAX seconds; CROSSFADE_SECONDS when unset. */
+  crossfadeSeconds?: number;
   defaultThemeId: string;
   gridSize: number;
   /** View ▸ Slide View: Grid, Easy (just the words, large) or Table ('list'). */

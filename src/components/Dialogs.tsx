@@ -1,4 +1,6 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, type CSSProperties } from 'react';
+import { useShallow } from 'zustand/react/shallow';
+import { CROSSFADE_MAX, songCrossfade } from '../countdowns';
 import { checkForUpdates, useUpdates } from '../updates';
 import { DEFAULT_APP_ICON } from '../appIcons';
 import { addFontFiles, importFiles } from '../commands';
@@ -28,6 +30,50 @@ const ALT = IS_MAC ? '⌥' : 'Alt';
  * Settings ▸ Startup: open Lumen when the computer starts (when the operator logs in). The
  * system keeps the setting, so it's read from there rather than from Lumen's own settings.
  */
+/** Settings ▸ Audio: Crossfade Songs, and how long a crossfade lasts (up to 5 seconds). */
+function AudioSection() {
+  const fade = useStore(useShallow((st) => songCrossfade(st.settings)));
+  const s = useStore.getState();
+  return (
+    <section className="settings-section">
+      <h4>Audio</h4>
+      <label className="check-row">
+        <input type="checkbox" checked={fade.on} onChange={(e) => s.updateSettings({ crossfadeSongs: e.target.checked || undefined })} />
+        Crossfade Songs:
+      </label>
+      <div className={`crossfade-slider ${fade.on ? '' : 'off'}`}>
+        <input
+          type="range"
+          min={1}
+          max={CROSSFADE_MAX}
+          step={1}
+          value={fade.seconds}
+          disabled={!fade.on}
+          onChange={(e) => s.updateSettings({ crossfadeSeconds: Number(e.target.value) })}
+          aria-label="Crossfade length in seconds"
+          style={{ '--fill': `${((fade.seconds - 1) / (CROSSFADE_MAX - 1)) * 100}%` } as CSSProperties}
+        />
+        <div className="crossfade-ticks" aria-hidden>
+          {Array.from({ length: CROSSFADE_MAX }, (_, i) => (
+            <span key={i} />
+          ))}
+        </div>
+        <div className="crossfade-scale">
+          <span>1</span>
+          <span>
+            {fade.seconds} second{fade.seconds === 1 ? '' : 's'}
+          </span>
+          <span>{CROSSFADE_MAX}</span>
+        </div>
+      </div>
+      <p className="muted small-print">
+        Each track in an audio playlist fades into the next, and a track started while another plays fades in as the other fades out. Also
+        in the Audio tab (the crossfade button by Playlists).
+      </p>
+    </section>
+  );
+}
+
 /** Settings ▸ Outro: what happens when the outro (Media ▸ Outro) ends. */
 function OutroSection() {
   const settings = useStore((st) => st.settings);
@@ -240,6 +286,7 @@ export function SettingsDialog({ onClose, onScreens }: { onClose: () => void; on
         </label>
       </section>
       <OutroSection />
+      <AudioSection />
       <section className="settings-section">
         <h4>Groups & Labels</h4>
         <p className="muted small-print">

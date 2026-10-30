@@ -6806,3 +6806,67 @@ h3.looks-name {
   height: 100%;
   object-fit: cover;
 }
+
+/* Settings ▸ Audio: the Crossfade Songs slider, 1 to 5 seconds, with a tick for each. */
+.crossfade-slider {
+  position: relative;
+  margin: 6px 0 4px 26px;
+  max-width: 300px;
+}
+.crossfade-slider.off {
+  opacity: 0.45;
+}
+.crossfade-slider input[type='range'] {
+  -webkit-appearance: none;
+  appearance: none;
+  display: block;
+  width: 100%;
+  height: 20px;
+  margin: 0;
+  background: transparent;
+}
+.crossfade-slider input[type='range']::-webkit-slider-runnable-track {
+  height: 6px;
+  border-radius: 3px;
+  background: linear-gradient(to right, var(--pink) var(--fill), rgba(255, 255, 255, 0.12) var(--fill));
+}
+.crossfade-slider input[type='range']::-moz-range-track {
+  height: 6px;
+  border-radius: 3px;
+  background: linear-gradient(to right, var(--pink) var(--fill), rgba(255, 255, 255, 0.12) var(--fill));
+}
+.crossfade-slider input[type='range']::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  width: 24px;
+  height: 16px;
+  margin-top: -5px;
+  border-radius: 8px;
+  background: #fff;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.45);
+}
+.crossfade-slider input[type='range']::-moz-range-thumb {
+  width: 24px;
+  height: 16px;
+  border: 0;
+  border-radius: 8px;
+  background: #fff;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.45);
+}
+.crossfade-ticks {
+  display: flex;
+  justify-content: space-between;
+  padding: 3px 11px 0;
+}
+.crossfade-ticks span {
+  width: 3px;
+  height: 3px;
+  border-radius: 50%;
+  background: var(--text-3, rgba(255, 255, 255, 0.35));
+}
+.crossfade-scale {
+  display: flex;
+  justify-content: space-between;
+  padding: 2px 8px 0;
+  font-size: 12px;
+  color: var(--text-2);
+}

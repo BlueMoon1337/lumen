@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState, type DragEvent, type MouseEvent } from 'react';
 import { useShallow } from 'zustand/react/shallow';
-import { countdownFade } from '../countdowns';
+import { countdownFade, songCrossfade } from '../countdowns';
 import { loadMedia } from '../media';
 import { notify } from '../notices';
 import { AUDIO_LIBRARY, useStore } from '../store';
@@ -410,6 +410,7 @@ export function AudioTab() {
   // In alphabetical order.
   const audio = useStore(useShallow((s) => s.media.filter((m) => m.kind === 'audio').sort(byName)));
   const playlists = useStore((s) => s.audioPlaylists);
+  const crossfade = useStore(useShallow((s) => songCrossfade(s.settings)));
   const s = st();
   const [dropping, setDropping] = useState(false);
   const [playlistsOpen, setPlaylistsOpen] = useState(true);
@@ -439,6 +440,16 @@ export function AudioTab() {
     >
       <CountdownFade />
       <SectionHeader title="Playlists" collapsed={!playlistsOpen} onToggle={() => setPlaylistsOpen(!playlistsOpen)}>
+        <IconButton
+          icon="crossfade"
+          title={
+            crossfade.on
+              ? `Crossfade Songs on (${crossfade.seconds} s): click to play tracks one after another`
+              : 'Crossfade Songs: fade each track into the next (length in Settings ▸ Audio)'
+          }
+          active={crossfade.on}
+          onClick={() => s.updateSettings({ crossfadeSongs: !crossfade.on || undefined })}
+        />
         <IconButton
           icon="plus"
           title="New audio playlist"
