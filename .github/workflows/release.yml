@@ -99,6 +99,8 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
           TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ''
+          # Lay out the Mac disk image (background, icon positions) here too: Tauri skips that in CI.
+          TAURI_BUNDLER_DMG_IGNORE_CI: 'true'
         with:
           releaseId: ${{ needs.release.outputs.id }}
           # latest.json is written once both builds are in (the publish job).
@@ -106,6 +108,12 @@ jobs:
           # The update files (and their signatures) are made here only: a build on your own computer
           # has no private key to sign them with.
           args: ${{ matrix.args }} --config '{"bundle":{"createUpdaterArtifacts":true}}'
+      - name: Add the Read Me to the Mac disk image
+        if: matrix.os == 'macos-latest'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          RELEASE_ID: ${{ needs.release.outputs.id }}
+        run: .github/scripts/dmg-readme.sh
 
   publish:
     needs: [release, build]

@@ -1,0 +1,26 @@
+Installing Lumen on a Mac
+=========================
+
+1. Drag the Lumen icon onto the Applications folder in this window.
+
+2. Open Lumen from Applications. The first time, macOS asks before opening it, because Lumen
+   isn't signed with an Apple Developer ID:
+
+     - Right-click (or Control-click) Lumen in Applications, choose Open, then Open again.
+
+     - Or, if macOS only offers Done or Move to Trash: open System Settings ▸ Privacy & Security,
+       scroll down to the message about Lumen, click Open Anyway, and confirm.
+
+   macOS remembers your choice; after that, Lumen opens like any other app.
+
+3. If macOS says "Lumen is damaged and can't be opened", nothing is wrong with Lumen: it's how
+   macOS treats an unsigned app downloaded with a browser. Open Terminal (Applications ▸
+   Utilities ▸ Terminal), paste this line, press Return, then open Lumen again:
+
+     xattr -dr com.apple.quarantine /Applications/Lumen.app
+
+When Lumen is in Applications you can eject this disk image (the ⏏ beside Lumen in Finder's
+sidebar) and delete the .dmg file.
+
+Lumen is one app for both Apple silicon and Intel Macs, on macOS 10.15 or later. It updates itself
+from Settings ▸ Update, so you only need to do this once.
