@@ -321,6 +321,21 @@ export function downloadFile(name: string, contents: BlobPart, type = 'applicati
   setTimeout(() => URL.revokeObjectURL(url), 10000);
 }
 
+/**
+ * Whether a drag started inside Lumen. A picture dragged out of a slide carries a file too, so
+ * drop zones for files (the media bin, the Audio tab) take files only from outside: Finder, the
+ * desktop, another app.
+ */
+let insideDrag = false;
+if (typeof window !== 'undefined') {
+  window.addEventListener('dragstart', () => (insideDrag = true), true);
+  window.addEventListener('dragend', () => (insideDrag = false), true);
+  window.addEventListener('drop', () => setTimeout(() => (insideDrag = false)), true);
+}
+
+/** Files dragged in from outside Lumen (not a slide's picture dragged across the window). */
+export const hasOutsideFiles = (e: { dataTransfer: DataTransfer | null }) => !insideDrag && !!e.dataTransfer?.types.includes('Files');
+
 /** Drag payload type for library items dropped onto the playlist. */
 export const DRAG_PRESENTATION = 'application/x-lumen-presentation';
 export const DRAG_PLAYLIST_ITEM = 'application/x-lumen-playlist-item';

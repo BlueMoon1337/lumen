@@ -11,7 +11,7 @@ import { NamePopup, openContextMenu, openPopupBelow } from './ContextMenu';
 import { deleteMedia, deleteMediaPlaylist, removeFromTab, TAB_NAMES, type SpecialTab } from './deleting';
 import { mediaMenu } from './menus';
 import { TransitionButton } from './TransitionPicker';
-import { DRAG_MEDIA, FilterField, Icon, IconButton, pickFiles, SectionHeader } from './ui';
+import { DRAG_MEDIA, FilterField, hasOutsideFiles, Icon, IconButton, pickFiles, SectionHeader } from './ui';
 
 const FILTERS = [
   { value: 'all', label: 'All Media', icon: 'image' },
@@ -160,7 +160,7 @@ function MediaPlaylistRow({ playlist }: { playlist: MediaPlaylist }) {
         ]);
       }}
       onDragOver={(e) => {
-        if (hasDrag(e, DRAG_MEDIA) || hasDrag(e, 'Files')) {
+        if (hasDrag(e, DRAG_MEDIA) || hasOutsideFiles(e)) {
           e.preventDefault();
           setDrop(true);
         }
@@ -286,7 +286,7 @@ function FilterRow({
       className={`collection-row ${selected ? 'selected' : ''} ${drop ? 'drop' : ''}`}
       onClick={onSelect}
       onDragOver={(e) => {
-        if (!tab || !(hasDrag(e, DRAG_MEDIA) || hasDrag(e, 'Files'))) return;
+        if (!tab || !(hasDrag(e, DRAG_MEDIA) || hasOutsideFiles(e))) return;
         e.preventDefault();
         setDrop(true);
       }}
@@ -515,7 +515,7 @@ function MediaGrid() {
     <section
       className={`media-content ${dropping ? 'dropping' : ''}`}
       onDragOver={(e) => {
-        if (hasDrag(e, 'Files') || (playlist && hasDrag(e, DRAG_MEDIA))) {
+        if (hasOutsideFiles(e) || (playlist && hasDrag(e, DRAG_MEDIA))) {
           e.preventDefault();
           setDropping(true);
         }

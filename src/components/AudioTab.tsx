@@ -8,7 +8,7 @@ import type { MediaItem, MediaPlaylist } from '../types';
 import { formatDuration } from '../util';
 import { NamePopup, openContextMenu, openPopupAtMenu, openPopupBelow, type ContextEntries } from './ContextMenu';
 import { deleteAudioPlaylist, deleteMedia } from './deleting';
-import { Dialog, DRAG_AUDIO, FilterField, Icon, IconButton, pickFiles, SectionHeader } from './ui';
+import { Dialog, DRAG_AUDIO, FilterField, hasOutsideFiles, Icon, IconButton, pickFiles, SectionHeader } from './ui';
 
 const st = () => useStore.getState();
 
@@ -312,7 +312,7 @@ function AudioPlaylistRow({ playlist, open, onToggle }: { playlist: MediaPlaylis
           ]);
         }}
         onDragOver={(e) => {
-          if (hasDrag(e, DRAG_AUDIO) || hasDrag(e, 'Files')) {
+          if (hasDrag(e, DRAG_AUDIO) || hasOutsideFiles(e)) {
             e.preventDefault();
             e.stopPropagation();
             setDrop(true);
@@ -425,7 +425,7 @@ export function AudioTab() {
     <div
       className={`audio-tab ${dropping ? 'dropping' : ''}`}
       onDragOver={(e) => {
-        if (hasDrag(e, 'Files')) {
+        if (hasOutsideFiles(e)) {
           e.preventDefault();
           setDropping(true);
         }
@@ -584,7 +584,7 @@ export function AudioLibraryDialog({ onClose }: { onClose: () => void }) {
       <div
         className={`audio-library-body ${dropping ? 'dropping' : ''}`}
         onDragOver={(e) => {
-          if (hasDrag(e, 'Files')) {
+          if (hasOutsideFiles(e)) {
             e.preventDefault();
             setDropping(true);
           }
