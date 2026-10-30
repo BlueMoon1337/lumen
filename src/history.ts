@@ -368,6 +368,7 @@ const LABELS: Record<string, string | ((args: unknown[]) => string)> = {
   addToAudioPlaylist: 'Add to Audio Playlist',
   removeFromAudioPlaylist: 'Remove from Audio Playlist',
   updateAudioPlaylist: 'Audio Playlist Settings',
+  moveAudioPlaylists: 'Move Audio Playlist',
   addMessage: 'New Message',
   updateMessage: 'Edit Message',
   deleteMessage: 'Delete Message',

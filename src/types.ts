@@ -673,6 +673,8 @@ export interface LiveState {
   audioFrom: string | null;
   /** Tracks played from there this round, so shuffling doesn't repeat one before the rest have played. */
   audioPlayed: string[];
+  /** The playing track loops (its ↻ button); only a playing track can, and it stops looping when it stops. */
+  audioLoop: boolean;
   /** A slide on the Announcements layer, over the slide layer. */
   announcement: LiveSlideRef | null;
   /** A camera or capture card on the Video Input layer, under everything. */

@@ -30,6 +30,29 @@ describe('audio playlists', () => {
     expect(s().audioPlaylists[0].name).toBe('Offering');
   });
 
+  it('move up and down the list', () => {
+    const [a, b, c] = ['A', 'B', 'C'].map((n) => s().createAudioPlaylist(n));
+    s().moveAudioPlaylists([c], a);
+    expect(s().audioPlaylists.map((pl) => pl.name)).toEqual(['C', 'A', 'B']);
+    s().moveAudioPlaylists([c], null);
+    expect(s().audioPlaylists.map((pl) => pl.name)).toEqual(['A', 'B', 'C']);
+    s().moveAudioPlaylists([a], c);
+    expect(s().audioPlaylists.map((pl) => pl.id)).toEqual([b, a, c]);
+  });
+
+  it('loop only the track playing, until it stops or another plays', () => {
+    s().loopAudio(true);
+    expect(s().live.audioLoop).toBe(false);
+    s().playAudio('a');
+    s().loopAudio(true);
+    expect(s().live.audioLoop).toBe(true);
+    s().playAudio('b');
+    expect(s().live.audioLoop).toBe(false);
+    s().loopAudio(true);
+    s().clearLayers(['audio']);
+    expect(s().live.audioLoop).toBe(false);
+  });
+
   it('play their tracks one after another, and start over if they loop', () => {
     const pl = s().createAudioPlaylist('Walk-in');
     s().addToAudioPlaylist(pl, ['a', 'b']);

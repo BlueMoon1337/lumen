@@ -27,6 +27,14 @@ const importAudio = async (files?: File[], playlistId?: string) => {
 
 const hasDrag = (e: DragEvent, type: string) => e.dataTransfer.types.includes(type);
 
+/** Drag payload type for an audio playlist being moved up or down the list: its id. */
+const DRAG_AUDIO_PLAYLIST = 'application/x-lumen-audio-playlist';
+
+/** Loop, for the track playing now: only it can loop, and it stops looping when it stops. */
+function loopEntry(playing: boolean, looping: boolean, label = 'Loop'): ContextEntries {
+  return playing ? [{ label, checked: looping, action: () => st().loopAudio(!looping) }] : [];
+}
+
 function startDrag(e: DragEvent, ids: string[], from: string | null) {
   e.stopPropagation();
   e.dataTransfer.effectAllowed = 'copyMove';
@@ -102,7 +110,7 @@ function audioMenu(m: MediaItem, playing: boolean): ContextEntries {
   const s = st();
   return [
     { label: playing ? 'Stop' : 'Play', action: () => (playing ? s.clearLayers(['audio']) : s.playAudio(m.id)) },
-    { label: 'Loop', checked: !!m.loop, action: () => s.updateMedia(m.id, { loop: !m.loop }) },
+    ...loopEntry(playing, s.live.audioLoop),
     { label: 'Add to Playlist', submenu: () => addToPlaylistMenu([m.id]) },
     '-',
     { label: 'Rename…', action: () => renameTrack(m) },
@@ -238,7 +246,7 @@ function PlaylistTrack({ playlist, m, index }: { playlist: MediaPlaylist; m: Med
       onContextMenu={(e) =>
         openContextMenu(e, [
           { label: playing ? 'Stop' : 'Play from Here', action: () => toggle(m.id, playlist.id) },
-          { label: 'Loop Track', checked: !!m.loop, action: () => s.updateMedia(m.id, { loop: !m.loop }) },
+          ...loopEntry(playing, s.live.audioLoop, 'Loop Track'),
           '-',
           { label: 'Rename…', action: () => renameTrack(m) },
           { label: 'Remove from Playlist', action: () => s.removeFromAudioPlaylist(playlist.id, m.id) },
@@ -257,7 +265,18 @@ function PlaylistTrack({ playlist, m, index }: { playlist: MediaPlaylist; m: Med
 }
 
 /** An audio playlist: tracks that play one after another. Drop tracks or audio files on it to add them. */
-function AudioPlaylistRow({ playlist, open, onToggle }: { playlist: MediaPlaylist; open: boolean; onToggle: () => void }) {
+function AudioPlaylistRow({
+  playlist,
+  nextId,
+  open,
+  onToggle,
+}: {
+  playlist: MediaPlaylist;
+  /** The playlist after this one, to drop a playlist below this one (before that). */
+  nextId: string | null;
+  open: boolean;
+  onToggle: () => void;
+}) {
   const media = useStore((s) => s.media);
   const tracks = useMemo(
     () => playlist.items.map((id) => media.find((m) => m.id === id && m.kind === 'audio')).filter((m): m is MediaItem => !!m),
@@ -265,6 +284,8 @@ function AudioPlaylistRow({ playlist, open, onToggle }: { playlist: MediaPlaylis
   );
   const playing = useStore((s) => s.live.audioFrom === playlist.id && !!s.live.audioId);
   const [drop, setDrop] = useState(false);
+  // A playlist dragged over this one goes above or below it.
+  const [moveTo, setMoveTo] = useState<'before' | 'after' | null>(null);
   const s = st();
   const rename = (anchor: Element) =>
     openPopupBelow(
@@ -286,7 +307,12 @@ function AudioPlaylistRow({ playlist, open, onToggle }: { playlist: MediaPlaylis
   return (
     <div className="audio-playlist">
       <div
-        className={`collection-row audio-playlist-row ${drop ? 'drop' : ''} ${playing ? 'playing' : ''}`}
+        className={`collection-row audio-playlist-row ${drop ? 'drop' : ''} ${playing ? 'playing' : ''} ${moveTo ? `move-${moveTo}` : ''}`}
+        draggable
+        onDragStart={(e) => {
+          e.dataTransfer.effectAllowed = 'move';
+          e.dataTransfer.setData(DRAG_AUDIO_PLAYLIST, playlist.id);
+        }}
         onClick={onToggle}
         onDoubleClick={(e) => rename(e.currentTarget)}
         onContextMenu={(e) => {
@@ -312,22 +338,36 @@ function AudioPlaylistRow({ playlist, open, onToggle }: { playlist: MediaPlaylis
           ]);
         }}
         onDragOver={(e) => {
-          if (hasDrag(e, DRAG_AUDIO) || hasOutsideFiles(e)) {
+          if (hasDrag(e, DRAG_AUDIO_PLAYLIST)) {
+            e.preventDefault();
+            e.stopPropagation();
+            const r = e.currentTarget.getBoundingClientRect();
+            setMoveTo(e.clientY < r.top + r.height / 2 ? 'before' : 'after');
+          } else if (hasDrag(e, DRAG_AUDIO) || hasOutsideFiles(e)) {
             e.preventDefault();
             e.stopPropagation();
             setDrop(true);
           }
         }}
-        onDragLeave={() => setDrop(false)}
+        onDragLeave={() => {
+          setDrop(false);
+          setMoveTo(null);
+        }}
         onDrop={(e) => {
           e.preventDefault();
           e.stopPropagation();
           setDrop(false);
+          setMoveTo(null);
+          const moving = e.dataTransfer.getData(DRAG_AUDIO_PLAYLIST);
+          if (moving) {
+            if (moving !== playlist.id) s.moveAudioPlaylists([moving], moveTo === 'after' ? nextId : playlist.id);
+            return;
+          }
           const d = dropped(e);
           if (d) s.addToAudioPlaylist(playlist.id, d.ids);
           else void importAudio(Array.from(e.dataTransfer.files), playlist.id);
         }}
-        title="Drop tracks here to add them. Double-click to rename."
+        title="Drop tracks here to add them. Drag to reorder; double-click to rename."
       >
         <Icon name={open ? 'chevronDown' : 'chevronRight'} size={12} />
         <span className="collection-icon playlist">
@@ -377,6 +417,7 @@ function AudioPlaylistRow({ playlist, open, onToggle }: { playlist: MediaPlaylis
 /** A track in the Audio tab's list of all audio: click to play it, again to stop. */
 function AudioRow({ m }: { m: MediaItem }) {
   const playing = useStore((s) => s.live.audioId === m.id);
+  const looping = useStore((s) => playing && s.live.audioLoop);
   const s = st();
   return (
     <li
@@ -389,14 +430,16 @@ function AudioRow({ m }: { m: MediaItem }) {
     >
       <Icon name={playing ? 'stop' : 'play'} size={13} />
       <span className="list-label">{m.name}</span>
-      <span className="row-actions">
-        <IconButton
-          icon="repeat"
-          title={m.loop ? 'Looping: click to play once' : 'Play once: click to loop'}
-          active={!!m.loop}
-          onClick={() => s.updateMedia(m.id, { loop: !m.loop })}
-        />
-      </span>
+      {playing && (
+        <span className="row-actions">
+          <IconButton
+            icon="repeat"
+            title={looping ? 'Looping: click to play once' : 'Play once: click to loop'}
+            active={looping}
+            onClick={() => s.loopAudio(!looping)}
+          />
+        </span>
+      )}
     </li>
   );
 }
@@ -461,8 +504,14 @@ export function AudioTab() {
       </SectionHeader>
       {playlistsOpen && (
         <div className="audio-playlists">
-          {playlists.map((pl) => (
-            <AudioPlaylistRow key={pl.id} playlist={pl} open={!closed.has(pl.id)} onToggle={() => toggleOpen(pl.id)} />
+          {playlists.map((pl, i) => (
+            <AudioPlaylistRow
+              key={pl.id}
+              playlist={pl}
+              nextId={playlists[i + 1]?.id ?? null}
+              open={!closed.has(pl.id)}
+              onToggle={() => toggleOpen(pl.id)}
+            />
           ))}
           {playlists.length === 0 && <div className="audio-empty">Press + to make a playlist, then drag tracks onto it.</div>}
         </div>
@@ -510,6 +559,7 @@ function LibraryRow({
   onLength: (id: string, seconds: number) => void;
 }) {
   const playing = useStore((s) => s.live.audioId === m.id);
+  const looping = useStore((s) => playing && s.live.audioLoop);
   const seconds = useDuration(m.id);
   useEffect(() => onLength(m.id, seconds), [m.id, seconds, onLength]);
   const s = st();
@@ -523,7 +573,7 @@ function LibraryRow({
         if (!selected) onSelect(e);
         openContextMenu(e, [
           { label: playing ? 'Stop' : 'Play', action: () => (playing ? s.clearLayers(['audio']) : s.playAudio(m.id)) },
-          { label: 'Loop', checked: !!m.loop, action: () => s.updateMedia(m.id, { loop: !m.loop }) },
+          ...loopEntry(playing, looping),
           { label: ids.length > 1 ? `Add ${ids.length} Tracks to Playlist` : 'Add to Playlist', submenu: () => addToPlaylistMenu(ids) },
           '-',
           { label: 'Rename…', action: () => renameTrack(m) },
@@ -544,12 +594,16 @@ function LibraryRow({
         {playlists.join(', ')}
       </span>
       <span className="track-length">{length(seconds)}</span>
-      <IconButton
-        icon="repeat"
-        title={m.loop ? 'Looping: click to play once' : 'Play once: click to loop'}
-        active={!!m.loop}
-        onClick={() => s.updateMedia(m.id, { loop: !m.loop })}
-      />
+      {playing ? (
+        <IconButton
+          icon="repeat"
+          title={looping ? 'Looping: click to play once' : 'Play once: click to loop'}
+          active={looping}
+          onClick={() => s.loopAudio(!looping)}
+        />
+      ) : (
+        <span className="icon-btn-space" />
+      )}
       <IconButton icon="plus" title="Add to playlist" onClick={(e) => menuBelow(e, addToPlaylistMenu(ids))} />
     </li>
   );

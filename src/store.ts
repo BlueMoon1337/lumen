@@ -309,6 +309,10 @@ interface Actions {
   playAudio(mediaId: string, playlistId?: string | null): void;
   /** The track ended: the next one in its playlist plays, or the Audio layer clears. */
   audioEnded(): void;
+  /** Loops the playing track, or stops looping it (nothing when no track is playing). */
+  loopAudio(on: boolean): void;
+  /** Moves audio playlists to before another one (null: to the end). */
+  moveAudioPlaylists(ids: string[], beforeId: string | null): void;
   /** Plays a playlist (or AUDIO_LIBRARY, the whole library) shuffled, from a random track. */
   shuffleAudio(from: string): void;
   /** A random countdown video (not the one up now) on the Media layer. */
@@ -415,6 +419,7 @@ const emptyLive: LiveState = {
   audioRestart: 0,
   audioFrom: null,
   audioPlayed: [],
+  audioLoop: false,
   announcement: null,
   videoInput: null,
 };
@@ -1344,6 +1349,7 @@ export const useStore = create<AppState>()(
                 audioRestart: s.live.audioRestart + 1,
                 audioFrom: playlistId,
                 audioPlayed: same ? [...s.live.audioPlayed, mediaId] : [mediaId],
+                audioLoop: false,
               },
             };
           }),
@@ -1353,6 +1359,8 @@ export const useStore = create<AppState>()(
           if (next) s.playAudio(next, s.live.audioFrom);
           else s.clearLayers(['audio']);
         },
+        loopAudio: (on) => set((s) => (s.live.audioId ? { live: { ...s.live, audioLoop: on } } : {})),
+        moveAudioPlaylists: (ids, beforeId) => set((s) => ({ audioPlaylists: moveBefore(s.audioPlaylists, (pl) => pl.id, ids, beforeId) })),
         shuffleAudio: (from) => {
           const s = get();
           const order = audioSource(s, from)?.order ?? [];

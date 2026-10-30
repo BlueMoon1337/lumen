@@ -44,7 +44,7 @@ export function AudioPlayer() {
   decksRef.current = decks;
   const curRef = useRef(cur);
   curRef.current = cur;
-  const loops = useStore(useShallow((s) => decks.map((id) => !!s.media.find((m) => m.id === id)?.loop)));
+  const looping = useStore((s) => s.live.audioLoop);
   const mediaA = useMedia(decks[0]);
   const mediaB = useMedia(decks[1]);
   const media = [mediaA, mediaB];
@@ -239,7 +239,7 @@ export function AudioPlayer() {
           key={i}
           ref={refs[i]}
           src={media[i]?.url}
-          loop={i === cur && loops[i]}
+          loop={i === cur && looping}
           preload="auto"
           onTimeUpdate={() => i === curRef.current && report()}
           onLoadedMetadata={() => i === curRef.current && report()}
