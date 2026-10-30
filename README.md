@@ -179,7 +179,7 @@ The **transition panel** sets them all, with a preview that plays the one you're
 - **Global**: every slide of every presentation, unless the presentation or slide has its own. Use the **Global** button under the preview, or Settings. **Use Global Everywhere** clears every presentation's and slide's own transition.
 - **Media**: backgrounds from the media bin, as they start, change and clear. Right-click a media item, or use Settings.
 
-A slide comes on screen with its own transition, else its presentation's, else the global one. A background that changes with the slide (a slide's own background, or a different theme's) moves with it, so a Push pushes both. Clearing a layer fades it out. Messages and the logo fade over the global transition's length. ProPresenter's transitions import as the nearest kind, with their direction and length.
+A slide comes on screen with its own transition, else its presentation's, else the global one. A background that changes with the slide (a slide's own background, or a different theme's) moves with it, so a Push pushes both. Clearing a layer fades it out. Going through slides faster than their transition (holding an arrow key, or a clicker pressed quickly) doesn't stack them up: a slide still on its way in is cleared when the next one comes, so the words never overlap more than the one change. Messages and the logo fade over the global transition's length. ProPresenter's transitions import as the nearest kind, with their direction and length.
 
 ## Undo
 

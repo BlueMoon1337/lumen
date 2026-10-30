@@ -295,6 +295,8 @@ interface Layer {
   easing: string;
   /** Milliseconds before it starts (an incoming item waiting for the old one to go). */
   delay?: number;
+  /** When it came in (performance.now()), to tell a change made before its transition finished. */
+  born?: number;
 }
 
 let layerSeq = 0;
@@ -309,6 +311,8 @@ function effectClass(t: Pick<SlideTransition, 'kind' | 'direction'>, phase: 'in'
  * item brings (a dissolve, a push, a wipe…). "over" keeps the old content still underneath
  * while the new arrives, which avoids a dip to black between backgrounds. "sequence" lets the
  * old one go before the new one comes (each in half the time), so the two never overlap.
+ * Stepping on before a "cross" transition has finished (going through slides quickly) clears
+ * what's still moving, so the new item comes in alone rather than over two or three others.
  */
 export function Transition({
   itemKey,
@@ -347,12 +351,28 @@ export function Transition({
     // One item replacing another in sequence: out in the first half, in during the second.
     const half = mode === 'sequence' && shownKey !== null && itemKey !== null ? ms / 2 : 0;
     setShownKey(itemKey);
-    setLayers((prev) => [
-      ...prev
-        .filter((l) => l.key !== itemKey)
-        .map((l) => (l.leaving ? l : { ...l, node: outgoing, leaving: true, effect: out, duration: half || ms, easing, delay: 0 })),
-      { id: layerSeq++, key: itemKey, node: null, leaving: false, effect: into, duration: half || ms, easing, delay: half },
-    ]);
+    setLayers((prev) => {
+      const now = performance.now();
+      const incoming: Layer = {
+        id: layerSeq++,
+        key: itemKey,
+        node: null,
+        leaving: false,
+        effect: into,
+        duration: half || ms,
+        easing,
+        delay: half,
+        born: now,
+      };
+      const current = prev.find((l) => !l.leaving);
+      if (mode === 'cross' && ms > 0 && current?.born !== undefined && now - current.born < ms) return [incoming];
+      return [
+        ...prev
+          .filter((l) => l.key !== itemKey)
+          .map((l) => (l.leaving ? l : { ...l, node: outgoing, leaving: true, effect: out, duration: half || ms, easing, delay: 0 })),
+        incoming,
+      ];
+    });
   }
 
   useEffect(() => {
