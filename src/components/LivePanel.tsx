@@ -279,6 +279,7 @@ function TimersTab() {
 
   return (
     <>
+      <RandomCountdown />
       <SectionHeader title="Timers · Stage Display" />
       <div className="tab-pad">
         <div className="timer-card">
@@ -336,7 +337,6 @@ function TimersTab() {
           the {'{countdown}'} message in Messages. The fade is set in Audio ▸ Countdown Fade.
         </p>
       </div>
-      <RandomCountdown />
     </>
   );
 }

@@ -1475,17 +1475,22 @@ export const useStore = create<AppState>()(
           }
         },
         // Putting media up takes the logo down, as showing a slide does (goLive).
+        // An outro starting stops the music (the Audio layer fades out): the outro has its own sound.
         setLiveMedia: (id, from = null) =>
-          set((s) => ({
-            live: {
-              ...s.live,
-              mediaId: id,
-              mediaPaused: false,
-              mediaFrom: id ? from : null,
-              mediaSeek: { to: 0, n: s.live.mediaSeek.n },
-              logo: id ? false : s.live.logo,
-            },
-          })),
+          set((s) => {
+            const outro = !!id && id !== s.live.mediaId && !!s.media.find((m) => m.id === id)?.outro;
+            const live = outro ? clearLive(s.live, ['audio']) : s.live;
+            return {
+              live: {
+                ...live,
+                mediaId: id,
+                mediaPaused: false,
+                mediaFrom: id ? from : null,
+                mediaSeek: { to: 0, n: s.live.mediaSeek.n },
+                logo: id ? false : s.live.logo,
+              },
+            };
+          }),
         seekMedia: (seconds) => set((s) => ({ live: { ...s.live, mediaSeek: { to: Math.max(0, seconds), n: s.live.mediaSeek.n + 1 } } })),
         mediaEnded: () => {
           const s = get();

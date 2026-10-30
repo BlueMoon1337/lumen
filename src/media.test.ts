@@ -333,3 +333,21 @@ describe('the media bin’s own tabs, by hand', () => {
     expect(s().media).toHaveLength(4);
   });
 });
+
+describe('an outro starting', () => {
+  it('stops the music; other videos leave it playing', () => {
+    useStore.setState({ media: [...s().media, { id: 'song', name: 'Song', kind: 'audio', mime: 'audio/mpeg' }] });
+    s().markMedia('outro', 'v1', true);
+    s().playAudio('song');
+    s().setLiveMedia('v3');
+    expect(s().live.audioId).toBe('song');
+    s().setLiveMedia('v1');
+    expect(s().live).toMatchObject({ mediaId: 'v1', audioId: null });
+    // Play Outro does the same.
+    s().setLiveMedia(null);
+    s().playAudio('song');
+    s().setActiveMedia('outro', 'v1');
+    s().playOutro();
+    expect(s().live).toMatchObject({ mediaId: 'v1', audioId: null });
+  });
+});
