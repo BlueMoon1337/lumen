@@ -11,6 +11,7 @@ import { undoBatch } from '../history';
 import { actedOn, clickSelection, isExtending, useLibrarySelection } from '../selection';
 import {
   draggedIds,
+  setDragLabel,
   DRAG_PLAYLIST_ITEM,
   DRAG_PRESENTATION,
   DRAG_PRESENTATION_IDS,
@@ -355,8 +356,10 @@ function LibraryItems() {
             draggable
             onDragStart={(e) => {
               // A highlighted presentation takes the rest of the highlight with it.
+              const ids = actedOn(useLibrarySelection.getState(), order, p.id);
               e.dataTransfer.setData(DRAG_PRESENTATION, p.id);
-              e.dataTransfer.setData(DRAG_PRESENTATION_IDS, JSON.stringify(actedOn(useLibrarySelection.getState(), order, p.id)));
+              e.dataTransfer.setData(DRAG_PRESENTATION_IDS, JSON.stringify(ids));
+              setDragLabel(e, ids.length > 1 ? `${ids.length} presentations` : p.title);
             }}
             onClick={(e) => {
               useLibrarySelection.setState(clickSelection(useLibrarySelection.getState(), order, p.id, e));

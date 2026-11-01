@@ -21,7 +21,7 @@ import { clickSlide, selectForMenu } from './editCommands';
 import { slideMenu } from './menus';
 import { TargetTransitionPicker, TransitionButton, TransitionGlyph } from './TransitionPicker';
 import { importMediaFiles } from './MediaBin';
-import { DRAG_MEDIA, Icon, IconButton } from './ui';
+import { DRAG_MEDIA, Icon, IconButton, setDragLabel } from './ui';
 
 /** A slide label's tag on a thumbnail or row. */
 export function LabelTag({ label }: { label: ColorLabel }) {
@@ -84,6 +84,9 @@ export function useMediaDrop(presentationId: string, slideId: string, axis: 'x' 
       draggingFrom = presentationId;
       e.dataTransfer.effectAllowed = 'move';
       e.dataTransfer.setData(DRAG_SLIDES, JSON.stringify({ presentationId, ids }));
+      const slide = s.presentations[presentationId]?.groups.flatMap((g) => g.slides).find((sl) => sl.id === slideId);
+      const words = slide ? slideWords(slide).split('\n')[0] : '';
+      setDragLabel(e, ids.length > 1 ? `${ids.length} slides` : words || 'Slide');
     },
     onDragEnd: () => {
       draggingFrom = null;

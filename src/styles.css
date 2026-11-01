@@ -7035,3 +7035,23 @@ h3.looks-name {
   -webkit-user-drag: none;
   pointer-events: none;
 }
+
+/* What follows the pointer while a slide or media item is dragged (setDragLabel): kept off screen
+   until the web view takes its picture. */
+.drag-chip {
+  position: fixed;
+  top: -200px;
+  left: 0;
+  max-width: 320px;
+  padding: 6px 12px;
+  border-radius: 6px;
+  background: var(--pink);
+  color: var(--accent-ink);
+  font-size: 13px;
+  font-weight: 600;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  pointer-events: none;
+  z-index: 10000;
+}

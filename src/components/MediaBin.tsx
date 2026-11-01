@@ -13,7 +13,18 @@ import { mediaMenu, mediaSelectionMenu } from './menus';
 import { TransitionButton } from './TransitionPicker';
 import { offerReconnect, useIsMissing } from '../finder';
 import { actedOn, clickSelection, isExtending, useMediaSelection } from '../selection';
-import { DRAG_MEDIA, DRAG_MEDIA_IDS, draggedIds, FilterField, hasOutsideFiles, Icon, IconButton, pickFiles, SectionHeader } from './ui';
+import {
+  DRAG_MEDIA,
+  DRAG_MEDIA_IDS,
+  draggedIds,
+  FilterField,
+  setDragLabel,
+  hasOutsideFiles,
+  Icon,
+  IconButton,
+  pickFiles,
+  SectionHeader,
+} from './ui';
 
 const FILTERS = [
   { value: 'all', label: 'All Media', icon: 'image' },
@@ -470,9 +481,11 @@ function MediaTile({
       draggable
       onDragStart={(e) => {
         // A highlighted item takes the rest of the highlight with it.
+        const ids = actedOn(useMediaSelection.getState(), order, item.id);
         e.dataTransfer.setData(DRAG_MEDIA, item.id);
-        e.dataTransfer.setData(DRAG_MEDIA_IDS, JSON.stringify(actedOn(useMediaSelection.getState(), order, item.id)));
+        e.dataTransfer.setData(DRAG_MEDIA_IDS, JSON.stringify(ids));
         e.dataTransfer.effectAllowed = 'copyMove';
+        setDragLabel(e, ids.length > 1 ? `${ids.length} items` : item.name);
       }}
       onDragOver={(e) => {
         if (!hasDrag(e, DRAG_MEDIA)) return;

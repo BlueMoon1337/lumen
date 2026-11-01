@@ -410,6 +410,23 @@ export const DRAG_MEDIA_IDS = 'application/x-lumen-media-ids';
 /** Alongside DRAG_PRESENTATION, every highlighted presentation dragged with it: their ids as JSON. */
 export const DRAG_PRESENTATION_IDS = 'application/x-lumen-presentation-ids';
 
+let chip: HTMLDivElement | null = null;
+
+/**
+ * Shows a small label under the pointer while dragging ("A Dios vamos adorar", "3 slides") in
+ * place of a picture of what's dragged. The Mac app's web view draws that picture wrongly for
+ * slides and media items (with pieces of the rest of the window in it), so they use this.
+ */
+export function setDragLabel(e: { dataTransfer: DataTransfer }, label: string) {
+  if (!chip) {
+    chip = document.createElement('div');
+    chip.className = 'drag-chip';
+    document.body.appendChild(chip);
+  }
+  chip.textContent = label.length > 40 ? `${label.slice(0, 39)}…` : label;
+  e.dataTransfer.setDragImage(chip, 14, 14);
+}
+
 /** The ids a drag carries: the highlighted items dragged together (`listType`), or the one (`type`). */
 export function draggedIds(e: { dataTransfer: DataTransfer }, type: string, listType: string): string[] {
   try {

@@ -9,7 +9,7 @@ import type { MediaItem, MediaPlaylist } from '../types';
 import { formatDuration } from '../util';
 import { NamePopup, openContextMenu, openPopupAtMenu, openPopupBelow, type ContextEntries } from './ContextMenu';
 import { deleteAudioPlaylist, deleteMedia } from './deleting';
-import { Dialog, DRAG_AUDIO, FilterField, hasOutsideFiles, Icon, IconButton, pickFiles, SectionHeader } from './ui';
+import { Dialog, DRAG_AUDIO, setDragLabel, FilterField, hasOutsideFiles, Icon, IconButton, pickFiles, SectionHeader } from './ui';
 
 const st = () => useStore.getState();
 
@@ -47,6 +47,8 @@ function startDrag(e: DragEvent, ids: string[], from: string | null) {
   e.stopPropagation();
   e.dataTransfer.effectAllowed = 'copyMove';
   e.dataTransfer.setData(DRAG_AUDIO, JSON.stringify({ ids, from }));
+  const one = ids.length === 1 ? st().media.find((m) => m.id === ids[0])?.name : undefined;
+  setDragLabel(e, one ?? `${ids.length} tracks`);
 }
 
 function dropped(e: DragEvent): { ids: string[]; from: string | null } | null {
