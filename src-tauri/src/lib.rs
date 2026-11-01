@@ -23,6 +23,17 @@ mod window;
 use tauri::window::Color;
 use tauri::{Manager, WebviewUrl, WebviewWindowBuilder};
 
+/// Opens the window filling the screen it's on, as ProPresenter's does: all of it but the menu bar
+/// and the Dock, which stay showing (a maximized window covered them on macOS).
+fn fill_work_area(window: &tauri::WebviewWindow) {
+    let monitor = window.current_monitor().ok().flatten().or_else(|| window.primary_monitor().ok().flatten());
+    if let Some(monitor) = monitor {
+        let area = monitor.work_area();
+        let _ = window.set_position(area.position);
+        let _ = window.set_size(area.size);
+    }
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
@@ -108,8 +119,6 @@ pub fn run() {
                 .title("Lumen")
                 .inner_size(1440.0, 900.0)
                 .min_inner_size(1000.0, 640.0)
-                // Opens filling the screen (not full screen), as ProPresenter's window does.
-                .maximized(true)
                 .background_color(Color(0x1d, 0x1d, 0x1d, 255))
                 // Files dropped on the window go to the page (import songs, media and Bibles by dragging).
                 .disable_drag_drop_handler()
@@ -120,7 +129,9 @@ pub fn run() {
                 .title_bar_style(tauri::TitleBarStyle::Overlay)
                 .hidden_title(true)
                 .traffic_light_position(tauri::LogicalPosition::new(18.0, 24.0));
-            camera::enable(&main.build()?);
+            let main = main.build()?;
+            fill_work_area(&main);
+            camera::enable(&main);
 
             displays::watch(handle.clone());
             window::refresh_windows(handle);
