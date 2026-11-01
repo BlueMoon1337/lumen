@@ -157,6 +157,8 @@ export interface DeckSlide {
 export interface EditableSlide {
   width: number;
   height: number;
+  /** Drawn with nothing behind it, so it shows over what's behind (a ProPresenter slide's text boxes). */
+  transparent?: boolean;
   slide: DeckSlide;
 }
 

@@ -5,7 +5,7 @@ import { importPlaylistFile } from '../commands';
 import { useStore } from '../store';
 import { parseProPlaylist } from './proplaylist';
 import { parseProPresenter7 } from './propresenter';
-import { rtfToText } from './rtf';
+import { rtfToParagraphs, rtfToText } from './rtf';
 import { parseRvBible } from './rvbible';
 import { parseUsx } from './usx';
 import { readZip } from './zip';
@@ -167,7 +167,11 @@ describe('ProPresenter fonts', () => {
                       msg(3, float(1, 1), float(2, 1), float(3, 1), float(4, 1)),
                       msg(6, num(1, 2)),
                     ),
-                    str(5, rtf(text)),
+                    // As ProPresenter writes it: the text in the box's font and size (RTF sizes are half-points).
+                    str(
+                      5,
+                      `{\\rtf1\\ansi{\\fonttbl\\f0\\fnil ${font};}{\\colortbl;\\red255\\green255\\blue255;}\\pard\\qc\\f0\\fs${size * 2} \\cf1 ${text}}`,
+                    ),
                   ),
                 ),
               ),
@@ -203,6 +207,63 @@ describe('RTF', () => {
       "{\\rtf1\\ansi\\ansicpg1252{\\fonttbl\\f0 Arial;}{\\colortbl;\\red0;}{\\*\\expandedcolortbl;;}\\f0\\fs48 \\cf1 Hola\\par mam\\'e1 \\{ok\\} \\u8217?s\\line  fin \\\\ }",
     );
     expect(text).toBe('Hola\nmamá {ok} ’s\nfin \\');
+  });
+
+  it('keeps each run’s font, size, color and weight, and each paragraph’s alignment', () => {
+    const paragraphs = rtfToParagraphs(
+      '{\\rtf1\\ansi{\\fonttbl\\f0\\fnil Helvetica;\\f1\\fnil Helvetica-Bold;}{\\colortbl;\\red255\\green255\\blue255;\\red255\\green0\\blue7;}' +
+        '\\pard\\qc\\f0\\fs138 \\cf1 Domingo\\\n\\\n\\pard\\qr\\f1\\b\\fs198 \\cf2 No faltes}',
+    );
+    expect(paragraphs).toEqual([
+      { align: 'center', runs: [{ text: 'Domingo', font: 'Helvetica', size: 69, color: '#ffffff', bold: false, italic: false }] },
+      { align: 'center', runs: [] },
+      { align: 'right', runs: [{ text: 'No faltes', font: 'Helvetica-Bold', size: 99, color: '#ff0007', bold: true, italic: false }] },
+    ]);
+  });
+});
+
+describe('ProPresenter text boxes', () => {
+  const boxRtf = (text: string, size: number, color = '\\red255\\green255\\blue255') =>
+    `{\\rtf1\\ansi{\\fonttbl\\f0\\fnil Copperplate;}{\\colortbl;${color};}\\pard\\qc\\f0\\fs${size * 2} \\cf1 ${text}}`;
+  /** A text box at x, y, w × h on a 1920 × 1080 slide, vertically centred. */
+  const box = (rtf: string, [x, y, w, h]: number[]) =>
+    msg(1, msg(1, msg(3, msg(1, double(1, x), double(2, y)), msg(2, double(1, w), double(2, h))), msg(13, str(5, rtf), num(6, 1))));
+  const slide = (id: string, boxes: Uint8Array[], label?: string) =>
+    msg(
+      13,
+      uuid(1, id),
+      msg(10, ...(label ? [msg(3, str(2, label), msg(3, float(1, 1), float(4, 1)))] : []), msg(23, msg(2, msg(1, ...boxes)))),
+    );
+  const p = parseProPresenter7(
+    concat([
+      str(3, 'Titles'),
+      group('G', 'Titles', [0, 0, 0], ['A', 'B', 'C']),
+      slide('A', [box(boxRtf('Parque', 114), [40, 94, 1840, 937])], 'Anuncios'),
+      slide('B', [box(boxRtf('Parque dos', 114), [40, 94, 1840, 937])]),
+      slide('C', [
+        box(boxRtf('Chosen', 104), [240, 529, 1440, 306]),
+        box(boxRtf('Pastor', 67, '\\red255\\green255\\blue84'), [240, 835, 1592, 213]),
+      ]),
+    ]),
+  );
+  const [a, b, c] = p.groups[0].slides;
+
+  it('puts a slide’s one box where it was, in its font and size', () => {
+    expect(p.style).toMatchObject({ fontSize: 114, verticalAlign: 'middle', inset: { top: 8.7, left: 2.1, bottom: 4.5, right: 2.1 } });
+    expect(a).toMatchObject({ text: 'Parque', label: { name: 'Anuncios', color: '#ff0000' } });
+    expect(a.style).toBeUndefined();
+    expect(b.label).toBeUndefined();
+  });
+
+  it('keeps a slide with several boxes laid out as it was', () => {
+    expect(c.text).toBe('Chosen\nPastor');
+    expect(c.deck).toMatchObject({ width: 1920, height: 1080, transparent: true, slide: { background: null, text: 'Chosen\nPastor' } });
+    const [chosen, pastor] = c.deck!.slide.elements;
+    expect(chosen).toMatchObject({ kind: 'shape', x: 240, y: 529, w: 1440, h: 306, fill: null, text: { anchor: 'middle' } });
+    expect(pastor).toMatchObject({ x: 240, y: 835 });
+    if (pastor.kind !== 'shape') throw new Error('not a shape');
+    expect(pastor.text!.paragraphs[0]).toMatchObject({ align: 'center', runs: [{ text: 'Pastor', size: 67, color: '#ffff54' }] });
+    expect(pastor.text!.paragraphs[0].runs[0].font).toMatch(/^Copperplate/);
   });
 });
 

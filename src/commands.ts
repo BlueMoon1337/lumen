@@ -10,7 +10,10 @@ import { putMediaBlob } from './media';
 import { dismiss, notify, renotify } from './notices';
 import { createSlideshow, readKeynote, readPowerPoint, slideshowLibrary } from './slideshowImport';
 import { useStore } from './store';
-import type { Category, FontMeta, Group, PlaylistItem } from './types';
+import type { EditableSlide } from './deck';
+import { renderDeckSlide } from './deckRender';
+import { slideWords } from './slideshows';
+import type { Category, FontMeta, Group, PlaylistItem, Slide, SlideSource } from './types';
 import { uid } from './util';
 
 /** File types File ▸ Import ▸ File… and drag-and-drop accept. */
@@ -74,13 +77,28 @@ function themeFor(data: ImportedPresentation): string | undefined {
   return useStore.getState().themes.some((t) => t.id === 'theme-copperplate') ? 'theme-copperplate' : undefined;
 }
 
-export function createFromImport(data: ImportedPresentation, category: Category): string {
-  const groups: Group[] = data.groups.map((g) => ({
-    id: uid(),
-    name: g.name,
-    color: g.color ?? colorForGroup(g.name),
-    slides: g.slides.map((s) => ({ id: uid(), text: s.text, notes: s.notes })),
-  }));
+/** An imported slide kept as boxes: its model and its picture (drawn with nothing behind it), stored. */
+async function storeBoxSlide(deck: EditableSlide, number: number): Promise<SlideSource> {
+  const model = uid();
+  await putMediaBlob(model, new Blob([JSON.stringify(deck)], { type: 'application/json' }));
+  const picture = uid();
+  await putMediaBlob(picture, await renderDeckSlide(deck, deck.slide, new Map()));
+  return { picture, text: deck.slide.text, number, model };
+}
+
+export async function createFromImport(data: ImportedPresentation, category: Category): Promise<string> {
+  let number = 0;
+  const groups: Group[] = [];
+  for (const g of data.groups) {
+    const slides: Slide[] = [];
+    for (const sl of g.slides) {
+      number++;
+      const extra = { ...(sl.notes ? { notes: sl.notes } : {}), ...(sl.label ? { label: sl.label } : {}) };
+      if (sl.deck) slides.push({ id: uid(), text: '', ...extra, source: await storeBoxSlide(sl.deck, number) });
+      else slides.push({ id: uid(), text: sl.text, ...extra, ...(sl.style ? { style: sl.style } : {}) });
+    }
+    groups.push({ id: uid(), name: g.name, color: g.color ?? colorForGroup(g.name), slides });
+  }
   return useStore.getState().createPresentation({
     title: data.title,
     category,
@@ -100,9 +118,9 @@ export function createFromImport(data: ImportedPresentation, category: Category)
 }
 
 /** Reuses an identical song already in the library (giving it the imported font if it has none), or creates it. */
-function reuseOrCreate(data: ImportedPresentation, category: Category): { id: string; reused: boolean } {
+async function reuseOrCreate(data: ImportedPresentation, category: Category): Promise<{ id: string; reused: boolean }> {
   const existing = findIdentical(data);
-  if (!existing) return { id: createFromImport(data, category), reused: false };
+  if (!existing) return { id: await createFromImport(data, category), reused: false };
   const s = useStore.getState();
   const p = s.presentations[existing];
   if (data.style && !p.style) s.updatePresentation(existing, { style: data.style, themeId: p.themeId ?? themeFor(data) });
@@ -118,7 +136,7 @@ function findIdentical(data: ImportedPresentation): string | undefined {
       !p.hidden &&
       p.title.toLowerCase() === title &&
       getSequence(p)
-        .map((e) => e.slide.text)
+        .map((e) => slideWords(e.slide))
         .join('\u0000') === texts,
   )?.id;
 }
@@ -154,7 +172,7 @@ export async function importPlaylistFile(file: File, category: Category = 'song'
       let id = done.get(key);
       if (!id) {
         const data = parseProPresenter7(bundle.files.get(item.file)!, item.name, item.arrangementId);
-        const r = reuseOrCreate(data, category);
+        const r = await reuseOrCreate(data, category);
         id = r.id;
         if (r.reused) result.reused++;
         else result.added++;
@@ -254,7 +272,7 @@ async function importAll(files: File[], category: Category) {
       switch (extension(file)) {
         case 'pro': {
           const data = parseProPresenter7(new Uint8Array(await file.arrayBuffer()), baseName(file));
-          const r = reuseOrCreate(data, category);
+          const r = await reuseOrCreate(data, category);
           if (r.reused) reused++;
           else presentations++;
           lastId = r.id;

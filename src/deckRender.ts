@@ -543,10 +543,10 @@ export function drawDeckSlide(ctx: Ctx, deck: Pick<Deck, 'width' | 'height'>, sl
 
 /**
  * A slide as a 1920 × 1080 JPEG for the screens: a slide of another shape (4:3, say) sits in the
- * middle on black.
+ * middle on black. A transparent one is a PNG, with nothing behind it.
  */
 export async function renderDeckSlide(
-  deck: Pick<Deck, 'width' | 'height'>,
+  deck: Pick<Deck, 'width' | 'height'> & { transparent?: boolean },
   slide: DeckSlide,
   images: Images,
   width = 1920,
@@ -557,13 +557,17 @@ export async function renderDeckSlide(
   canvas.height = height;
   const ctx = canvas.getContext('2d');
   if (!ctx) throw new Error('No canvas to draw on.');
-  ctx.fillStyle = '#000';
-  ctx.fillRect(0, 0, width, height);
+  if (!deck.transparent) {
+    ctx.fillStyle = '#000';
+    ctx.fillRect(0, 0, width, height);
+  }
   const scale = Math.min(width / deck.width, height / deck.height);
   ctx.translate((width - deck.width * scale) / 2, (height - deck.height * scale) / 2);
   ctx.scale(scale, scale);
   drawDeckSlide(ctx, deck, slide, images);
-  const blob = await new Promise<Blob | null>((resolve) => canvas.toBlob(resolve, 'image/jpeg', 0.9));
+  const blob = await new Promise<Blob | null>((resolve) =>
+    deck.transparent ? canvas.toBlob(resolve, 'image/png') : canvas.toBlob(resolve, 'image/jpeg', 0.9),
+  );
   if (!blob) throw new Error('A slide couldn’t be drawn.');
   return blob;
 }
