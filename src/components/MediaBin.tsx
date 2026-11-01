@@ -18,7 +18,7 @@ import {
   DRAG_MEDIA_IDS,
   draggedIds,
   FilterField,
-  setDragLabel,
+  setDragPreview,
   hasOutsideFiles,
   Icon,
   IconButton,
@@ -485,7 +485,7 @@ function MediaTile({
         e.dataTransfer.setData(DRAG_MEDIA, item.id);
         e.dataTransfer.setData(DRAG_MEDIA_IDS, JSON.stringify(ids));
         e.dataTransfer.effectAllowed = 'copyMove';
-        setDragLabel(e, ids.length > 1 ? `${ids.length} items` : item.name);
+        setDragPreview(e, e.currentTarget, ids.length);
       }}
       onDragOver={(e) => {
         if (!hasDrag(e, DRAG_MEDIA)) return;

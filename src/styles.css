@@ -7036,12 +7036,20 @@ h3.looks-name {
   pointer-events: none;
 }
 
-/* What follows the pointer while a slide or media item is dragged (setDragLabel): kept off screen
-   until the web view takes its picture. */
-.drag-chip {
+/* What follows the pointer while something is dragged (setDragPreview, setDragLabel in ui.tsx): a
+   see-through copy of the slide or item, or a small label, moved with the pointer. */
+.drag-ghost {
   position: fixed;
-  top: -200px;
+  top: 0;
   left: 0;
+  margin: 0;
+  pointer-events: none;
+  z-index: 10000;
+  opacity: 0.75;
+  will-change: transform;
+}
+
+.drag-chip {
   max-width: 320px;
   padding: 6px 12px;
   border-radius: 6px;
@@ -7052,6 +7060,22 @@ h3.looks-name {
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
-  pointer-events: none;
-  z-index: 10000;
+  opacity: 0.95;
+}
+
+/* How many are dragged, on the copy's corner. */
+.drag-count {
+  position: absolute;
+  top: -8px;
+  right: -8px;
+  min-width: 22px;
+  height: 22px;
+  padding: 0 6px;
+  border-radius: 11px;
+  background: var(--pink);
+  color: var(--accent-ink);
+  font-size: 12px;
+  font-weight: 700;
+  line-height: 22px;
+  text-align: center;
 }

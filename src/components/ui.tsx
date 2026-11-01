@@ -410,21 +410,79 @@ export const DRAG_MEDIA_IDS = 'application/x-lumen-media-ids';
 /** Alongside DRAG_PRESENTATION, every highlighted presentation dragged with it: their ids as JSON. */
 export const DRAG_PRESENTATION_IDS = 'application/x-lumen-presentation-ids';
 
-let chip: HTMLDivElement | null = null;
+/**
+ * What follows the pointer while something is dragged. The Mac app's web view draws its own
+ * picture of a dragged element wrongly (with pieces of the rest of the window in it, and copies
+ * left behind), so Lumen hides that picture and moves its own: a see-through copy of the slide or
+ * item, as ProPresenter shows, or a small label.
+ */
+let ghost: { el: HTMLElement; dx: number; dy: number } | null = null;
+/** The slide or item being dragged, dimmed where it was. */
+let dimmed: HTMLElement | null = null;
+/** A transparent picture for the web view to show (loaded before any drag starts). */
+const BLANK = typeof Image === 'undefined' ? null : new Image();
+if (BLANK) BLANK.src = 'data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7';
+
+function moveGhost(e: { clientX: number; clientY: number }) {
+  // Some drag events carry no position (0, 0); the copy stays where it was then.
+  if (!ghost || (e.clientX === 0 && e.clientY === 0)) return;
+  ghost.el.style.transform = `translate(${e.clientX - ghost.dx}px, ${e.clientY - ghost.dy}px)`;
+}
+
+function endGhost() {
+  ghost?.el.remove();
+  ghost = null;
+  // Its own style, as its class belongs to React (which redraws it while it's dragged over).
+  if (dimmed) dimmed.style.opacity = '';
+  dimmed = null;
+}
+
+if (typeof window !== 'undefined') {
+  window.addEventListener('dragover', moveGhost, true);
+  window.addEventListener('drag', moveGhost, true);
+  for (const type of ['dragend', 'drop'] as const) window.addEventListener(type, () => setTimeout(endGhost), true);
+}
+
+/** A drag event, as React or the page gives it. */
+type DragPoint = { dataTransfer: DataTransfer; clientX: number; clientY: number };
+
+function startGhost(e: DragPoint, el: HTMLElement, dx: number, dy: number) {
+  endGhost();
+  if (BLANK) e.dataTransfer.setDragImage(BLANK, 0, 0);
+  el.classList.add('drag-ghost');
+  document.body.appendChild(el);
+  ghost = { el, dx, dy };
+  moveGhost(e);
+}
 
 /**
- * Shows a small label under the pointer while dragging ("A Dios vamos adorar", "3 slides") in
- * place of a picture of what's dragged. The Mac app's web view draws that picture wrongly for
- * slides and media items (with pieces of the rest of the window in it), so they use this.
+ * Drags a see-through copy of `source` (a slide or media item), held where it was picked up; with
+ * `count` over one, a badge says how many are dragged. The item itself dims while it's dragged.
  */
-export function setDragLabel(e: { dataTransfer: DataTransfer }, label: string) {
-  if (!chip) {
-    chip = document.createElement('div');
-    chip.className = 'drag-chip';
-    document.body.appendChild(chip);
+export function setDragPreview(e: DragPoint, source: HTMLElement, count = 1) {
+  const r = source.getBoundingClientRect();
+  const copy = source.cloneNode(true) as HTMLElement;
+  copy.classList.remove('selected', 'live', 'move-before', 'move-after', 'drop-media');
+  copy.removeAttribute('data-slide-id');
+  copy.style.width = `${r.width}px`;
+  copy.style.height = `${r.height}px`;
+  if (count > 1) {
+    const badge = document.createElement('span');
+    badge.className = 'drag-count';
+    badge.textContent = String(count);
+    copy.appendChild(badge);
   }
+  startGhost(e, copy, e.clientX - r.left, e.clientY - r.top);
+  dimmed = source;
+  source.style.opacity = '0.45';
+}
+
+/** Drags a small label ("A Dios vamos adorar", "3 presentations") under the pointer. */
+export function setDragLabel(e: DragPoint, label: string) {
+  const chip = document.createElement('div');
+  chip.className = 'drag-chip';
   chip.textContent = label.length > 40 ? `${label.slice(0, 39)}…` : label;
-  e.dataTransfer.setDragImage(chip, 14, 14);
+  startGhost(e, chip, -12, -12);
 }
 
 /** The ids a drag carries: the highlighted items dragged together (`listType`), or the one (`type`). */
