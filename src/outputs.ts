@@ -52,6 +52,10 @@ export interface DesktopBridge {
   chooseExportFolder(): Promise<string | null>;
   /** Writes a file into the folder chosen last. */
   writeExportFile(name: string, data: Uint8Array): Promise<void>;
+  /** Show in Finder: where a media or audio item's copy goes in Documents ▸ Lumen ▸ Media (or Audio), and whether it's there. */
+  finderFile(folder: 'Media' | 'Audio', name: string, size: number): Promise<{ name: string; saved: boolean }>;
+  writeFinderFile(folder: 'Media' | 'Audio', name: string, data: Uint8Array): Promise<void>;
+  revealFinderFile(folder: 'Media' | 'Audio', name: string): Promise<void>;
   readClipboardText(): Promise<string | null>;
   writeClipboardText(text: string): Promise<void>;
   /** Turns Edit's items on and off (by command id) and sets Check Spelling While Typing. */

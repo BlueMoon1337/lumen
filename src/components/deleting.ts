@@ -4,6 +4,7 @@
  * it; a single slide or playlist entry goes straight away, as in ProPresenter. All of it can
  * be undone.
  */
+import { undoBatch } from '../history';
 import { notify } from '../notices';
 import { useStore } from '../store';
 import type { MediaItem, Presentation, SpecialTab } from '../types';
@@ -146,6 +147,29 @@ export function deleteMedia(id: string) {
       danger: true,
     },
     () => st().deleteMedia(id),
+  );
+}
+
+/** Deletes several media items, after asking once (one step to undo). */
+export function deleteMediaItems(ids: string[]) {
+  if (ids.length === 1) return deleteMedia(ids[0]);
+  const s = st();
+  const items = s.media.filter((m) => ids.includes(m.id));
+  if (!items.length) return;
+  const slides = Object.values(s.presentations).reduce((n, p) => n + ids.reduce((k, id) => k + usesMedia(p, id), 0), 0);
+  const live = items.some((m) => s.live.mediaId === m.id || s.live.audioId === m.id);
+  confirmThen(
+    {
+      title: `Delete ${items.length} items?`,
+      message: sentences(
+        slides > 0 && `They’re used by ${count(slides, 'slide')}, which will do without them.`,
+        live && 'One is playing now, and will be cleared.',
+        undoHint(),
+      ),
+      confirmLabel: 'Delete',
+      danger: true,
+    },
+    () => undoBatch(`Delete ${items.length} Items`, () => items.forEach((m) => st().deleteMedia(m.id))),
   );
 }
 

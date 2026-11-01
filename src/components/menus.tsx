@@ -1,4 +1,7 @@
 /** The right-click menus: what each thing in the window offers, as in ProPresenter. */
+import { canShowInFinder, FINDER_LABEL, showInFinder } from '../finder';
+import { undoBatch } from '../history';
+import { notify } from '../notices';
 import { groupPresets, LABEL_SWATCHES, labelPresets } from '../labels';
 import { colorForGroup } from '../lyrics';
 import { canUngroup, type SlideScope } from '../slideOps';
@@ -24,6 +27,7 @@ import {
   deleteGroup,
   deleteLibrary,
   deleteMedia,
+  deleteMediaItems,
   deletePlaylist,
   deletePresentation,
   deleteSlide,
@@ -515,6 +519,117 @@ export function playbackEntries(mediaId: string): ContextEntries {
  * A media bin item; `playlistId` when it's shown in a media playlist, `tab` in the Countdowns or
  * Outro or Logo tab (where removing it only takes it out of the tab).
  */
+/** After adding several presentations to a playlist: says which were there already and left out. */
+export function addedNotice(added: number, asked: number, playlist?: string) {
+  if (asked < 2 || added === asked) return;
+  const skipped = asked - added;
+  notify(
+    added
+      ? `Added ${added} to ${playlist ?? 'the playlist'}; ${skipped} ${skipped === 1 ? 'was' : 'were'} in it already.`
+      : `They’re all in ${playlist ?? 'the playlist'} already.`,
+    'info',
+    3500,
+  );
+}
+
+/** The menu for several highlighted presentations in the library. */
+export function presentationsMenu(ids: string[]): ContextEntries {
+  const s = st();
+  return [
+    { label: `${ids.length} Presentations`, disabled: true, action: () => {} },
+    {
+      label: 'Add to Playlist',
+      submenu: () =>
+        st().playlists.map((pl) => ({
+          label: pl.name,
+          checked: ids.every((id) => pl.items.some((it) => it.type === 'presentation' && it.presentationId === id)),
+          action: () => addedNotice(s.addManyToPlaylist(ids, undefined, pl.id), ids.length, pl.name),
+        })),
+    },
+    {
+      label: 'Library',
+      submenu: () =>
+        st().libraries.map((l) => ({
+          label: l.name,
+          checked: ids.every((id) => st().presentations[id]?.category === l.id),
+          action: () => undoBatch('Move to Library', () => ids.forEach((id) => s.updatePresentation(id, { category: l.id }))),
+        })),
+    },
+  ];
+}
+
+/**
+ * The menu for several highlighted media items. Adding them to a tab or a playlist adds the ones
+ * that aren't in it yet; a tab they're all in takes them out.
+ */
+export function mediaSelectionMenu(items: MediaItem[], playlistId?: string | null, tab?: SpecialTab | null): ContextEntries {
+  const s = st();
+  const ids = items.map((m) => m.id);
+  return [
+    { label: `${items.length} Items`, disabled: true, action: () => {} },
+    {
+      label: 'Tabs',
+      submenu: () =>
+        (['background', 'countdown', 'outro', 'logo'] as const).flatMap((t) => {
+          const fit = items.filter((m) => fitsTab(m, t));
+          if (!fit.length) return [];
+          const all = fit.every((m) => m[t]);
+          return [
+            {
+              label: all || !fit.some((m) => m[t]) ? TAB_NAMES[t] : `${TAB_NAMES[t]} (Add the Rest)`,
+              checked: all,
+              action: () =>
+                all
+                  ? s.setInTab(
+                      t,
+                      fit.map((m) => m.id),
+                      false,
+                    )
+                  : s.setInTab(
+                      t,
+                      fit.filter((m) => !m[t]).map((m) => m.id),
+                      true,
+                    ),
+            },
+          ];
+        }),
+    },
+    '-',
+    {
+      label: 'Add to Media Playlist',
+      submenu: () => [
+        ...st().mediaPlaylists.map((pl) => ({
+          label: pl.name,
+          checked: ids.every((id) => pl.items.includes(id)),
+          action: () => s.addToMediaPlaylist(pl.id, ids),
+        })),
+        st().mediaPlaylists.length > 0 && '-',
+        {
+          label: 'New Playlist…',
+          action: () =>
+            openPopupAtMenu(
+              <NamePopup
+                title="New Media Playlist"
+                colors={false}
+                action="Create"
+                initial={{ name: 'Playlist', color: '' }}
+                onSave={(v) => s.addToMediaPlaylist(s.createMediaPlaylist(v.name), ids)}
+              />,
+            ),
+        },
+      ],
+    },
+    !!playlistId && {
+      label: 'Remove from Playlist',
+      action: () => undoBatch('Remove from Playlist', () => ids.forEach((id) => s.removeFromMediaPlaylist(playlistId, id))),
+    },
+    !!tab && { label: `Remove from ${TAB_NAMES[tab]}`, action: () => s.setInTab(tab, ids, false) },
+    '-',
+    canShowInFinder() && { label: FINDER_LABEL, action: () => void showInFinder(items) },
+    { label: `Delete ${items.length} Items…`, danger: true, action: () => deleteMediaItems(ids) },
+  ];
+}
+
 export function mediaMenu(m: MediaItem, playlistId?: string | null, tab?: SpecialTab | null): ContextEntries {
   const s = st();
   const live = s.live.mediaId === m.id;
@@ -565,6 +680,7 @@ export function mediaMenu(m: MediaItem, playlistId?: string | null, tab?: Specia
     },
     !!playlistId && { label: 'Remove from Playlist', action: () => s.removeFromMediaPlaylist(playlistId, m.id) },
     '-',
+    canShowInFinder() && { label: FINDER_LABEL, action: () => void showInFinder([m]) },
     {
       label: 'Rename…',
       action: () =>

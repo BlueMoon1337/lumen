@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState, type DragEvent, type MouseEvent } from 'react';
 import { useShallow } from 'zustand/react/shallow';
 import { countdownFade, songCrossfade } from '../countdowns';
+import { canShowInFinder, FINDER_LABEL, showInFinder } from '../finder';
 import { loadMedia } from '../media';
 import { notify } from '../notices';
 import { AUDIO_LIBRARY, useStore } from '../store';
@@ -29,6 +30,10 @@ const hasDrag = (e: DragEvent, type: string) => e.dataTransfer.types.includes(ty
 
 /** Drag payload type for an audio playlist being moved up or down the list: its id. */
 const DRAG_AUDIO_PLAYLIST = 'application/x-lumen-audio-playlist';
+
+/** Show in Finder (desktop app only): saves the tracks as files once, and shows them. */
+const finderEntry = (items: MediaItem[]): ContextEntries =>
+  canShowInFinder() ? [{ label: FINDER_LABEL, action: () => void showInFinder(items) }] : [];
 
 /** Loop, for the track playing now: only it can loop, and it stops looping when it stops. */
 function loopEntry(playing: boolean, looping: boolean, label = 'Loop'): ContextEntries {
@@ -113,6 +118,7 @@ function audioMenu(m: MediaItem, playing: boolean): ContextEntries {
     ...loopEntry(playing, s.live.audioLoop),
     { label: 'Add to Playlist', submenu: () => addToPlaylistMenu([m.id]) },
     '-',
+    ...finderEntry([m]),
     { label: 'Rename…', action: () => renameTrack(m) },
     { label: 'Delete…', danger: true, action: () => deleteMedia(m.id) },
   ];
@@ -248,6 +254,7 @@ function PlaylistTrack({ playlist, m, index }: { playlist: MediaPlaylist; m: Med
           { label: playing ? 'Stop' : 'Play from Here', action: () => toggle(m.id, playlist.id) },
           ...loopEntry(playing, s.live.audioLoop, 'Loop Track'),
           '-',
+          ...finderEntry([m]),
           { label: 'Rename…', action: () => renameTrack(m) },
           { label: 'Remove from Playlist', action: () => s.removeFromAudioPlaylist(playlist.id, m.id) },
         ])
@@ -576,6 +583,7 @@ function LibraryRow({
           ...loopEntry(playing, looping),
           { label: ids.length > 1 ? `Add ${ids.length} Tracks to Playlist` : 'Add to Playlist', submenu: () => addToPlaylistMenu(ids) },
           '-',
+          ...finderEntry(ids.map((id) => st().media.find((x) => x.id === id)).filter((x): x is MediaItem => !!x)),
           { label: 'Rename…', action: () => renameTrack(m) },
           { label: 'Delete…', danger: true, action: () => deleteMedia(m.id) },
         ]);

@@ -105,7 +105,7 @@ fn decode(text: &str) -> String {
     String::from_utf8_lossy(&out).into_owned()
 }
 
-fn header(request: &Request<'_>, name: &str) -> String {
+pub(crate) fn header(request: &Request<'_>, name: &str) -> String {
     decode(request.headers().get(name).and_then(|v| v.to_str().ok()).unwrap_or_default())
 }
 

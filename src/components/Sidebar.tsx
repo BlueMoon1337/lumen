@@ -6,8 +6,21 @@ import { slideWords } from '../slideshows';
 import { openContextMenu, type ContextEntries } from './ContextMenu';
 import { deleteLibrary, deletePlaylist, removePlaylistItem } from './deleting';
 import { importFileCommand, newLibrary, newPlaylist, newPresentationNamed } from './fileCommands';
-import { libraryMenu, playlistHeaderMenu, playlistMenu, presentationMenu } from './menus';
-import { DRAG_PLAYLIST_ITEM, DRAG_PRESENTATION, FilterField, Icon, IconButton, pickFiles, SectionHeader, type IconName } from './ui';
+import { libraryMenu, playlistHeaderMenu, playlistMenu, presentationMenu, presentationsMenu, addedNotice } from './menus';
+import { undoBatch } from '../history';
+import { actedOn, clickSelection, isExtending, useLibrarySelection } from '../selection';
+import {
+  draggedIds,
+  DRAG_PLAYLIST_ITEM,
+  DRAG_PRESENTATION,
+  DRAG_PRESENTATION_IDS,
+  FilterField,
+  Icon,
+  IconButton,
+  pickFiles,
+  SectionHeader,
+  type IconName,
+} from './ui';
 
 /** The libraries as options, for a library menu. */
 export function LibraryOptions() {
@@ -24,6 +37,16 @@ export function LibraryOptions() {
 }
 
 const hasDrag = (e: DragEvent, type: string) => e.dataTransfer.types.includes(type);
+
+/** Drag payload types for a library or playlist being moved up or down its list: its id. */
+const DRAG_LIBRARY = 'application/x-lumen-library';
+const DRAG_PLAYLIST = 'application/x-lumen-playlist';
+
+/** Above or below the row the pointer is over: the top half or the bottom half. */
+const halfOf = (e: DragEvent): 'before' | 'after' => {
+  const r = (e.currentTarget as HTMLElement).getBoundingClientRect();
+  return e.clientY < r.top + r.height / 2 ? 'before' : 'after';
+};
 
 /** ProPresenter's left column: collections on top, the selected collection's items below. */
 export function Sidebar() {
@@ -47,6 +70,8 @@ function Collections() {
   const [plOpen, setPlOpen] = useState(true);
   const [dropTarget, setDropTarget] = useState<string | null>(null);
   const [renaming, setRenaming] = useState<string | null>(null);
+  // A library or playlist dragged over another goes above or below it.
+  const [moving, setMoving] = useState<{ id: string; at: 'before' | 'after' } | null>(null);
 
   return (
     // Edit ▸ Delete (and the Delete key) here deletes the open library or playlist, after asking.
@@ -65,9 +90,12 @@ function Collections() {
         />
       </SectionHeader>
       {libOpen &&
-        libraries.map((lib) => (
+        libraries.map((lib, i) => (
           <CollectionRow
             key={lib.id}
+            dragType={DRAG_LIBRARY}
+            dragId={lib.id}
+            moveAt={moving?.id === lib.id ? moving.at : null}
             icon={lib.id === 'scripture' ? 'bible' : 'library'}
             kind="library"
             name={lib.name}
@@ -79,19 +107,31 @@ function Collections() {
             onRename={(name) => s.renameLibrary(lib.id, name)}
             onDelete={libraries.length > 1 ? () => deleteLibrary(lib.id) : undefined}
             menu={() => libraryMenu(lib, () => setRenaming(lib.id))}
-            title="Double-click to rename. Drop presentations or files here to add them."
+            title="Double-click to rename. Drag to reorder. Drop presentations or files here to add them."
             onDragOver={(e) => {
-              if (hasDrag(e, DRAG_PRESENTATION) || hasDrag(e, 'Files')) {
+              if (hasDrag(e, DRAG_LIBRARY)) {
+                e.preventDefault();
+                setMoving({ id: lib.id, at: halfOf(e) });
+              } else if (hasDrag(e, DRAG_PRESENTATION) || hasDrag(e, 'Files')) {
                 e.preventDefault();
                 setDropTarget(lib.id);
               }
             }}
-            onDragLeave={() => setDropTarget(null)}
+            onDragLeave={() => {
+              setDropTarget(null);
+              setMoving(null);
+            }}
             onDrop={(e) => {
               e.preventDefault();
               setDropTarget(null);
-              const id = e.dataTransfer.getData(DRAG_PRESENTATION);
-              if (id) s.updatePresentation(id, { category: lib.id });
+              setMoving(null);
+              const moved = e.dataTransfer.getData(DRAG_LIBRARY);
+              if (moved) {
+                if (moved !== lib.id) s.moveLibraries([moved], halfOf(e) === 'after' ? (libraries[i + 1]?.id ?? null) : lib.id);
+                return;
+              }
+              const ids = draggedIds(e, DRAG_PRESENTATION, DRAG_PRESENTATION_IDS);
+              if (ids.length) undoBatch('Move to Library', () => ids.forEach((id) => s.updatePresentation(id, { category: lib.id })));
               else void importFiles(Array.from(e.dataTransfer.files), lib.id);
             }}
           />
@@ -110,9 +150,12 @@ function Collections() {
         />
       </SectionHeader>
       {plOpen &&
-        playlists.map((pl) => (
+        playlists.map((pl, i) => (
           <CollectionRow
             key={pl.id}
+            dragType={DRAG_PLAYLIST}
+            dragId={pl.id}
+            moveAt={moving?.id === pl.id ? moving.at : null}
             icon="playlist"
             kind="playlist"
             name={pl.name}
@@ -127,19 +170,31 @@ function Collections() {
             onRename={(name) => s.renamePlaylist(pl.id, name)}
             onDelete={playlists.length > 1 ? () => deletePlaylist(pl.id) : undefined}
             menu={() => playlistMenu(pl, () => setRenaming(pl.id))}
-            title="Double-click to rename. Drop presentations here to add them."
+            title="Double-click to rename. Drag to reorder. Drop presentations here to add them."
             onDragOver={(e) => {
-              if (hasDrag(e, DRAG_PRESENTATION)) {
+              if (hasDrag(e, DRAG_PLAYLIST)) {
+                e.preventDefault();
+                setMoving({ id: pl.id, at: halfOf(e) });
+              } else if (hasDrag(e, DRAG_PRESENTATION)) {
                 e.preventDefault();
                 setDropTarget(pl.id);
               }
             }}
-            onDragLeave={() => setDropTarget(null)}
+            onDragLeave={() => {
+              setDropTarget(null);
+              setMoving(null);
+            }}
             onDrop={(e) => {
               e.preventDefault();
               setDropTarget(null);
-              const id = e.dataTransfer.getData(DRAG_PRESENTATION);
-              if (id) s.addToPlaylist(id, undefined, pl.id);
+              setMoving(null);
+              const moved = e.dataTransfer.getData(DRAG_PLAYLIST);
+              if (moved) {
+                if (moved !== pl.id) s.movePlaylists([moved], halfOf(e) === 'after' ? (playlists[i + 1]?.id ?? null) : pl.id);
+                return;
+              }
+              const ids = draggedIds(e, DRAG_PRESENTATION, DRAG_PRESENTATION_IDS);
+              if (ids.length) addedNotice(s.addManyToPlaylist(ids, undefined, pl.id), ids.length, pl.name);
             }}
           />
         ))}
@@ -164,6 +219,9 @@ function CollectionRow({
   onDragOver,
   onDragLeave,
   onDrop,
+  dragType,
+  dragId,
+  moveAt,
 }: {
   icon: IconName;
   kind: 'library' | 'playlist';
@@ -180,10 +238,20 @@ function CollectionRow({
   onDragOver: (e: DragEvent) => void;
   onDragLeave: () => void;
   onDrop: (e: DragEvent) => void;
+  /** Dragging the row moves it up or down its list: this payload type, carrying `dragId`. */
+  dragType: string;
+  dragId: string;
+  /** Another row dragged over this one lands above or below it. */
+  moveAt: 'before' | 'after' | null;
 }) {
   return (
     <div
-      className={`collection-row ${selected ? 'selected' : ''} ${drop ? 'drop' : ''}`}
+      className={`collection-row ${selected ? 'selected' : ''} ${drop ? 'drop' : ''} ${moveAt ? `move-${moveAt}` : ''}`}
+      draggable={!renaming}
+      onDragStart={(e) => {
+        e.dataTransfer.effectAllowed = 'move';
+        e.dataTransfer.setData(dragType, dragId);
+      }}
       onClick={onOpen}
       onDoubleClick={() => setRenaming(true)}
       onContextMenu={(e) => {
@@ -244,6 +312,7 @@ function LibraryItems() {
   const s = useStore.getState();
   const [filter, setFilter] = useState('');
   const [dropping, setDropping] = useState(false);
+  const highlighted = useLibrarySelection((st) => st.ids);
 
   const list = useMemo(() => {
     const q = filter.trim().toLowerCase();
@@ -255,6 +324,7 @@ function LibraryItems() {
       )
       .sort((a, b) => a.title.localeCompare(b.title));
   }, [presentations, category, filter]);
+  const order = useMemo(() => list.map((p) => p.id), [list]);
 
   return (
     <div
@@ -281,11 +351,23 @@ function LibraryItems() {
         {list.map((p) => (
           <li
             key={p.id}
-            className={`item-row ${selectedId === p.id && !selectedItem ? 'selected' : ''}`}
+            className={`item-row ${(selectedId === p.id && !selectedItem) || (highlighted.length > 1 && highlighted.includes(p.id)) ? 'selected' : ''}`}
             draggable
-            onDragStart={(e) => e.dataTransfer.setData(DRAG_PRESENTATION, p.id)}
-            onClick={() => s.select(p.id)}
+            onDragStart={(e) => {
+              // A highlighted presentation takes the rest of the highlight with it.
+              e.dataTransfer.setData(DRAG_PRESENTATION, p.id);
+              e.dataTransfer.setData(DRAG_PRESENTATION_IDS, JSON.stringify(actedOn(useLibrarySelection.getState(), order, p.id)));
+            }}
+            onClick={(e) => {
+              useLibrarySelection.setState(clickSelection(useLibrarySelection.getState(), order, p.id, e));
+              // ⌘- and ⇧-clicks only highlight; a plain click opens it, as before.
+              if (!isExtending(e)) s.select(p.id);
+            }}
             onContextMenu={(e) => {
+              const sel = useLibrarySelection.getState();
+              if (!sel.ids.includes(p.id)) useLibrarySelection.setState({ ids: [p.id], anchor: p.id });
+              const ids = actedOn(useLibrarySelection.getState(), order, p.id);
+              if (ids.length > 1) return openContextMenu(e, presentationsMenu(ids));
               s.select(p.id);
               openContextMenu(e, presentationMenu(p));
             }}
@@ -293,7 +375,18 @@ function LibraryItems() {
             <ItemIcon category={p.category} announcements={p.destination === 'announcements'} />
             <span className="list-label">{p.title}</span>
             <span className="row-actions">
-              <IconButton icon="plus" title="Add to playlist" onClick={() => s.addToPlaylist(p.id)} />
+              <IconButton
+                icon="plus"
+                title="Add to playlist"
+                onClick={() => {
+                  const ids = actedOn(useLibrarySelection.getState(), order, p.id);
+                  addedNotice(
+                    s.addManyToPlaylist(ids),
+                    ids.length,
+                    useStore.getState().playlists.find((pl) => pl.id === useStore.getState().activePlaylistId)?.name,
+                  );
+                }}
+              />
             </span>
             {(liveId === p.id || announcementId === p.id) && <span className="live-dot" title="Live" />}
           </li>
@@ -341,8 +434,8 @@ function PlaylistItems() {
     if (e.dataTransfer.files.length) return void importFiles(Array.from(e.dataTransfer.files));
     const to = dropIndex ?? items.length;
     setDropIndex(null);
-    const presentationId = e.dataTransfer.getData(DRAG_PRESENTATION);
-    if (presentationId) return s.addToPlaylist(presentationId, to);
+    const ids = draggedIds(e, DRAG_PRESENTATION, DRAG_PRESENTATION_IDS);
+    if (ids.length) return void addedNotice(s.addManyToPlaylist(ids, to), ids.length, playlist.name);
     const from = items.findIndex((it) => it.id === e.dataTransfer.getData(DRAG_PLAYLIST_ITEM));
     if (from >= 0) s.movePlaylistItem(from, to);
   };

@@ -8,6 +8,7 @@ mod capture;
 mod displays;
 mod edit;
 mod files;
+mod finder;
 mod icon;
 mod keynote;
 mod menu;
@@ -60,6 +61,9 @@ pub fn run() {
             files::save_file,
             files::choose_export_folder,
             files::write_export_file,
+            finder::finder_file,
+            finder::write_finder_file,
+            finder::reveal_finder_file,
             files::read_clipboard_text,
             files::write_clipboard_text,
             icon::set_app_icon,

@@ -351,5 +351,22 @@ export const DRAG_PRESENTATION = 'application/x-lumen-presentation';
 export const DRAG_PLAYLIST_ITEM = 'application/x-lumen-playlist-item';
 /** Drag payload type for media bin items dropped on media playlists or slides. */
 export const DRAG_MEDIA = 'application/x-lumen-media';
+/** Alongside DRAG_MEDIA (the item dragged), every highlighted item dragged with it: their ids as JSON. */
+export const DRAG_MEDIA_IDS = 'application/x-lumen-media-ids';
+/** Alongside DRAG_PRESENTATION, every highlighted presentation dragged with it: their ids as JSON. */
+export const DRAG_PRESENTATION_IDS = 'application/x-lumen-presentation-ids';
+
+/** The ids a drag carries: the highlighted items dragged together (`listType`), or the one (`type`). */
+export function draggedIds(e: { dataTransfer: DataTransfer }, type: string, listType: string): string[] {
+  try {
+    const list = JSON.parse(e.dataTransfer.getData(listType) || 'null') as unknown;
+    if (Array.isArray(list) && list.length) return list.filter((x): x is string => typeof x === 'string');
+  } catch {
+    // Not a list: the one item.
+  }
+  const id = e.dataTransfer.getData(type);
+  return id ? [id] : [];
+}
+
 /** Drag payload type for audio tracks dropped on audio playlists: `{ ids, from }` as JSON (`from`: the playlist they're dragged out of). */
 export const DRAG_AUDIO = 'application/x-lumen-audio';

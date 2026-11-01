@@ -9,9 +9,10 @@ import { formatDuration } from '../util';
 import { CameraFill } from './Canvas';
 import { NamePopup, openContextMenu, openPopupBelow } from './ContextMenu';
 import { deleteMedia, deleteMediaPlaylist, removeFromTab, TAB_NAMES, type SpecialTab } from './deleting';
-import { mediaMenu } from './menus';
+import { mediaMenu, mediaSelectionMenu } from './menus';
 import { TransitionButton } from './TransitionPicker';
-import { DRAG_MEDIA, FilterField, hasOutsideFiles, Icon, IconButton, pickFiles, SectionHeader } from './ui';
+import { actedOn, clickSelection, isExtending, useMediaSelection } from '../selection';
+import { DRAG_MEDIA, DRAG_MEDIA_IDS, draggedIds, FilterField, hasOutsideFiles, Icon, IconButton, pickFiles, SectionHeader } from './ui';
 
 const FILTERS = [
   { value: 'all', label: 'All Media', icon: 'image' },
@@ -169,8 +170,8 @@ function MediaPlaylistRow({ playlist }: { playlist: MediaPlaylist }) {
       onDrop={(e) => {
         e.preventDefault();
         setDrop(false);
-        const id = e.dataTransfer.getData(DRAG_MEDIA);
-        if (id) s.addToMediaPlaylist(playlist.id, [id]);
+        const ids = draggedIds(e, DRAG_MEDIA, DRAG_MEDIA_IDS);
+        if (ids.length) s.addToMediaPlaylist(playlist.id, ids);
         else void importMediaFiles(Array.from(e.dataTransfer.files), playlist.id);
       }}
       title="Drop media here to add it. Double-click to rename."
@@ -347,11 +348,17 @@ function FilterRow({
         if (!tab) return;
         e.preventDefault();
         setDrop(false);
-        const id = e.dataTransfer.getData(DRAG_MEDIA);
-        if (id) {
-          const m = s.media.find((x) => x.id === id);
-          if (m && !fitsTab(m, tab)) return void notify(`${TAB_NAMES[tab]} takes videos only.`, 'info');
-          s.setInTab(tab, [id], true);
+        const ids = draggedIds(e, DRAG_MEDIA, DRAG_MEDIA_IDS);
+        if (ids.length) {
+          const items = ids.map((id) => s.media.find((x) => x.id === id)).filter((m): m is MediaItem => !!m);
+          const fitting = items.filter((m) => fitsTab(m, tab));
+          if (!fitting.length) return void notify(`${TAB_NAMES[tab]} takes videos only.`, 'info');
+          // Only the ones not in it already are added.
+          s.setInTab(
+            tab,
+            fitting.filter((m) => !m[tab]).map((m) => m.id),
+            true,
+          );
         } else void importMediaFiles(Array.from(e.dataTransfer.files), null, intoTab(tab));
       }}
       onContextMenu={(e) => {
@@ -429,9 +436,15 @@ function MediaTile({
   playlistId,
   tab,
   next,
+  selected,
+  order,
 }: {
   item: MediaItem;
   live: boolean;
+  /** Highlighted (click, ⌘-click or ⇧-click). */
+  selected: boolean;
+  /** The items as shown, for ⇧-click ranges and acting on the highlight. */
+  order: string[];
   logo: boolean;
   /** Shown in the Countdowns or Outro tab: removing it there only takes it out of the tab. */
   tab: SpecialTab | null;
@@ -451,10 +464,12 @@ function MediaTile({
   };
   return (
     <div
-      className={`media-tile ${live ? 'live' : ''} ${drop ? `drop-${drop}` : ''}`}
+      className={`media-tile ${live ? 'live' : ''} ${selected ? 'selected' : ''} ${drop ? `drop-${drop}` : ''}`}
       draggable
       onDragStart={(e) => {
+        // A highlighted item takes the rest of the highlight with it.
         e.dataTransfer.setData(DRAG_MEDIA, item.id);
+        e.dataTransfer.setData(DRAG_MEDIA_IDS, JSON.stringify(actedOn(useMediaSelection.getState(), order, item.id)));
         e.dataTransfer.effectAllowed = 'copyMove';
       }}
       onDragOver={(e) => {
@@ -466,21 +481,32 @@ function MediaTile({
       }}
       onDragLeave={() => setDrop(null)}
       onDrop={(e) => {
-        const id = e.dataTransfer.getData(DRAG_MEDIA);
+        const ids = draggedIds(e, DRAG_MEDIA, DRAG_MEDIA_IDS);
         setDrop(null);
-        if (!id) return;
+        if (!ids.length) return;
         e.preventDefault();
         e.stopPropagation();
         const before = side(e) === 'before' ? item.id : next;
-        if (id === item.id || id === before) return;
+        if (ids.includes(item.id) || (before && ids.includes(before))) return;
         const pl = playlistId ? s.mediaPlaylists.find((x) => x.id === playlistId) : undefined;
-        if (!pl) return s.moveMedia([id], before);
-        // Into a playlist from elsewhere, it joins the playlist there.
-        if (!pl.items.includes(id)) s.addToMediaPlaylist(pl.id, [id]);
-        s.moveInMediaPlaylist(pl.id, [id], before);
+        if (!pl) return s.moveMedia(ids, before);
+        // Into a playlist from elsewhere, they join the playlist there.
+        s.addToMediaPlaylist(pl.id, ids);
+        s.moveInMediaPlaylist(pl.id, ids, before);
       }}
-      onClick={() => s.setLiveMedia(live ? null : item.id, playlistId)}
-      onContextMenu={(e) => openContextMenu(e, mediaMenu(item, playlistId, tab))}
+      onClick={(e) => {
+        const sel = useMediaSelection.getState();
+        useMediaSelection.setState(clickSelection(sel, order, item.id, e));
+        // ⌘- and ⇧-clicks only highlight; a plain click shows it, as before.
+        if (!isExtending(e)) s.setLiveMedia(live ? null : item.id, playlistId);
+      }}
+      onContextMenu={(e) => {
+        const sel = useMediaSelection.getState();
+        if (!sel.ids.includes(item.id)) useMediaSelection.setState({ ids: [item.id], anchor: item.id });
+        const ids = actedOn(useMediaSelection.getState(), order, item.id);
+        const items = ids.map((id) => s.media.find((m) => m.id === id)).filter((m): m is MediaItem => !!m);
+        openContextMenu(e, items.length > 1 ? mediaSelectionMenu(items, playlistId, tab) : mediaMenu(item, playlistId, tab));
+      }}
       // Its full name, which the tile may cut short.
       title={item.name}
     >
@@ -550,6 +576,7 @@ function MediaGrid() {
   const [size, setSize] = useState(160);
   const [dropping, setDropping] = useState(false);
   const playlistId = playlist?.id ?? null;
+  const selection = useMediaSelection((s) => s.ids);
 
   const items = useMemo(() => {
     const q = query.trim().toLowerCase();
@@ -558,6 +585,7 @@ function MediaGrid() {
       : media.filter((m) => inFilter(m, filter));
     return shown.filter((m) => !q || m.name.toLowerCase().includes(q));
   }, [media, filter, playlist, query]);
+  const order = useMemo(() => items.map((m) => m.id), [items]);
   const empty = playlist
     ? playlist.items.length === 0
     : media.length === 0 ||
@@ -576,8 +604,8 @@ function MediaGrid() {
       onDrop={(e) => {
         e.preventDefault();
         setDropping(false);
-        const id = e.dataTransfer.getData(DRAG_MEDIA);
-        if (id && playlist) useStore.getState().addToMediaPlaylist(playlist.id, [id]);
+        const ids = draggedIds(e, DRAG_MEDIA, DRAG_MEDIA_IDS);
+        if (ids.length && playlist) useStore.getState().addToMediaPlaylist(playlist.id, ids);
         else if (e.dataTransfer.files.length) void importMediaFiles(Array.from(e.dataTransfer.files), playlistId);
       }}
     >
@@ -631,7 +659,13 @@ function MediaGrid() {
           )}
         </div>
       ) : (
-        <div className="media-grid" tabIndex={-1} style={{ gridTemplateColumns: `repeat(auto-fill, minmax(${size}px, 1fr))` }}>
+        <div
+          className="media-grid"
+          tabIndex={-1}
+          style={{ gridTemplateColumns: `repeat(auto-fill, minmax(${size}px, 1fr))` }}
+          // A click between the items takes the highlight away.
+          onClick={(e) => e.target === e.currentTarget && useMediaSelection.setState({ ids: [], anchor: null })}
+        >
           {items.map((m, i) => (
             <MediaTile
               key={m.id}
@@ -644,6 +678,8 @@ function MediaGrid() {
                 !playlist && (filter === 'background' || filter === 'countdown' || filter === 'outro' || filter === 'logo') ? filter : null
               }
               next={items[i + 1]?.id ?? null}
+              selected={selection.includes(m.id)}
+              order={order}
             />
           ))}
           {items.length === 0 && <p className="muted">No media matches.</p>}

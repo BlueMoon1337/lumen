@@ -204,6 +204,12 @@ interface Actions {
   pasteSlides(presentationId: string, afterSlideId: string | null, options?: { matchStyle?: boolean }): string | null;
 
   addToPlaylist(presentationId: string, index?: number, playlistId?: string): void;
+  /**
+   * Adds several presentations to a playlist (the open one unless given), at `index` (the end
+   * unless given): only the ones not in it already. One alone is added even if it's there (a song
+   * can be sung twice). Returns how many were added.
+   */
+  addManyToPlaylist(presentationIds: string[], index?: number, playlistId?: string): number;
   addPlaylistHeader(label: string): void;
   updatePlaylistItem(itemId: string, patch: Partial<{ label: string }>): void;
   movePlaylistItem(from: number, to: number): void;
@@ -235,6 +241,10 @@ interface Actions {
   renameLibrary(id: Category, name: string): void;
   /** Deletes a library and the presentations in it (they come out of playlists too). One library always stays. */
   deleteLibrary(id: Category): void;
+  /** Moves libraries to before another one (null: to the end). */
+  moveLibraries(ids: Category[], beforeId: Category | null): void;
+  /** Moves playlists to before another one (null: to the end). */
+  movePlaylists(ids: string[], beforeId: string | null): void;
   setActivePlaylist(id: string): void;
 
   createTheme(from?: Theme): string;
@@ -536,6 +546,10 @@ const MIME_BY_EXTENSION: Record<string, string> = {
 };
 
 /** A file's type from its name, for files the system gave no type. */
+/** The usual extension for a type ("video/mp4" → "mp4"), or "" for one Lumen doesn't know. */
+export const extensionForMime = (mime: string) =>
+  Object.keys(MIME_BY_EXTENSION).find((ext) => MIME_BY_EXTENSION[ext] === mime.toLowerCase()) ?? '';
+
 export const mimeFromName = (name: string) => MIME_BY_EXTENSION[name.split('.').pop()?.toLowerCase() ?? ''] ?? '';
 
 /** The video or image after `id`: in its media playlist if it was started from one, else in the media bin. */
@@ -903,6 +917,28 @@ export const useStore = create<AppState>()(
             items.splice(index ?? items.length, 0, { id: uid(), type: 'presentation', presentationId });
             return { ...pl, items };
           }, playlistId),
+        addManyToPlaylist: (presentationIds, index, playlistId) => {
+          if (presentationIds.length === 1) {
+            get().addToPlaylist(presentationIds[0], index, playlistId);
+            return 1;
+          }
+          const s = get();
+          const target = s.playlists.find((pl) => pl.id === (playlistId ?? activePlaylist(s)?.id));
+          if (!target) return 0;
+          const there = new Set(target.items.flatMap((it) => (it.type === 'presentation' ? [it.presentationId] : [])));
+          const adding = [...new Set(presentationIds)].filter((id) => !there.has(id) && s.presentations[id]);
+          if (adding.length)
+            updatePlaylist((pl) => {
+              const items = [...pl.items];
+              items.splice(
+                index ?? items.length,
+                0,
+                ...adding.map((presentationId) => ({ id: uid(), type: 'presentation' as const, presentationId })),
+              );
+              return { ...pl, items };
+            }, target.id);
+          return adding.length;
+        },
         addPlaylistHeader: (label) => updatePlaylist((pl) => ({ ...pl, items: [...pl.items, { id: uid(), type: 'header', label }] })),
         updatePlaylistItem: (itemId, patch) =>
           updatePlaylist((pl) => ({
@@ -1019,6 +1055,8 @@ export const useStore = create<AppState>()(
           return library.id;
         },
         renameLibrary: (id, name) => set((s) => ({ libraries: s.libraries.map((l) => (l.id === id ? { ...l, name } : l)) })),
+        moveLibraries: (ids, beforeId) => set((s) => ({ libraries: moveBefore(s.libraries, (l) => l.id, ids, beforeId) })),
+        movePlaylists: (ids, beforeId) => set((s) => ({ playlists: moveBefore(s.playlists, (pl) => pl.id, ids, beforeId) })),
         deleteLibrary: (id) => {
           const s = get();
           if (s.libraries.length <= 1 || !s.libraries.some((l) => l.id === id)) return;

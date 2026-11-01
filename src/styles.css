@@ -1375,6 +1375,29 @@ body.resizing-y * {
   border-color: var(--orange);
 }
 
+/* Highlighted items (click, ⌘-click, ⇧-click): the highlight color behind the name, grey when
+   something outside the grid was clicked since. */
+.media-tile.selected .media-tile-footer {
+  background: rgba(255, 255, 255, 0.14);
+  border-radius: 4px;
+}
+
+.media-grid:focus-within .media-tile.selected .media-tile-footer {
+  background: var(--pink);
+}
+
+.media-grid:focus-within .media-tile.selected .media-tile-footer .list-label {
+  color: var(--accent-ink);
+}
+
+.media-tile.selected:not(.live) .media-tile-frame {
+  border-color: rgba(255, 255, 255, 0.45);
+}
+
+.media-grid:focus-within .media-tile.selected:not(.live) .media-tile-frame {
+  border-color: var(--pink);
+}
+
 .media-sidebar:focus,
 .media-grid:focus {
   outline: none;
@@ -6872,16 +6895,16 @@ h3.looks-name {
   color: var(--text-2);
 }
 
-/* An audio playlist dragged up or down the list lands above or below the row it's over. */
-.audio-playlist-row.move-before {
-  box-shadow: inset 0 2px 0 var(--pink);
-}
-.audio-playlist-row.move-after {
-  box-shadow: inset 0 -2px 0 var(--pink);
-}
-
 /* Holds the loop button's place in the Audio Library for tracks that aren't playing. */
 .icon-btn-space {
   width: 26px;
   flex: none;
+}
+
+/* A library, playlist or audio playlist dragged up or down its list lands above or below the row it's over. */
+.collection-row.move-before {
+  box-shadow: inset 0 2px 0 var(--pink);
+}
+.collection-row.move-after {
+  box-shadow: inset 0 -2px 0 var(--pink);
 }
