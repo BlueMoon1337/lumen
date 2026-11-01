@@ -154,29 +154,41 @@ fn build(
         win.show()?;
         // macOS: cover the display without the fullscreen animation or a new Space, like a presentation app.
         #[cfg(target_os = "macos")]
-        cover_display(&win);
+        {
+            win.set_simple_fullscreen(true)?;
+            keep_menu_bar_and_dock(&win);
+        }
         #[cfg(not(target_os = "macos"))]
         win.set_fullscreen(true)?;
     }
     Ok(win)
 }
 
-/// Lifts a borderless output window (already the display's size) over that display's menu bar, on
-/// every Space, as ProPresenter's outputs are. Not "simple fullscreen": that hides the menu bar and
-/// the Dock for the whole app, so they'd hide on the operator's screen whenever Lumen is in front.
+/// Simple fullscreen puts an output window over its whole display (the way that worked), but it
+/// also hides the menu bar and the Dock for the whole app, so they'd hide on the operator's screen
+/// whenever Lumen is in front. This brings them back, and lifts the output over its own display's
+/// menu bar instead, on every Space.
 #[cfg(target_os = "macos")]
-fn cover_display(win: &WebviewWindow) {
+fn keep_menu_bar_and_dock(win: &WebviewWindow) {
     let target = win.clone();
+    // Queued after the fullscreen change, which runs on the main thread too.
     let _ = win.run_on_main_thread(move || {
-        use objc2::msg_send;
         use objc2::runtime::AnyObject;
-        let Ok(ptr) = target.ns_window() else { return };
-        // SAFETY: the window's NSWindow, used on the main thread while the window is open.
-        let window = unsafe { &*(ptr as *mut AnyObject) };
+        use objc2::{class, msg_send};
         // NSMainMenuWindowLevel (24) + 1: above the menu bar.
         const ABOVE_MENU_BAR: isize = 25;
         // Can join all Spaces (1 << 0), stationary (1 << 4), left out of ⌘` (1 << 6), beside full-screen windows (1 << 8).
         const BEHAVIOR: usize = (1 << 0) | (1 << 4) | (1 << 6) | (1 << 8);
+        unsafe {
+            let app: *mut AnyObject = msg_send![class!(NSApplication), sharedApplication];
+            if !app.is_null() {
+                // NSApplicationPresentationDefault: the menu bar and the Dock as the user has them.
+                let _: () = msg_send![&*app, setPresentationOptions: 0usize];
+            }
+        }
+        let Ok(ptr) = target.ns_window() else { return };
+        // SAFETY: the window's NSWindow, used on the main thread while the window is open.
+        let window = unsafe { &*(ptr as *mut AnyObject) };
         unsafe {
             let _: () = msg_send![window, setLevel: ABOVE_MENU_BAR];
             let _: () = msg_send![window, setCollectionBehavior: BEHAVIOR];

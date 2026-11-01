@@ -23,10 +23,11 @@ mod window;
 use tauri::window::Color;
 use tauri::{Manager, WebviewUrl, WebviewWindowBuilder};
 
-/// Opens the window filling the screen it's on, as ProPresenter's does: all of it but the menu bar
-/// and the Dock, which stay showing (a maximized window covered them on macOS).
+/// Opens the window filling the main screen (the one with the menu bar), as ProPresenter's does: all
+/// of it but the menu bar and the Dock, which stay showing (a maximized window covered them on macOS).
+/// Never the projector or TV, which the outputs use.
 fn fill_work_area(window: &tauri::WebviewWindow) {
-    let monitor = window.current_monitor().ok().flatten().or_else(|| window.primary_monitor().ok().flatten());
+    let monitor = window.primary_monitor().ok().flatten().or_else(|| window.current_monitor().ok().flatten());
     if let Some(monitor) = monitor {
         let area = monitor.work_area();
         let _ = window.set_position(area.position);
