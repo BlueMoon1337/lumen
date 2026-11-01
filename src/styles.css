@@ -7007,12 +7007,6 @@ h3.looks-name {
   -webkit-user-select: text;
 }
 
-.media-grid img,
-.media-grid video {
-  -webkit-user-drag: none;
-  pointer-events: none;
-}
-
 /* An audio track whose file is missing. */
 .audio-missing {
   flex: none;
@@ -7022,4 +7016,22 @@ h3.looks-name {
   color: #ff9b9b;
   font-size: 11px;
   font-weight: 600;
+}
+
+/* WebKit (the Mac app) only starts dragging an element that says it can be dragged once text
+   selection is off around it; and a picture inside a slide or item must not be dragged on its own. */
+[draggable='true'] {
+  -webkit-user-drag: element;
+}
+
+.slide-thumb img,
+.slide-thumb video,
+.slide-row img,
+.slide-row video,
+.outline-slide img,
+.outline-slide video,
+.media-tile img,
+.media-tile video {
+  -webkit-user-drag: none;
+  pointer-events: none;
 }

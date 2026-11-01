@@ -244,7 +244,7 @@ function MediaFill({
   return media.isVideo ? (
     <video ref={video} className="media-fill" src={media.url} autoPlay={!paused} loop={loop} muted={muted} playsInline />
   ) : (
-    <img className="media-fill" src={media.url} alt="" />
+    <img className="media-fill" src={media.url} alt="" draggable={false} />
   );
 }
 
@@ -616,6 +616,6 @@ export function MediaStill({ mediaId }: { mediaId: string }) {
   return media.isVideo ? (
     <video className="media-fill" src={`${media.url}#t=0.5`} muted preload="metadata" playsInline />
   ) : (
-    <img className="media-fill" src={media.url} alt="" />
+    <img className="media-fill" src={media.url} alt="" draggable={false} />
   );
 }
