@@ -4,6 +4,7 @@
  * in src-tauri/src/updates.rs; this keeps what the button and its window show.
  */
 import { create } from 'zustand';
+import { notify } from './notices';
 
 export interface FoundUpdate {
   version: string;
@@ -89,6 +90,14 @@ export function startUpdateChecks(): () => void {
   void Promise.all([bridge.appVersion(), bridge.hasUpdateToken(), bridge.updateBlocker()]).then(([version, hasToken, blocker]) => {
     if (!alive) return;
     useUpdates.setState({ version, hasToken, blocker });
+    // A copy macOS runs from a temporary place gets a Dock icon of its own (beside the one kept in
+    // the Dock) and can't update itself: say how to fix it.
+    if (blocker === 'translocated')
+      notify(
+        'macOS is running Lumen from a temporary copy, so it has a second Dock icon and can’t update. Quit Lumen, make sure it’s in Applications, run “xattr -dr com.apple.quarantine /Applications/Lumen.app” in Terminal, and open it from Applications.',
+        'info',
+        20_000,
+      );
   });
   const first = window.setTimeout(() => void checkForUpdates({ quiet: true }), 15_000);
   const every = window.setInterval(() => void checkForUpdates({ quiet: true }), CHECK_EVERY_MS);
