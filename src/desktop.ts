@@ -64,6 +64,8 @@ export function installDesktopBridge() {
     lumenFolder: () => invoke<string>('lumen_folder'),
     lumenFileExists: (folder, name) => invoke<boolean>('lumen_file_exists', { folder, name }),
     readLumenFile: (folder, name) => invoke<ArrayBuffer>('read_lumen_file', { folder, name }),
+    removeLumenFile: (folder, name) => invoke('remove_lumen_file', { folder, name }),
+    revealLumenFolder: (folder) => invoke('reveal_lumen_folder', { folder }),
     readClipboardText: () => invoke<string | null>('read_clipboard_text'),
     writeClipboardText: (text) => invoke('write_clipboard_text', { text }),
     setEditState: (state) => void invoke('set_edit_state', { state }),

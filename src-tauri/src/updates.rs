@@ -242,7 +242,35 @@ pub async fn install_update(app: AppHandle, updates: tauri::State<'_, Updates>) 
         )
         .await
         .map_err(|e| format!("Couldn’t install the update: {e}"))?;
+    #[cfg(target_os = "macos")]
+    if reopen_after_quitting() {
+        app.exit(0);
+        return Ok(());
+    }
     app.restart();
+}
+
+/// macOS: opens Lumen again once this copy has quit, the way the Dock or Finder opens it. Tauri's
+/// restart opens a second copy while this one is still quitting (`open -n`), and the Dock gives
+/// that copy an icon of its own beside the one kept in the Dock. False if it can't be arranged.
+#[cfg(target_os = "macos")]
+fn reopen_after_quitting() -> bool {
+    use std::process::{Command, Stdio};
+    let Ok(exe) = std::env::current_exe() else { return false };
+    // …/Lumen.app/Contents/MacOS/lumen → …/Lumen.app
+    let Some(bundle) = exe.ancestors().nth(3).filter(|b| b.extension().is_some_and(|e| e == "app")) else { return false };
+    let script = "while kill -0 \"$1\" 2>/dev/null; do sleep 0.2; done; exec /usr/bin/open \"$2\"";
+    Command::new("/bin/sh")
+        .arg("-c")
+        .arg(script)
+        .arg("lumen-reopen")
+        .arg(std::process::id().to_string())
+        .arg(bundle)
+        .stdin(Stdio::null())
+        .stdout(Stdio::null())
+        .stderr(Stdio::null())
+        .spawn()
+        .is_ok()
 }
 
 #[cfg(test)]

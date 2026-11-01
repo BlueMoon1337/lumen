@@ -87,6 +87,8 @@ pub fn run() {
             finder::lumen_folder,
             finder::lumen_file_exists,
             finder::read_lumen_file,
+            finder::remove_lumen_file,
+            finder::reveal_lumen_folder,
             files::read_clipboard_text,
             files::write_clipboard_text,
             icon::set_app_icon,

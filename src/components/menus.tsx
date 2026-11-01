@@ -2,6 +2,7 @@
 import { canShowInFinder, FINDER_LABEL, missingEntries, showInFinder } from '../finder';
 import { useMissingMedia } from '../media';
 import { undoBatch } from '../history';
+import { revealLibrary, revealPresentation } from '../libraryFiles';
 import { notify } from '../notices';
 import { groupPresets, LABEL_SWATCHES, labelPresets } from '../labels';
 import { colorForGroup } from '../lyrics';
@@ -418,6 +419,7 @@ export function presentationMenu(p: Presentation, playlistItemId?: string): Cont
         ),
     },
     { label: 'Duplicate', action: () => s.duplicatePresentation(p.id) },
+    canShowInFinder() && { label: FINDER_LABEL, action: () => void revealPresentation(p.id) },
     {
       label: 'Export',
       submenu: [
@@ -449,6 +451,7 @@ export function libraryMenu(lib: Library, onRename: () => void): ContextEntries 
   return [
     { label: 'Open', action: open },
     { label: 'Rename…', action: onRename },
+    canShowInFinder() && { label: FINDER_LABEL, action: () => void revealLibrary(lib.name) },
     '-',
     { label: 'New Presentation…', action: () => void newPresentationNamed(lib.id) },
     {

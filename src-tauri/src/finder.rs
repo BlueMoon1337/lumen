@@ -1,5 +1,6 @@
 //! Lumen's folder in Documents, laid out like ProPresenter's: Media ▸ Assets holds the media bin's
-//! images and videos, and Media ▸ Audio the Audio tab's tracks. In the desktop app media is kept
+//! images and videos, Media ▸ Audio the Audio tab's tracks, and Libraries ▸ (each library) a copy
+//! of each presentation as a .lumen file, kept up to date as it changes. In the desktop app media is kept
 //! there as files (the page plays them through the asset protocol), so Show in Finder opens with
 //! the item's own file selected, and a file moved or deleted in Finder can be reconnected.
 
@@ -20,11 +21,52 @@ fn base(app: &AppHandle) -> Result<PathBuf, String> {
     Ok(documents.join("Lumen"))
 }
 
+/// A library's folder: "Libraries/Songs".
+fn library_folder(which: &str) -> Option<&str> {
+    which.strip_prefix("Libraries/").filter(|name| check_name(name).is_ok())
+}
+
 fn folder(app: &AppHandle, which: &str) -> Result<PathBuf, String> {
-    if !FOLDERS.contains(&which) {
+    if !FOLDERS.contains(&which) && library_folder(which).is_none() {
         return Err(format!("“{which}” isn’t one of Lumen’s folders."));
     }
     Ok(base(app)?.join(which))
+}
+
+/// Deletes a file Lumen keeps (a presentation's copy, when it's deleted, renamed or moved), and its
+/// library's folder once that's empty.
+#[tauri::command]
+pub fn remove_lumen_file(app: AppHandle, folder: String, name: String) -> Result<(), String> {
+    check_name(&name)?;
+    let dir = self::folder(&app, &folder)?;
+    let path = dir.join(&name);
+    if path.is_file() {
+        std::fs::remove_file(&path).map_err(|e| format!("Couldn’t remove {}: {e}", path.display()))?;
+    }
+    if library_folder(&folder).is_some() {
+        // Gone once nothing's left in it but Finder's .DS_Store.
+        let left: Vec<_> = std::fs::read_dir(&dir).map(|d| d.flatten().map(|e| e.file_name()).collect()).unwrap_or_default();
+        if left.iter().all(|n| n == ".DS_Store") {
+            let _ = std::fs::remove_file(dir.join(".DS_Store"));
+            let _ = std::fs::remove_dir(&dir);
+        }
+    }
+    Ok(())
+}
+
+/// Opens one of Lumen's folders in Finder (Libraries ▸ Songs, say), making it if it isn't there.
+#[tauri::command]
+pub fn reveal_lumen_folder(app: AppHandle, folder: String) -> Result<(), String> {
+    let path = if folder == "Libraries" { base(&app)?.join("Libraries") } else { self::folder(&app, &folder)? };
+    std::fs::create_dir_all(&path).map_err(|e| format!("Couldn’t make the folder {}: {e}", path.display()))?;
+    let result = if cfg!(target_os = "macos") {
+        Command::new("open").arg(&path).spawn()
+    } else if cfg!(target_os = "windows") {
+        Command::new("explorer").arg(&path).spawn()
+    } else {
+        Command::new("xdg-open").arg(&path).spawn()
+    };
+    result.map(|_| ()).map_err(|e| format!("Couldn’t open the folder: {e}"))
 }
 
 /// Makes Lumen's folders, and gives the path of Documents ▸ Lumen, for the page to play files from.

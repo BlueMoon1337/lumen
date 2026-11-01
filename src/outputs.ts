@@ -5,7 +5,7 @@ import { useStore } from './store';
 import type { AppIconId, ScreenKind } from './types';
 
 /** Lumen's media folders, in Documents ▸ Lumen. */
-export type LumenFolder = 'Media/Assets' | 'Media/Audio';
+export type LumenFolder = 'Media/Assets' | 'Media/Audio' | `Libraries/${string}`;
 
 /** An output window the desktop app should have open. */
 export interface DesktopOutputRequest {
@@ -66,6 +66,9 @@ export interface DesktopBridge {
   lumenFolder(): Promise<string>;
   lumenFileExists(folder: LumenFolder, name: string): Promise<boolean>;
   readLumenFile(folder: LumenFolder, name: string): Promise<ArrayBuffer>;
+  removeLumenFile(folder: LumenFolder, name: string): Promise<void>;
+  /** Opens a folder of Documents ▸ Lumen in Finder ("Libraries" for them all). */
+  revealLumenFolder(folder: LumenFolder | 'Libraries'): Promise<void>;
   readClipboardText(): Promise<string | null>;
   writeClipboardText(text: string): Promise<void>;
   /** Turns Edit's items on and off (by command id) and sets Check Spelling While Typing. */

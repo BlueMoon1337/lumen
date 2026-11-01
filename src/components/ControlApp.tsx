@@ -5,6 +5,7 @@ import { installHistory, runHistoryCommand, useHistory } from '../history';
 import { startFrameSync } from '../liveFrame';
 import { checkForUpdates, startUpdateChecks } from '../updates';
 import { moveMediaToFolders } from '../finder';
+import { startLibraryFiles } from '../libraryFiles';
 import { deleteUnusedBlobs } from '../media';
 import { dismiss, useNotices } from '../notices';
 import { startScreenManager } from '../outputs';
@@ -380,6 +381,8 @@ export default function ControlApp() {
   useFileCommands();
   useAutoAdvance();
   useEffect(() => startScreenManager(), []);
+  // Documents ▸ Lumen ▸ Libraries keeps a .lumen copy of each presentation (the desktop app).
+  useEffect(() => startLibraryFiles(), []);
   const openScreens = useCallback(() => setDialog('screens'), [setDialog]);
   useScreensCommands();
   useViewCommands();
