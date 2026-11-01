@@ -485,6 +485,24 @@ export function setDragLabel(e: DragPoint, label: string) {
   startGhost(e, chip, -12, -12);
 }
 
+/**
+ * Where something dragged over the open space of a grid or list (between items, or after the last)
+ * would go: after the item to its left in the row it's level with (before the row's first item if
+ * there's none), or after the last item when it's below them all. Null over the space between
+ * rows. `selector` picks the items, in the order shown.
+ */
+export function nearestGap(container: HTMLElement, selector: string, x: number, y: number): { el: HTMLElement; after: boolean } | null {
+  const items = [...container.querySelectorAll<HTMLElement>(selector)].map((el) => ({ el, r: el.getBoundingClientRect() }));
+  if (!items.length) return null;
+  const row = items.filter(({ r }) => y >= r.top && y <= r.bottom);
+  if (row.length) {
+    const left = row.filter(({ r }) => r.right <= x + 1).at(-1);
+    return left ? { el: left.el, after: true } : { el: row[0].el, after: false };
+  }
+  const last = items[items.length - 1];
+  return y > last.r.bottom ? { el: last.el, after: true } : null;
+}
+
 /** The ids a drag carries: the highlighted items dragged together (`listType`), or the one (`type`). */
 export function draggedIds(e: { dataTransfer: DataTransfer }, type: string, listType: string): string[] {
   try {

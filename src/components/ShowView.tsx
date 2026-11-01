@@ -21,7 +21,7 @@ import { clickSlide, selectForMenu } from './editCommands';
 import { slideMenu } from './menus';
 import { TargetTransitionPicker, TransitionButton, TransitionGlyph } from './TransitionPicker';
 import { importMediaFiles } from './MediaBin';
-import { DRAG_MEDIA, Icon, IconButton, setDragPreview } from './ui';
+import { DRAG_MEDIA, Icon, IconButton, nearestGap, setDragPreview } from './ui';
 
 /** A slide label's tag on a thumbnail or row. */
 export function LabelTag({ label }: { label: ColorLabel }) {
@@ -137,46 +137,49 @@ export function useMediaDrop(presentationId: string, slideId: string, axis: 'x' 
 }
 
 /**
- * Slides dragged into the open space after the last slide (to its right, or below it) go to the
- * end, as in ProPresenter: the last slide shows the line after it while they're over that space.
+ * Slides dragged into the open space of the grid or list (between slides, or after the last one)
+ * go to the nearest gap, as in ProPresenter: the slide beside it shows the line on that side.
  */
-function useEndDrop(presentationId: string, lastSlideId: string | undefined, axis: 'x' | 'y') {
-  const [atEnd, setAtEnd] = useState(false);
-  const beyondLast = (e: DragEvent) => {
-    const slides = (e.currentTarget as HTMLElement).querySelectorAll<HTMLElement>('[data-slide-id]');
-    const last = slides[slides.length - 1];
-    if (!last || (e.target as Element).closest('[data-slide-id]')) return false;
-    const r = last.getBoundingClientRect();
-    return e.clientY > r.bottom || (axis === 'x' && e.clientY >= r.top && e.clientX > r.right);
+function useGapDrop(presentationId: string) {
+  const [gap, setGap] = useState<{ id: string; after: boolean } | null>(null);
+  const gapAt = (e: DragEvent) => {
+    if ((e.target as Element).closest('[data-slide-id]')) return null;
+    const found = nearestGap(e.currentTarget as HTMLElement, '[data-slide-id]', e.clientX, e.clientY);
+    return found ? { id: found.el.dataset.slideId!, after: found.after } : null;
   };
   const slidesHere = (e: DragEvent) => e.dataTransfer.types.includes(DRAG_SLIDES) && draggingFrom === presentationId;
   return {
-    atEnd,
+    gap,
     onDragOver: (e: DragEvent) => {
-      const end = slidesHere(e) && beyondLast(e);
-      if (end) {
+      const at = slidesHere(e) ? gapAt(e) : null;
+      if (at) {
         e.preventDefault();
         e.dataTransfer.dropEffect = 'move';
       }
-      if (end !== atEnd) setAtEnd(end);
+      if (at?.id !== gap?.id || at?.after !== gap?.after) setGap(at);
     },
     onDragLeave: (e: DragEvent) => {
-      if (!(e.currentTarget as HTMLElement).contains(e.relatedTarget as Node | null)) setAtEnd(false);
+      if (!(e.currentTarget as HTMLElement).contains(e.relatedTarget as Node | null)) setGap(null);
     },
     onDrop: (e: DragEvent) => {
-      if (!slidesHere(e) || !beyondLast(e) || !lastSlideId) return;
+      const at = slidesHere(e) ? gapAt(e) : null;
+      if (!at) return;
       e.preventDefault();
-      setAtEnd(false);
+      setGap(null);
       draggingFrom = null;
       try {
         const data = JSON.parse(e.dataTransfer.getData(DRAG_SLIDES)) as { presentationId: string; ids: string[] };
         const p = useStore.getState().presentations[presentationId];
-        if (p && data.presentationId === presentationId) {
-          // The last slide moving too: the rest go after the last one that isn't.
-          const order = p.groups.flatMap((g) => g.slides.map((sl) => sl.id));
-          const target = [...order].reverse().find((id) => !data.ids.includes(id));
-          if (target) useStore.getState().updatePresentation(presentationId, moveSlides(p, data.ids, target, true));
+        if (!p || data.presentationId !== presentationId) return;
+        // Next to one of the slides moving: beside the nearest slide that isn't, on the same side.
+        const order = p.groups.flatMap((g) => g.slides.map((sl) => sl.id));
+        let target = at.id;
+        if (data.ids.includes(target)) {
+          const i = order.indexOf(target);
+          const rest = at.after ? order.slice(0, i).reverse() : order.slice(i + 1);
+          target = rest.find((id) => !data.ids.includes(id)) ?? '';
         }
+        if (target) useStore.getState().updatePresentation(presentationId, moveSlides(p, data.ids, target, at.after));
       } catch {
         // Not slides from here.
       }
@@ -496,7 +499,7 @@ function SlideGrid({ presentation: p, playlistItemId: own, easy }: { presentatio
   const { base, seq, liveIndex } = useSlides(p, own);
   const liveRef = useRef<HTMLDivElement>(null);
   const marquee = useMarquee(p.id, playlistItemId, !!own);
-  const { atEnd, ...endDrop } = useEndDrop(p.id, seq.at(-1)?.slide.id, 'x');
+  const { gap, ...gapDrop } = useGapDrop(p.id);
 
   useEffect(() => {
     liveRef.current?.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
@@ -510,7 +513,7 @@ function SlideGrid({ presentation: p, playlistItemId: own, easy }: { presentatio
       className={`slide-grid ${easy ? 'easy' : ''} ${own ? 'inline' : ''}`}
       style={{ gridTemplateColumns: `repeat(auto-fill, minmax(${gridSize}px, 1fr))` }}
       onPointerDown={marquee.onPointerDown}
-      {...endDrop}
+      {...gapDrop}
     >
       {marquee.marquee}
       {seq.map((entry, i) => (
@@ -525,7 +528,7 @@ function SlideGrid({ presentation: p, playlistItemId: own, easy }: { presentatio
           playlistItemId={playlistItemId}
           continuous={!!own}
           easy={easy}
-          lineAfter={atEnd && i === seq.length - 1}
+          gapLine={gap?.id === entry.slide.id ? (gap.after ? 'after' : 'before') : null}
         />
       ))}
     </div>
@@ -552,7 +555,7 @@ const SlideThumb = memo(function SlideThumb({
   playlistItemId,
   continuous,
   easy,
-  lineAfter,
+  gapLine,
   ref,
 }: {
   entry: SequenceEntry;
@@ -564,13 +567,13 @@ const SlideThumb = memo(function SlideThumb({
   continuous: boolean;
   /** Easy View: just the words, large, white on black. */
   easy: boolean;
-  /** Slides are being dragged into the open space after this, the last slide. */
-  lineAfter?: boolean;
+  /** Slides dragged into the open space beside this one would land on this side of it. */
+  gapLine?: 'before' | 'after' | null;
   ref?: Ref<HTMLDivElement>;
 }) {
   const { group, slide } = entry;
   const { over, moveAt: dropAt, ...drop } = useMediaDrop(presentationId, slide.id);
-  const moveAt = dropAt ?? (lineAfter ? 'after' : null);
+  const moveAt = dropAt ?? gapLine ?? null;
   const selected = useStore((s) => s.selectedSlideIds.includes(slide.id));
   return (
     <div
@@ -614,10 +617,10 @@ function SlideList({ presentation: p, playlistItemId: own }: { presentation: Pre
   const playlistItemId = useItemId(own);
   const { base, seq, liveIndex } = useSlides(p, own);
   const marquee = useMarquee(p.id, playlistItemId, !!own);
-  const { atEnd, ...endDrop } = useEndDrop(p.id, seq.at(-1)?.slide.id, 'y');
+  const { gap, ...gapDrop } = useGapDrop(p.id);
   if (seq.length === 0) return <NoSlides />;
   return (
-    <div ref={marquee.ref} className={`slide-list ${own ? 'inline' : ''}`} onPointerDown={marquee.onPointerDown} {...endDrop}>
+    <div ref={marquee.ref} className={`slide-list ${own ? 'inline' : ''}`} onPointerDown={marquee.onPointerDown} {...gapDrop}>
       {marquee.marquee}
       {seq.map((entry, i) => (
         <SlideRow
@@ -629,7 +632,7 @@ function SlideList({ presentation: p, playlistItemId: own }: { presentation: Pre
           live={i === liveIndex}
           playlistItemId={playlistItemId}
           continuous={!!own}
-          lineAfter={atEnd && i === seq.length - 1}
+          gapLine={gap?.id === entry.slide.id ? (gap.after ? 'after' : 'before') : null}
         />
       ))}
     </div>
@@ -644,7 +647,7 @@ function SlideRow({
   live,
   playlistItemId,
   continuous,
-  lineAfter,
+  gapLine,
 }: {
   presentationId: string;
   entry: SequenceEntry;
@@ -653,12 +656,12 @@ function SlideRow({
   live: boolean;
   playlistItemId: string | null;
   continuous: boolean;
-  /** Slides are being dragged into the open space after this, the last slide. */
-  lineAfter?: boolean;
+  /** Slides dragged into the open space beside this one would land on this side of it. */
+  gapLine?: 'before' | 'after' | null;
 }) {
   const { group, slide, indexInGroup } = entry;
   const { over, moveAt: dropAt, ...drop } = useMediaDrop(presentationId, slide.id, 'y');
-  const moveAt = dropAt ?? (lineAfter ? 'after' : null);
+  const moveAt = dropAt ?? gapLine ?? null;
   const selected = useStore((s) => s.selectedSlideIds.includes(slide.id));
   return (
     <div

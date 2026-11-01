@@ -17,6 +17,7 @@ import {
   DRAG_MEDIA,
   DRAG_MEDIA_IDS,
   draggedIds,
+  nearestGap,
   FilterField,
   setDragPreview,
   hasOutsideFiles,
@@ -450,9 +451,12 @@ function MediaTile({
   next,
   selected,
   order,
+  gapLine,
 }: {
   item: MediaItem;
   live: boolean;
+  /** Media dragged into the open space beside this item would land on this side of it. */
+  gapLine?: 'before' | 'after' | null;
   /** Highlighted (click, ⌘-click or ⇧-click). */
   selected: boolean;
   /** The items as shown, for ⇧-click ranges and acting on the highlight. */
@@ -477,7 +481,8 @@ function MediaTile({
   };
   return (
     <div
-      className={`media-tile ${live ? 'live' : ''} ${selected ? 'selected' : ''} ${missing ? 'missing' : ''} ${drop ? `drop-${drop}` : ''}`}
+      data-media-id={item.id}
+      className={`media-tile ${live ? 'live' : ''} ${selected ? 'selected' : ''} ${missing ? 'missing' : ''} ${(drop ?? gapLine) ? `drop-${drop ?? gapLine}` : ''}`}
       draggable
       onDragStart={(e) => {
         // A highlighted item takes the rest of the highlight with it.
@@ -600,6 +605,13 @@ function MediaGrid() {
   const [dropping, setDropping] = useState(false);
   const playlistId = playlist?.id ?? null;
   const selection = useMediaSelection((s) => s.ids);
+  // Media dragged into the open space of the grid (between items, or after the last) goes to the nearest gap.
+  const [gap, setGap] = useState<{ id: string; after: boolean } | null>(null);
+  const gapAt = (e: DragEvent) => {
+    if (!hasDrag(e, DRAG_MEDIA) || (e.target as Element).closest('.media-tile')) return null;
+    const found = nearestGap(e.currentTarget as HTMLElement, '.media-tile', e.clientX, e.clientY);
+    return found ? { id: found.el.dataset.mediaId!, after: found.after } : null;
+  };
 
   const items = useMemo(() => {
     const q = query.trim().toLowerCase();
@@ -688,6 +700,31 @@ function MediaGrid() {
           style={{ gridTemplateColumns: `repeat(auto-fill, minmax(${size}px, 1fr))` }}
           // A click between the items takes the highlight away.
           onClick={(e) => e.target === e.currentTarget && useMediaSelection.setState({ ids: [], anchor: null })}
+          onDragOver={(e) => {
+            const at = gapAt(e);
+            if (at) {
+              e.preventDefault();
+              e.stopPropagation();
+              e.dataTransfer.dropEffect = 'move';
+            }
+            if (at?.id !== gap?.id || at?.after !== gap?.after) setGap(at);
+          }}
+          onDragLeave={(e) => !e.currentTarget.contains(e.relatedTarget as Node | null) && setGap(null)}
+          onDrop={(e) => {
+            const at = gapAt(e);
+            setGap(null);
+            if (!at) return;
+            e.preventDefault();
+            e.stopPropagation();
+            const ids = draggedIds(e, DRAG_MEDIA, DRAG_MEDIA_IDS);
+            // Before the item after the gap that isn't one of those moving (or at the end).
+            const from = order.indexOf(at.id) + (at.after ? 1 : 0);
+            const before = order.slice(from).find((id) => !ids.includes(id)) ?? null;
+            const s = useStore.getState();
+            if (!playlist) return s.moveMedia(ids, before);
+            s.addToMediaPlaylist(playlist.id, ids);
+            s.moveInMediaPlaylist(playlist.id, ids, before);
+          }}
         >
           {items.map((m, i) => (
             <MediaTile
@@ -703,6 +740,7 @@ function MediaGrid() {
               next={items[i + 1]?.id ?? null}
               selected={selection.includes(m.id)}
               order={order}
+              gapLine={gap?.id === m.id ? (gap.after ? 'after' : 'before') : null}
             />
           ))}
           {items.length === 0 && <p className="muted">No media matches.</p>}
