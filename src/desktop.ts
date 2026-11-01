@@ -1,5 +1,6 @@
 import { invoke, isTauri } from '@tauri-apps/api/core';
 import { listen } from '@tauri-apps/api/event';
+import { getCurrentWindow } from '@tauri-apps/api/window';
 import type { DetectedDisplay } from './screens';
 import { mimeFromName } from './store';
 import type { DesktopOutputRequest } from './outputs';
@@ -24,6 +25,7 @@ function subscribe<T>(event: string, cb: (payload: T) => void): () => void {
  */
 export function installDesktopBridge() {
   if (!isTauri() || window.lumenDesktop) return;
+  repaintOnWindowChanges();
   const ua = navigator.userAgent;
   window.lumenDesktop = {
     platform: /Mac/.test(ua) ? 'darwin' : /Windows/.test(ua) ? 'win32' : 'linux',
@@ -94,4 +96,29 @@ export function installDesktopBridge() {
       return { folder: opened.folder, files };
     },
   };
+}
+
+/**
+ * Redraws the whole window after it's moved, resized, put in or out of full screen, moved to
+ * another screen, or brought back to the front. The Mac web view (with the title bar laid over
+ * the window) sometimes leaves the old picture behind after those, so parts of the window show
+ * twice, one copy a little below the other. Promoting the page to its own layer for a frame makes
+ * it draw everything again.
+ */
+function repaintOnWindowChanges() {
+  let timer = 0;
+  const repaint = () => {
+    window.clearTimeout(timer);
+    timer = window.setTimeout(() => {
+      const root = document.documentElement;
+      root.classList.add('repaint');
+      requestAnimationFrame(() => requestAnimationFrame(() => root.classList.remove('repaint')));
+    }, 120);
+  };
+  const win = getCurrentWindow();
+  void win.onResized(repaint);
+  void win.onMoved(repaint);
+  void win.onScaleChanged(repaint);
+  void win.onFocusChanged(({ payload: focused }) => focused && repaint());
+  document.addEventListener('visibilitychange', () => document.visibilityState === 'visible' && repaint());
 }

@@ -343,6 +343,59 @@ if (typeof window !== 'undefined') {
   window.addEventListener('drop', () => setTimeout(() => (insideDrag = false)), true);
 }
 
+/**
+ * Dragging near the top or bottom edge of a list (the library, a playlist, the media bin, the
+ * slides) scrolls it, faster the closer the pointer is to the edge: the Mac app's web view doesn't
+ * do it by itself.
+ */
+const EDGE = 48;
+const MAX_STEP = 22;
+let autoScroll: { el: HTMLElement; step: number } | null = null;
+let scrollFrame = 0;
+
+function scrollableAt(target: EventTarget | null, y: number): { el: HTMLElement; step: number } | null {
+  for (let el = target instanceof Element ? (target as HTMLElement) : null; el && el !== document.body; el = el.parentElement) {
+    if (el.scrollHeight <= el.clientHeight + 1) continue;
+    const overflow = getComputedStyle(el).overflowY;
+    if (overflow !== 'auto' && overflow !== 'scroll') continue;
+    const r = el.getBoundingClientRect();
+    const edge = Math.min(EDGE, r.height / 4);
+    let step = 0;
+    if (y < r.top + edge && el.scrollTop > 0) step = -MAX_STEP * ((r.top + edge - y) / edge);
+    else if (y > r.bottom - edge && el.scrollTop + el.clientHeight < el.scrollHeight - 1)
+      step = MAX_STEP * ((y - (r.bottom - edge)) / edge);
+    if (step) return { el, step: Math.max(-MAX_STEP, Math.min(MAX_STEP, step)) };
+  }
+  return null;
+}
+
+function scrollTick() {
+  scrollFrame = 0;
+  if (!autoScroll) return;
+  autoScroll.el.scrollTop += autoScroll.step;
+  scrollFrame = requestAnimationFrame(scrollTick);
+}
+
+function stopAutoScroll() {
+  autoScroll = null;
+  if (scrollFrame) cancelAnimationFrame(scrollFrame);
+  scrollFrame = 0;
+}
+
+if (typeof window !== 'undefined') {
+  window.addEventListener(
+    'dragover',
+    (e) => {
+      autoScroll = scrollableAt(e.target, e.clientY);
+      if (autoScroll && !scrollFrame) scrollFrame = requestAnimationFrame(scrollTick);
+    },
+    true,
+  );
+  for (const type of ['drop', 'dragend'] as const) window.addEventListener(type, stopAutoScroll, true);
+  // Leaving the window (dragleave with nowhere to go) stops it too.
+  window.addEventListener('dragleave', (e) => !e.relatedTarget && stopAutoScroll(), true);
+}
+
 /** Files dragged in from outside Lumen (not a slide's picture dragged across the window). */
 export const hasOutsideFiles = (e: { dataTransfer: DataTransfer | null }) => !insideDrag && !!e.dataTransfer?.types.includes('Files');
 
