@@ -211,9 +211,9 @@ function OutlineSlide({
   children: ReactNode;
   ref?: Ref<HTMLDivElement>;
 } & Omit<HTMLAttributes<HTMLDivElement>, 'className' | 'children'>) {
-  const { over, ...drop } = useMediaDrop(presentationId, slideId);
+  const { over, moveAt, ...drop } = useMediaDrop(presentationId, slideId, 'y');
   return (
-    <div ref={ref} className={`${className} ${over ? 'drop-media' : ''}`} {...drop} {...props}>
+    <div ref={ref} className={`${className} ${over ? 'drop-media' : ''} ${moveAt ? `move-${moveAt}` : ''}`} {...drop} {...props}>
       {children}
     </div>
   );

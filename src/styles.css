@@ -6914,3 +6914,62 @@ h3.looks-name {
 .repaint body {
   transform: translateZ(0);
 }
+
+/* Slides dragged onto a slide land before or after it: a bar on that side (left or right in the
+   grid, above or below in a list). */
+.slide-thumb.move-before,
+.slide-thumb.move-after,
+.slide-row.move-before,
+.slide-row.move-after,
+.outline-slide.move-before,
+.outline-slide.move-after {
+  position: relative;
+}
+
+.slide-thumb.move-before::after,
+.slide-thumb.move-after::after,
+.slide-row.move-before::after,
+.slide-row.move-after::after,
+.outline-slide.move-before::after,
+.outline-slide.move-after::after {
+  content: '';
+  position: absolute;
+  background: var(--pink);
+  border-radius: 2px;
+  pointer-events: none;
+  z-index: 3;
+}
+
+.slide-thumb.move-before::after,
+.slide-thumb.move-after::after {
+  top: -3px;
+  bottom: -3px;
+  width: 4px;
+}
+
+.slide-thumb.move-before::after {
+  left: -9px;
+}
+
+.slide-thumb.move-after::after {
+  right: -9px;
+}
+
+.slide-row.move-before::after,
+.slide-row.move-after::after,
+.outline-slide.move-before::after,
+.outline-slide.move-after::after {
+  left: 0;
+  right: 0;
+  height: 3px;
+}
+
+.slide-row.move-before::after,
+.outline-slide.move-before::after {
+  top: -2px;
+}
+
+.slide-row.move-after::after,
+.outline-slide.move-after::after {
+  bottom: -2px;
+}

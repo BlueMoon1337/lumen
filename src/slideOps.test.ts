@@ -9,6 +9,7 @@ import {
   deleteGroup,
   duplicateGroup,
   insertSlides,
+  moveSlides,
   pasteTextStyle,
   setTransition,
   ungroup,
@@ -37,6 +38,23 @@ const pres = (text: string, extra: Partial<Presentation> = {}): Presentation => 
 
 const names = (p: Pick<Presentation, 'groups' | 'arrangement'>) =>
   getSequence({ ...pres(''), ...p }).map((e) => `${e.group.name}:${e.slide.text}`);
+
+describe('moving slides by dragging', () => {
+  const p = pres('[Verse 1]\na\n\nb\n\n[Chorus]\nc\n\nd');
+  const id = (text: string) => p.groups.flatMap((g) => g.slides).find((sl) => sl.text === text)!.id;
+
+  it('puts them before or after the slide they’re dropped on, in their order', () => {
+    expect(names(moveSlides(p, [id('a')], id('b'), true))).toEqual(['Verse 1:b', 'Verse 1:a', 'Chorus:c', 'Chorus:d']);
+    expect(names(moveSlides(p, [id('d'), id('a')], id('c'), false))).toEqual(['Verse 1:b', 'Chorus:a', 'Chorus:d', 'Chorus:c']);
+  });
+
+  it('drops a group left empty, and does nothing when dropped on one of the slides moving', () => {
+    const moved = moveSlides(p, [id('a'), id('b')], id('d'), true);
+    expect(names(moved)).toEqual(['Chorus:c', 'Chorus:d', 'Chorus:a', 'Chorus:b']);
+    expect(moved.groups.map((g) => g.name)).toEqual(['Chorus']);
+    expect(moveSlides(p, [id('a'), id('b')], id('b'), true).groups).toBe(p.groups);
+  });
+});
 
 describe('ungrouping', () => {
   it('joins a group to the group of the slide before it', () => {

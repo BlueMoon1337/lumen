@@ -118,6 +118,28 @@ export function insertSlides(p: Presentation, afterSlideId: string | null, slide
   return { groups, arrangement: p.arrangement };
 }
 
+/**
+ * The slides `ids` moved, in their order in the presentation, to before or after `targetId` (into
+ * its group). A group left with no slides goes, from the arrangement too. Nothing changes if the
+ * target is one of the slides moving.
+ */
+export function moveSlides(p: Presentation, ids: string[], targetId: string, after: boolean): Pick<Presentation, 'groups' | 'arrangement'> {
+  const unchanged = { groups: p.groups, arrangement: p.arrangement };
+  if (ids.includes(targetId)) return unchanged;
+  const moving = p.groups.flatMap((g) => g.slides).filter((sl) => ids.includes(sl.id));
+  if (!moving.length || !p.groups.some((g) => g.slides.some((sl) => sl.id === targetId))) return unchanged;
+  const groups = p.groups
+    .map((g) => {
+      const kept = g.slides.filter((sl) => !ids.includes(sl.id));
+      const at = kept.findIndex((sl) => sl.id === targetId);
+      if (at < 0) return { ...g, slides: kept };
+      return { ...g, slides: [...kept.slice(0, at + (after ? 1 : 0)), ...moving, ...kept.slice(at + (after ? 1 : 0))] };
+    })
+    .filter((g) => g.slides.length);
+  const left = new Set(groups.map((g) => g.id));
+  return { groups, arrangement: p.arrangement.filter((id) => left.has(id)) };
+}
+
 const TEXT_KEYS = ['fontFamily', 'fontSize', 'fontWeight', 'italic', 'uppercase', 'color', 'textAlign', 'verticalAlign'] as const;
 
 /** The text formatting of a slide as it looks (not where its box sits): what Copy Text Style copies. */

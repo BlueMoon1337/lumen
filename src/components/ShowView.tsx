@@ -1,3 +1,4 @@
+import { moveSlides } from '../slideOps';
 import {
   memo,
   useEffect,
@@ -52,23 +53,74 @@ export function TransitionBadge({ presentationId, slide }: { presentationId: str
 
 const dragged = (e: DragEvent) => e.dataTransfer.types.includes(DRAG_MEDIA) || e.dataTransfer.types.includes('Files');
 
+/** Drag payload type for slides being moved within their presentation: `{ presentationId, ids }` as JSON. */
+const DRAG_SLIDES = 'application/x-lumen-slides';
+/** The presentation slides are being dragged from (drag data can't be read until the drop). */
+let draggingFrom: string | null = null;
+
 /**
- * Lets an image or video be dropped on a slide, from the media bin or as a file, to become its
- * media cue: showing the slide then starts it on the Media layer, as in ProPresenter.
+ * A slide's drag and drop. Drag it (with the other selected slides, if it's one of them) onto
+ * another slide of the same presentation to move it there: before or after it, by which half
+ * (left or right in the grid, top or bottom in a list). An image or video dropped on it, from the
+ * media bin or as a file, becomes its media cue: showing the slide then starts it on the Media
+ * layer, as in ProPresenter.
  */
-export function useMediaDrop(presentationId: string, slideId: string) {
+export function useMediaDrop(presentationId: string, slideId: string, axis: 'x' | 'y' = 'x') {
   const [over, setOver] = useState(false);
+  const [moveAt, setMoveAt] = useState<'before' | 'after' | null>(null);
   const set = (media: string) => useStore.getState().updateSlide(presentationId, slideId, { media });
+  const side = (e: DragEvent): 'before' | 'after' => {
+    const r = (e.currentTarget as HTMLElement).getBoundingClientRect();
+    return (axis === 'x' ? e.clientX < r.left + r.width / 2 : e.clientY < r.top + r.height / 2) ? 'before' : 'after';
+  };
+  const slidesDragged = (e: DragEvent) => e.dataTransfer.types.includes(DRAG_SLIDES) && draggingFrom === presentationId;
   return {
     over,
+    moveAt,
+    draggable: true,
+    onDragStart: (e: DragEvent) => {
+      const s = useStore.getState();
+      const ids = s.selectedPresentationId === presentationId && s.selectedSlideIds.includes(slideId) ? s.selectedSlideIds : [slideId];
+      draggingFrom = presentationId;
+      e.dataTransfer.effectAllowed = 'move';
+      e.dataTransfer.setData(DRAG_SLIDES, JSON.stringify({ presentationId, ids }));
+    },
+    onDragEnd: () => {
+      draggingFrom = null;
+    },
     onDragOver: (e: DragEvent) => {
+      if (slidesDragged(e)) {
+        e.preventDefault();
+        e.stopPropagation();
+        e.dataTransfer.dropEffect = 'move';
+        setMoveAt(side(e));
+        return;
+      }
       if (!dragged(e)) return;
       e.preventDefault();
       e.stopPropagation();
       setOver(true);
     },
-    onDragLeave: () => setOver(false),
+    onDragLeave: () => {
+      setOver(false);
+      setMoveAt(null);
+    },
     onDrop: (e: DragEvent) => {
+      if (slidesDragged(e)) {
+        e.preventDefault();
+        e.stopPropagation();
+        setMoveAt(null);
+        draggingFrom = null;
+        try {
+          const data = JSON.parse(e.dataTransfer.getData(DRAG_SLIDES)) as { presentationId: string; ids: string[] };
+          const p = useStore.getState().presentations[presentationId];
+          if (p && data.presentationId === presentationId)
+            useStore.getState().updatePresentation(presentationId, moveSlides(p, data.ids, slideId, side(e) === 'after'));
+        } catch {
+          // Not slides from here.
+        }
+        return;
+      }
       if (!dragged(e)) return;
       e.preventDefault();
       e.stopPropagation();
@@ -462,7 +514,7 @@ const SlideThumb = memo(function SlideThumb({
   ref?: Ref<HTMLDivElement>;
 }) {
   const { group, slide } = entry;
-  const { over, ...drop } = useMediaDrop(presentationId, slide.id);
+  const { over, moveAt, ...drop } = useMediaDrop(presentationId, slide.id);
   const selected = useStore((s) => s.selectedSlideIds.includes(slide.id));
   return (
     <div
@@ -470,12 +522,12 @@ const SlideThumb = memo(function SlideThumb({
       role="button"
       tabIndex={-1}
       data-slide-id={slide.id}
-      className={`slide-thumb ${live ? 'live' : ''} ${selected ? 'selected' : ''} ${over ? 'drop-media' : ''}`}
+      className={`slide-thumb ${live ? 'live' : ''} ${selected ? 'selected' : ''} ${over ? 'drop-media' : ''} ${moveAt ? `move-${moveAt}` : ''}`}
       {...drop}
       onClick={(e) => clickToShow(e, presentationId, slide.id, index, playlistItemId, continuous)}
       onDoubleClick={() => useStore.getState().openEditor(slide.id)}
       onContextMenu={(e) => slideContextMenu(e, presentationId, entry, index, playlistItemId)}
-      title="Click to show · ⌘-click or ⇧-click to select more · Double-click to edit · Right-click for more"
+      title="Click to show · ⌘-click or ⇧-click to select more · Drag to reorder · Double-click to edit · Right-click for more"
     >
       <div className="slide-thumb-canvas">
         {easy ? (
@@ -544,14 +596,14 @@ function SlideRow({
   continuous: boolean;
 }) {
   const { group, slide, indexInGroup } = entry;
-  const { over, ...drop } = useMediaDrop(presentationId, slide.id);
+  const { over, moveAt, ...drop } = useMediaDrop(presentationId, slide.id, 'y');
   const selected = useStore((s) => s.selectedSlideIds.includes(slide.id));
   return (
     <div
       role="button"
       tabIndex={-1}
       data-slide-id={slide.id}
-      className={`slide-row ${live ? 'live' : ''} ${selected ? 'selected' : ''} ${over ? 'drop-media' : ''}`}
+      className={`slide-row ${live ? 'live' : ''} ${selected ? 'selected' : ''} ${over ? 'drop-media' : ''} ${moveAt ? `move-${moveAt}` : ''}`}
       {...drop}
       onClick={(e) => clickToShow(e, presentationId, slide.id, index, playlistItemId, continuous)}
       onDoubleClick={() => useStore.getState().openEditor(slide.id)}
