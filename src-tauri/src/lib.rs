@@ -26,6 +26,15 @@ use tauri::{Manager, WebviewUrl, WebviewWindowBuilder};
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
+        // One Lumen at a time: opening it again (from the Dock, Finder or a disk image) brings the
+        // open one to the front instead of starting a second copy.
+        .plugin(tauri_plugin_single_instance::init(|app, _args, _cwd| {
+            if let Some(main) = app.get_webview_window("main") {
+                let _ = main.unminimize();
+                let _ = main.show();
+                let _ = main.set_focus();
+            }
+        }))
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_clipboard_manager::init())
         .plugin(tauri_plugin_updater::Builder::new().build())
@@ -64,6 +73,9 @@ pub fn run() {
             finder::finder_file,
             finder::write_finder_file,
             finder::reveal_finder_file,
+            finder::lumen_folder,
+            finder::lumen_file_exists,
+            finder::read_lumen_file,
             files::read_clipboard_text,
             files::write_clipboard_text,
             icon::set_app_icon,
@@ -96,6 +108,8 @@ pub fn run() {
                 .title("Lumen")
                 .inner_size(1440.0, 900.0)
                 .min_inner_size(1000.0, 640.0)
+                // Opens filling the screen (not full screen), as ProPresenter's window does.
+                .maximized(true)
                 .background_color(Color(0x1d, 0x1d, 0x1d, 255))
                 // Files dropped on the window go to the page (import songs, media and Bibles by dragging).
                 .disable_drag_drop_handler()

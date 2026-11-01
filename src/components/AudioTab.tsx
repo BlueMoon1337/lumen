@@ -1,8 +1,8 @@
 import { useEffect, useMemo, useState, type DragEvent, type MouseEvent } from 'react';
 import { useShallow } from 'zustand/react/shallow';
 import { countdownFade, songCrossfade } from '../countdowns';
-import { canShowInFinder, FINDER_LABEL, showInFinder } from '../finder';
-import { loadMedia } from '../media';
+import { canShowInFinder, FINDER_LABEL, missingEntries, offerReconnect, showInFinder, useIsMissing } from '../finder';
+import { loadMedia, useMissingMedia } from '../media';
 import { notify } from '../notices';
 import { AUDIO_LIBRARY, useStore } from '../store';
 import type { MediaItem, MediaPlaylist } from '../types';
@@ -30,6 +30,9 @@ const hasDrag = (e: DragEvent, type: string) => e.dataTransfer.types.includes(ty
 
 /** Drag payload type for an audio playlist being moved up or down the list: its id. */
 const DRAG_AUDIO_PLAYLIST = 'application/x-lumen-audio-playlist';
+
+/** Reconnect File… and Delete… at the top of a track's menu, when its file is missing. */
+const missingFirst = (m: MediaItem): ContextEntries => (useMissingMedia.getState().ids.includes(m.id) ? missingEntries(m) : []);
 
 /** Show in Finder (desktop app only): saves the tracks as files once, and shows them. */
 const finderEntry = (items: MediaItem[]): ContextEntries =>
@@ -114,6 +117,7 @@ function addToPlaylistMenu(ids: string[]): ContextEntries {
 function audioMenu(m: MediaItem, playing: boolean): ContextEntries {
   const s = st();
   return [
+    ...missingFirst(m),
     { label: playing ? 'Stop' : 'Play', action: () => (playing ? s.clearLayers(['audio']) : s.playAudio(m.id)) },
     ...loopEntry(playing, s.live.audioLoop),
     { label: 'Add to Playlist', submenu: () => addToPlaylistMenu([m.id]) },
@@ -226,6 +230,7 @@ export function CountdownFade() {
 function PlaylistTrack({ playlist, m, index }: { playlist: MediaPlaylist; m: MediaItem; index: number }) {
   const playing = useStore((s) => s.live.audioId === m.id && s.live.audioFrom === playlist.id);
   const seconds = useDuration(m.id);
+  const missing = useIsMissing(m.id);
   const [drop, setDrop] = useState(false);
   const s = st();
   return (
@@ -248,9 +253,10 @@ function PlaylistTrack({ playlist, m, index }: { playlist: MediaPlaylist; m: Med
         e.stopPropagation();
         s.addToAudioPlaylist(playlist.id, d.ids, m.id);
       }}
-      onClick={() => toggle(m.id, playlist.id)}
+      onClick={(e) => (missing ? offerReconnect(e, m) : toggle(m.id, playlist.id))}
       onContextMenu={(e) =>
         openContextMenu(e, [
+          ...missingFirst(m),
           { label: playing ? 'Stop' : 'Play from Here', action: () => toggle(m.id, playlist.id) },
           ...loopEntry(playing, s.live.audioLoop, 'Loop Track'),
           '-',
@@ -263,6 +269,7 @@ function PlaylistTrack({ playlist, m, index }: { playlist: MediaPlaylist; m: Med
     >
       <span className="track-number">{playing ? <Icon name="stop" size={12} /> : index + 1}</span>
       <span className="list-label">{m.name}</span>
+      {missing && <span className="audio-missing">Missing</span>}
       <span className="track-length">{length(seconds)}</span>
       <span className="row-actions">
         <IconButton icon="close" title="Remove from playlist" onClick={() => s.removeFromAudioPlaylist(playlist.id, m.id)} />
@@ -425,18 +432,26 @@ function AudioPlaylistRow({
 function AudioRow({ m }: { m: MediaItem }) {
   const playing = useStore((s) => s.live.audioId === m.id);
   const looping = useStore((s) => playing && s.live.audioLoop);
+  const missing = useIsMissing(m.id);
   const s = st();
   return (
     <li
       className={`audio-row ${playing ? 'live' : ''}`}
       draggable
       onDragStart={(e) => startDrag(e, [m.id], null)}
-      onClick={() => (playing ? s.clearLayers(['audio']) : s.playAudio(m.id))}
+      onClick={(e) => (missing ? offerReconnect(e, m) : playing ? s.clearLayers(['audio']) : s.playAudio(m.id))}
       onContextMenu={(e) => openContextMenu(e, audioMenu(m, playing))}
-      title={playing ? 'Click to stop' : 'Click to play. Drag onto a playlist to add it.'}
+      title={
+        missing
+          ? 'Its file is missing: click to reconnect it'
+          : playing
+            ? 'Click to stop'
+            : 'Click to play. Drag onto a playlist to add it.'
+      }
     >
       <Icon name={playing ? 'stop' : 'play'} size={13} />
       <span className="list-label">{m.name}</span>
+      {missing && <span className="audio-missing">Missing</span>}
       {playing && (
         <span className="row-actions">
           <IconButton
@@ -568,6 +583,7 @@ function LibraryRow({
   const playing = useStore((s) => s.live.audioId === m.id);
   const looping = useStore((s) => playing && s.live.audioLoop);
   const seconds = useDuration(m.id);
+  const missing = useIsMissing(m.id);
   useEffect(() => onLength(m.id, seconds), [m.id, seconds, onLength]);
   const s = st();
   const ids = selected ? selection : [m.id];
@@ -575,10 +591,11 @@ function LibraryRow({
     <li
       className={`audio-library-row ${selected ? 'selected' : ''} ${playing ? 'live' : ''}`}
       onMouseDown={(e) => e.button === 0 && onSelect(e)}
-      onDoubleClick={() => (playing ? s.clearLayers(['audio']) : s.playAudio(m.id))}
+      onDoubleClick={(e) => (missing ? offerReconnect(e, m) : playing ? s.clearLayers(['audio']) : s.playAudio(m.id))}
       onContextMenu={(e) => {
         if (!selected) onSelect(e);
         openContextMenu(e, [
+          ...missingFirst(m),
           { label: playing ? 'Stop' : 'Play', action: () => (playing ? s.clearLayers(['audio']) : s.playAudio(m.id)) },
           ...loopEntry(playing, looping),
           { label: ids.length > 1 ? `Add ${ids.length} Tracks to Playlist` : 'Add to Playlist', submenu: () => addToPlaylistMenu(ids) },
@@ -593,11 +610,12 @@ function LibraryRow({
         icon={playing ? 'stop' : 'play'}
         title={playing ? 'Stop' : 'Play'}
         active={playing}
-        onClick={() => (playing ? s.clearLayers(['audio']) : s.playAudio(m.id))}
+        onClick={(e) => (missing ? offerReconnect(e, m) : playing ? s.clearLayers(['audio']) : s.playAudio(m.id))}
       />
       <span className="list-label" title={m.name}>
         {m.name}
       </span>
+      {missing && <span className="audio-missing">Missing</span>}
       <span className="audio-library-in" title={playlists.join(', ')}>
         {playlists.join(', ')}
       </span>

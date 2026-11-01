@@ -6,7 +6,8 @@ import { parseProPresenter7, type ImportedPresentation } from './import/proprese
 import { parseRvBible } from './import/rvbible';
 import { colorForGroup, getSequence } from './lyrics';
 import { undoBatch } from './history';
-import { putMediaBlob } from './media';
+import { finderName } from './finder';
+import { putMediaBlob, storeMediaFile } from './media';
 import { dismiss, notify, renotify } from './notices';
 import { createSlideshow, readKeynote, readPowerPoint, slideshowLibrary } from './slideshowImport';
 import { useStore } from './store';
@@ -32,7 +33,9 @@ export async function importLumenFile(file: File, category: Category): Promise<L
   const { file: data, blobs } = readLumenFile(new Uint8Array(await file.arrayBuffer()));
   const s = useStore.getState();
   const plan = planImport(s, data, blobs, category);
-  for (const m of [...plan.media, ...plan.files]) await putMediaBlob(m.id, new Blob([blobs.get(m.id)!.slice()], { type: m.mime }));
+  for (const m of plan.media)
+    await storeMediaFile(m.id, new Blob([blobs.get(m.id)!.slice()], { type: m.mime }), finderName(m), m.kind, m.mime);
+  for (const m of plan.files) await putMediaBlob(m.id, new Blob([blobs.get(m.id)!.slice()], { type: m.mime }));
   if (plan.media.length) s.addMedia(plan.media);
   if (plan.themes.length) s.addThemes(plan.themes);
   if (plan.presentations.length) s.addPresentations(plan.presentations);

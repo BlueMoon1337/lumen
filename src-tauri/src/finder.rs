@@ -1,24 +1,56 @@
-//! Show in Finder for media and audio. Lumen keeps its media inside its own storage, where Finder
-//! can't see it, so the first time an item is shown a copy is saved in Documents ▸ Lumen ▸ Media
-//! (or Audio), and Finder opens with it selected. Later times find the copy that's there.
+//! Lumen's folder in Documents, laid out like ProPresenter's: Media ▸ Assets holds the media bin's
+//! images and videos, and Media ▸ Audio the Audio tab's tracks. In the desktop app media is kept
+//! there as files (the page plays them through the asset protocol), so Show in Finder opens with
+//! the item's own file selected, and a file moved or deleted in Finder can be reconnected.
 
 use std::path::PathBuf;
 use std::process::Command;
 
 use serde::Serialize;
-use tauri::ipc::{InvokeBody, Request};
+use tauri::ipc::{InvokeBody, Request, Response};
 use tauri::{AppHandle, Manager};
 
-/// The folders copies go in, under Documents ▸ Lumen.
-const FOLDERS: [&str; 2] = ["Media", "Audio"];
+/// The folders media goes in, under Documents ▸ Lumen.
+const FOLDERS: [&str; 2] = ["Media/Assets", "Media/Audio"];
+
+/// Documents ▸ Lumen (the home folder's Lumen if there's no Documents folder).
+fn base(app: &AppHandle) -> Result<PathBuf, String> {
+    let paths = app.path();
+    let documents = paths.document_dir().or_else(|_| paths.home_dir()).map_err(|e| e.to_string())?;
+    Ok(documents.join("Lumen"))
+}
 
 fn folder(app: &AppHandle, which: &str) -> Result<PathBuf, String> {
     if !FOLDERS.contains(&which) {
         return Err(format!("“{which}” isn’t one of Lumen’s folders."));
     }
-    let paths = app.path();
-    let documents = paths.document_dir().or_else(|_| paths.home_dir()).map_err(|e| e.to_string())?;
-    Ok(documents.join("Lumen").join(which))
+    Ok(base(app)?.join(which))
+}
+
+/// Makes Lumen's folders, and gives the path of Documents ▸ Lumen, for the page to play files from.
+#[tauri::command]
+pub fn lumen_folder(app: AppHandle) -> Result<String, String> {
+    for which in FOLDERS {
+        let dir = folder(&app, which)?;
+        std::fs::create_dir_all(&dir).map_err(|e| format!("Couldn’t make the folder {}: {e}", dir.display()))?;
+    }
+    Ok(base(&app)?.to_string_lossy().into_owned())
+}
+
+/// A media file's bytes, for exporting it or drawing it into a slide picture.
+#[tauri::command]
+pub async fn read_lumen_file(app: AppHandle, folder: String, name: String) -> Result<Response, String> {
+    check_name(&name)?;
+    let path = self::folder(&app, &folder)?.join(&name);
+    let data = std::fs::read(&path).map_err(|e| format!("Couldn’t read {}: {e}", path.display()))?;
+    Ok(Response::new(data))
+}
+
+/// Whether a media file is still where Lumen put it.
+#[tauri::command]
+pub fn lumen_file_exists(app: AppHandle, folder: String, name: String) -> Result<bool, String> {
+    check_name(&name)?;
+    Ok(self::folder(&app, &folder)?.join(&name).is_file())
 }
 
 fn check_name(name: &str) -> Result<(), String> {

@@ -12,7 +12,11 @@
   "app": {
     "windows": [],
     "security": {
-      "csp": null
+      "csp": null,
+      "assetProtocol": {
+        "enable": true,
+        "scope": ["$DOCUMENT/Lumen/**", "$HOME/Lumen/**"]
+      }
     }
   },
   "bundle": {
@@ -26,9 +30,18 @@
       "signingIdentity": "-",
       "dmg": {
         "background": "dmg/background.png",
-        "windowSize": { "width": 660, "height": 588 },
-        "appPosition": { "x": 165, "y": 262 },
-        "applicationFolderPosition": { "x": 495, "y": 262 }
+        "windowSize": {
+          "width": 660,
+          "height": 588
+        },
+        "appPosition": {
+          "x": 165,
+          "y": 262
+        },
+        "applicationFolderPosition": {
+          "x": 495,
+          "y": 262
+        }
       }
     }
   },

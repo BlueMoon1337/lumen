@@ -11,6 +11,7 @@ import { NamePopup, openContextMenu, openPopupBelow } from './ContextMenu';
 import { deleteMedia, deleteMediaPlaylist, removeFromTab, TAB_NAMES, type SpecialTab } from './deleting';
 import { mediaMenu, mediaSelectionMenu } from './menus';
 import { TransitionButton } from './TransitionPicker';
+import { offerReconnect, useIsMissing } from '../finder';
 import { actedOn, clickSelection, isExtending, useMediaSelection } from '../selection';
 import { DRAG_MEDIA, DRAG_MEDIA_IDS, draggedIds, FilterField, hasOutsideFiles, Icon, IconButton, pickFiles, SectionHeader } from './ui';
 
@@ -455,6 +456,7 @@ function MediaTile({
   next: string | null;
 }) {
   const media = useMedia(item.id);
+  const missing = useIsMissing(item.id);
   const [duration, setDuration] = useState(0);
   const [drop, setDrop] = useState<'before' | 'after' | null>(null);
   const s = useStore.getState();
@@ -464,7 +466,7 @@ function MediaTile({
   };
   return (
     <div
-      className={`media-tile ${live ? 'live' : ''} ${selected ? 'selected' : ''} ${drop ? `drop-${drop}` : ''}`}
+      className={`media-tile ${live ? 'live' : ''} ${selected ? 'selected' : ''} ${missing ? 'missing' : ''} ${drop ? `drop-${drop}` : ''}`}
       draggable
       onDragStart={(e) => {
         // A highlighted item takes the rest of the highlight with it.
@@ -497,8 +499,11 @@ function MediaTile({
       onClick={(e) => {
         const sel = useMediaSelection.getState();
         useMediaSelection.setState(clickSelection(sel, order, item.id, e));
-        // ⌘- and ⇧-clicks only highlight; a plain click shows it, as before.
-        if (!isExtending(e)) s.setLiveMedia(live ? null : item.id, playlistId);
+        // ⌘- and ⇧-clicks only highlight; a plain click shows it, as before (or, with its file
+        // missing, offers to reconnect it).
+        if (isExtending(e)) return;
+        if (missing) offerReconnect(e, item);
+        else s.setLiveMedia(live ? null : item.id, playlistId);
       }}
       onContextMenu={(e) => {
         const sel = useMediaSelection.getState();
@@ -513,7 +518,12 @@ function MediaTile({
       <div className="media-tile-frame">
         {outro && <CornerBookmark icon="outro" title="The active outro: Play Outro plays it" />}
         {logo && <CornerBookmark icon="logo" title="The active logo: the Logo button shows it" left={outro} />}
-        {!media ? (
+        {missing ? (
+          <div className="media-thumb-img media-missing" title="Its file is missing: click to reconnect it">
+            <Icon name="link" size={20} />
+            <span>File missing</span>
+          </div>
+        ) : !media ? (
           <div className="media-thumb-img" />
         ) : media.isVideo ? (
           <video

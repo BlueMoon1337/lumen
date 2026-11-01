@@ -59,8 +59,11 @@ export function installDesktopBridge() {
     writeExportFile: (name, data) => invoke('write_export_file', data, { headers: { 'x-file-name': encodeURIComponent(name) } }),
     finderFile: (folder, name, size) => invoke('finder_file', { folder, name, size }),
     writeFinderFile: (folder, name, data) =>
-      invoke('write_finder_file', data, { headers: { 'x-file-name': encodeURIComponent(name), 'x-folder': folder } }),
+      invoke('write_finder_file', data, { headers: { 'x-file-name': encodeURIComponent(name), 'x-folder': encodeURIComponent(folder) } }),
     revealFinderFile: (folder, name) => invoke('reveal_finder_file', { folder, name }),
+    lumenFolder: () => invoke<string>('lumen_folder'),
+    lumenFileExists: (folder, name) => invoke<boolean>('lumen_file_exists', { folder, name }),
+    readLumenFile: (folder, name) => invoke<ArrayBuffer>('read_lumen_file', { folder, name }),
     readClipboardText: () => invoke<string | null>('read_clipboard_text'),
     writeClipboardText: (text) => invoke('write_clipboard_text', { text }),
     setEditState: (state) => void invoke('set_edit_state', { state }),

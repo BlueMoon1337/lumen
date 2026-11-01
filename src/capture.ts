@@ -14,7 +14,7 @@ import { liveVideoElement } from './components/MediaClock';
 import { downloadFile } from './components/ui';
 import { useLiveFrame } from './liveFrame';
 import { MASKS } from './looks';
-import { loadMedia } from './media';
+import { getMediaBlob, loadMedia } from './media';
 import { notify } from './notices';
 import { drawWords, loadFonts, wrapLines } from './slideImages';
 import { useStore } from './store';
@@ -230,6 +230,9 @@ export class ScreenRenderer {
       if (!m) return this.media.set(mediaId, null);
       if (m.isVideo) {
         const v = document.createElement('video');
+        // A file played from Documents ▸ Lumen (the desktop app's asset protocol) is drawn into the
+        // recording, which it mustn't taint.
+        if (!m.url.startsWith('blob:')) v.crossOrigin = 'anonymous';
         v.muted = true;
         v.loop = true;
         v.playsInline = true;
@@ -237,8 +240,8 @@ export class ScreenRenderer {
         void v.play().catch(() => {});
         this.media.set(mediaId, v);
       } else {
-        const blob = await fetch(m.url).then((r) => r.blob());
-        this.media.set(mediaId, await createImageBitmap(blob).catch(() => null));
+        const blob = await getMediaBlob(mediaId);
+        this.media.set(mediaId, blob ? await createImageBitmap(blob).catch(() => null) : null);
       }
     });
     return null;

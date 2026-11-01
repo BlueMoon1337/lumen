@@ -1,5 +1,6 @@
 /** The right-click menus: what each thing in the window offers, as in ProPresenter. */
-import { canShowInFinder, FINDER_LABEL, showInFinder } from '../finder';
+import { canShowInFinder, FINDER_LABEL, missingEntries, showInFinder } from '../finder';
+import { useMissingMedia } from '../media';
 import { undoBatch } from '../history';
 import { notify } from '../notices';
 import { groupPresets, LABEL_SWATCHES, labelPresets } from '../labels';
@@ -635,6 +636,7 @@ export function mediaMenu(m: MediaItem, playlistId?: string | null, tab?: Specia
   const live = s.live.mediaId === m.id;
   const logo = s.settings.logoMediaId === m.id;
   return [
+    ...(useMissingMedia.getState().ids.includes(m.id) ? missingEntries(m) : []),
     { label: live ? 'Clear from Screen' : 'Show on Media Layer', action: () => s.setLiveMedia(live ? null : m.id, playlistId ?? null) },
     m.kind === 'video' && { label: 'When It Ends', submenu: () => playbackEntries(m.id).slice(1) },
     // The media bin's own tabs, by hand: ticked ones it's in; choosing one adds it or takes it out.

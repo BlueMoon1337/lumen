@@ -4,7 +4,7 @@ import { deleteBibleText, type BibleMeta } from './bible';
 import { BIBLE_DRAFT_ID, BIBLE_LIVE_ID } from './bibleSlides';
 import { colorForGroup, getSequence, parseLyrics } from './lyrics';
 import { upgradeGroupPresets } from './labels';
-import { deleteMediaBlob, putMediaBlob } from './media';
+import { deleteMediaBlob, storeMediaFile } from './media';
 import { defaultScreenSetup, newOutput, newScreen, nextScreenName, normalizeScreens } from './screens';
 import { defaultThemes, seedMessages, seedPlaylist, seedPresentations } from './seed';
 import * as ops from './slideOps';
@@ -1121,7 +1121,8 @@ export const useStore = create<AppState>()(
             else if (kind !== 'audio' && (options?.logo || isLogoName(item.name))) item.logo = true;
             // Backgrounds: images or videos imported into the Backgrounds tab, or named like one.
             else if (kind !== 'audio' && (options?.background || isBackgroundName(item.name))) item.background = true;
-            await putMediaBlob(item.id, file);
+            // In the desktop app, saved in Documents ▸ Lumen ▸ Media ▸ Assets (or Audio) and played from there.
+            await storeMediaFile(item.id, file, file.name, kind, item.mime);
             added.push(item);
           }
           if (added.length) set((s) => ({ media: [...s.media, ...added] }));

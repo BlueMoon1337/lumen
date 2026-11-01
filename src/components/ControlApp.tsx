@@ -4,6 +4,7 @@ import { registerFonts } from '../fonts';
 import { installHistory, runHistoryCommand, useHistory } from '../history';
 import { startFrameSync } from '../liveFrame';
 import { checkForUpdates, startUpdateChecks } from '../updates';
+import { moveMediaToFolders } from '../finder';
 import { deleteUnusedBlobs } from '../media';
 import { dismiss, useNotices } from '../notices';
 import { startScreenManager } from '../outputs';
@@ -369,7 +370,11 @@ export default function ControlApp() {
     // Deleted media keeps its file for Undo until now. Imported slideshows keep theirs while they're here.
     const { media, fonts, presentations } = useStore.getState();
     const own = Object.values(presentations).flatMap((p) => ownFiles(p).map((f) => f.id));
-    void deleteUnusedBlobs(new Set([...media.map((m) => m.id), ...fonts.map((f) => f.id), ...own])).catch(() => {});
+    void deleteUnusedBlobs(new Set([...media.map((m) => m.id), ...fonts.map((f) => f.id), ...own]))
+      .catch(() => 0)
+      // Then media Lumen still keeps itself moves into Documents ▸ Lumen ▸ Media (the desktop app).
+      .then(() => moveMediaToFolders())
+      .catch(() => {});
   }, []);
   useUndoKeys();
   useFileCommands();

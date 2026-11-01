@@ -120,6 +120,8 @@ export function MediaClock() {
 
   return (
     <video
+      // Files from Documents ▸ Lumen come through the asset protocol; the capture records this sound.
+      crossOrigin="anonymous"
       ref={ref}
       className="media-clock"
       src={media?.url}

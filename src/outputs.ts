@@ -4,6 +4,9 @@ import { activeOutputs, hostRoute, planHosts, type DetectedDisplay, type OutputH
 import { useStore } from './store';
 import type { AppIconId, ScreenKind } from './types';
 
+/** Lumen's media folders, in Documents ▸ Lumen. */
+export type LumenFolder = 'Media/Assets' | 'Media/Audio';
+
 /** An output window the desktop app should have open. */
 export interface DesktopOutputRequest {
   key: string;
@@ -52,10 +55,17 @@ export interface DesktopBridge {
   chooseExportFolder(): Promise<string | null>;
   /** Writes a file into the folder chosen last. */
   writeExportFile(name: string, data: Uint8Array): Promise<void>;
-  /** Show in Finder: where a media or audio item's copy goes in Documents ▸ Lumen ▸ Media (or Audio), and whether it's there. */
-  finderFile(folder: 'Media' | 'Audio', name: string, size: number): Promise<{ name: string; saved: boolean }>;
-  writeFinderFile(folder: 'Media' | 'Audio', name: string, data: Uint8Array): Promise<void>;
-  revealFinderFile(folder: 'Media' | 'Audio', name: string): Promise<void>;
+  /**
+   * Media files in Documents ▸ Lumen ▸ Media ▸ Assets (or Audio): the name a file would get there
+   * (its own, or numbered if a different file has it), and whether that file is there already.
+   */
+  finderFile(folder: LumenFolder, name: string, size: number): Promise<{ name: string; saved: boolean }>;
+  writeFinderFile(folder: LumenFolder, name: string, data: Uint8Array): Promise<void>;
+  revealFinderFile(folder: LumenFolder, name: string): Promise<void>;
+  /** Makes Lumen's folders, and gives the path of Documents ▸ Lumen. */
+  lumenFolder(): Promise<string>;
+  lumenFileExists(folder: LumenFolder, name: string): Promise<boolean>;
+  readLumenFile(folder: LumenFolder, name: string): Promise<ArrayBuffer>;
   readClipboardText(): Promise<string | null>;
   writeClipboardText(text: string): Promise<void>;
   /** Turns Edit's items on and off (by command id) and sets Check Spelling While Typing. */
