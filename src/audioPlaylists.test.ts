@@ -157,4 +157,20 @@ describe('a random countdown', () => {
       if (before) expect(s().live.mediaId).not.toBe(before);
     }
   });
+
+  it('starts the chosen playlist with it, and keeps it going for the next countdown', () => {
+    useStore.setState({
+      media: [track('a'), track('b'), { id: 'cd1', name: 'Countdown 1', kind: 'video', mime: 'video/mp4', countdown: true }],
+    });
+    s().playRandomCountdown();
+    expect(s().live.audioId).toBeNull();
+    const pl = s().createAudioPlaylist('Pre-Service');
+    s().addToAudioPlaylist(pl, ['a', 'b']);
+    s().updateSettings({ countdownPlaylistId: pl });
+    s().playRandomCountdown();
+    expect(s().live).toMatchObject({ mediaId: 'cd1', audioId: 'a', audioFrom: pl });
+    s().audioEnded();
+    s().playRandomCountdown();
+    expect(s().live.audioId).toBe('b');
+  });
 });

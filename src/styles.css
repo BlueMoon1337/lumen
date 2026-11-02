@@ -7080,3 +7080,14 @@ h3.looks-name {
   line-height: 22px;
   text-align: center;
 }
+
+/* Countdown Videos: the playlist that plays with a random countdown. */
+.random-countdown-music {
+  margin-top: 8px;
+  gap: 8px;
+}
+
+.random-countdown-music select {
+  flex: 1;
+  min-width: 0;
+}

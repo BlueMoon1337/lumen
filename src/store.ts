@@ -585,6 +585,15 @@ export function isNewSlide(s: Pick<AppState, 'presentations'>, slideId: string |
   return false;
 }
 
+/** Plays an audio playlist from the top (shuffled, from a random track, if it's set to shuffle). */
+function startAudioPlaylist(s: AppState, playlistId: string) {
+  const pl = s.audioPlaylists.find((x) => x.id === playlistId);
+  const first = pl?.items.find((id) => s.media.some((m) => m.id === id && m.kind === 'audio'));
+  if (!pl || !first) return;
+  if (pl.shuffle) s.shuffleAudio(pl.id);
+  else s.playAudio(first, pl.id);
+}
+
 /** Where audio plays from when the Audio Library is shuffled (in place of a playlist id). */
 export const AUDIO_LIBRARY = 'audio-library';
 
@@ -1412,7 +1421,12 @@ export const useStore = create<AppState>()(
           const s = get();
           const countdowns = s.media.filter((m) => m.kind === 'video' && m.countdown).map((m) => m.id);
           const choices = countdowns.length > 1 ? countdowns.filter((id) => id !== s.live.mediaId) : countdowns;
-          if (choices.length) s.setLiveMedia(pick(choices));
+          if (!choices.length) return;
+          s.setLiveMedia(pick(choices));
+          // Its music starts with it, unless that playlist is playing already (another countdown, same music).
+          const live = get().live;
+          const playlistId = s.settings.countdownPlaylistId;
+          if (playlistId && !(live.audioId && live.audioFrom === playlistId)) startAudioPlaylist(get(), playlistId);
         },
         setAudioPaused: (paused) => set((s) => ({ live: { ...s.live, audioPaused: paused } })),
         restartAudio: () => set((s) => ({ live: { ...s.live, audioPaused: false, audioRestart: s.live.audioRestart + 1 } })),
@@ -1556,12 +1570,7 @@ export const useStore = create<AppState>()(
           const s = get();
           if (s.settings.logoMediaId && s.media.some((m) => m.id === s.settings.logoMediaId))
             set((st) => ({ live: { ...clearLive(st.live, ['slide', 'media']), logo: true } }));
-          const pl = s.audioPlaylists.find((x) => x.id === s.settings.outroPlaylistId);
-          const first = pl?.items.find((id) => s.media.some((m) => m.id === id && m.kind === 'audio'));
-          if (pl && first) {
-            if (pl.shuffle) s.shuffleAudio(pl.id);
-            else s.playAudio(first, pl.id);
-          }
+          if (s.settings.outroPlaylistId) startAudioPlaylist(s, s.settings.outroPlaylistId);
         },
         toggleLogo: () => set((s) => ({ live: { ...s.live, logo: !s.live.logo } })),
         pressLogo: () =>

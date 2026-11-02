@@ -8,6 +8,9 @@ import { Icon, SectionHeader } from './ui';
 export function RandomCountdown() {
   const count = useStore((s) => s.media.filter((m) => m.kind === 'video' && m.countdown).length);
   const live = useStore((s) => s.media.find((m) => m.id === s.live.mediaId && m.countdown));
+  const playlists = useStore((s) => s.audioPlaylists);
+  const chosen = useStore((s) => s.settings.countdownPlaylistId);
+  const playlistId = playlists.some((pl) => pl.id === chosen) ? chosen : '';
   const s = useStore.getState();
   return (
     <>
@@ -21,6 +24,26 @@ export function RandomCountdown() {
             ? `Puts ${count === 1 ? 'the countdown video' : `one of the ${count} countdown videos`} in Media ▸ Countdowns on the audience screen.${live ? ` Now: ${live.name}.` : ''}`
             : 'No countdown videos yet: add them in Media ▸ Countdowns.'}
         </p>
+        <label className="field-row random-countdown-music">
+          <span>With music</span>
+          <select
+            value={playlistId}
+            onChange={(e) => s.updateSettings({ countdownPlaylistId: e.target.value || undefined })}
+            aria-label="Audio playlist that plays with a random countdown"
+            title="The audio playlist that starts when a random countdown plays (it keeps going if it's already playing)"
+          >
+            <option value="">No music</option>
+            {playlists.map((pl) => (
+              <option key={pl.id} value={pl.id}>
+                {pl.name}
+                {pl.shuffle ? ' (shuffled)' : ''}
+              </option>
+            ))}
+          </select>
+        </label>
+        {!playlists.length && (
+          <p className="muted small-print">Make an audio playlist in the Audio tab to play music with the countdown.</p>
+        )}
       </div>
     </>
   );
