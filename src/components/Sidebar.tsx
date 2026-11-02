@@ -2,7 +2,6 @@ import { useMemo, useState, type DragEvent } from 'react';
 import { importFiles } from '../commands';
 import { useStore } from '../store';
 import type { Category } from '../types';
-import { slideWords } from '../slideshows';
 import { openContextMenu, type ContextEntries } from './ContextMenu';
 import { deleteLibrary, deletePlaylist, removePlaylistItem } from './deleting';
 import { importFileCommand, newLibrary, newPlaylist, newPresentationNamed } from './fileCommands';
@@ -316,13 +315,11 @@ function LibraryItems() {
   const highlighted = useLibrarySelection((st) => st.ids);
 
   const list = useMemo(() => {
+    // By title only (the toolbar's Search finds words in the slides too).
     const q = filter.trim().toLowerCase();
     return Object.values(presentations)
       .filter((p) => p.category === category && !p.hidden)
-      .filter(
-        (p) =>
-          !q || p.title.toLowerCase().includes(q) || p.groups.some((g) => g.slides.some((sl) => slideWords(sl).toLowerCase().includes(q))),
-      )
+      .filter((p) => !q || p.title.toLowerCase().includes(q))
       .sort((a, b) => a.title.localeCompare(b.title));
   }, [presentations, category, filter]);
   const order = useMemo(() => list.map((p) => p.id), [list]);

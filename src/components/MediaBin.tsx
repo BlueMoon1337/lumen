@@ -7,7 +7,7 @@ import { useStore } from '../store';
 import { fitsTab, type MediaItem, type MediaPlaylist } from '../types';
 import { formatDuration } from '../util';
 import { CameraFill } from './Canvas';
-import { NamePopup, openContextMenu, openPopupBelow } from './ContextMenu';
+import { closePopup, NamePopup, openContextMenu, openPopupBelow } from './ContextMenu';
 import { deleteMedia, deleteMediaPlaylist, removeFromTab, TAB_NAMES, type SpecialTab } from './deleting';
 import { mediaMenu, mediaSelectionMenu } from './menus';
 import { TransitionButton } from './TransitionPicker';
@@ -404,7 +404,10 @@ function TabPicker({ tab }: { tab: SpecialTab }) {
   const kinds = tab === 'countdown' || tab === 'outro' ? 'videos' : 'images and videos';
   return (
     <div className="tab-picker">
-      <div className="tab-picker-head">Add to {TAB_NAMES[tab]}</div>
+      <div className="tab-picker-head">
+        <span>Add to {TAB_NAMES[tab]}</span>
+        <IconButton icon="close" title="Close" onClick={closePopup} />
+      </div>
       <FilterField value={query} onChange={setQuery} placeholder="Search media" />
       <ul className="tab-picker-list">
         {choices.map((m) => (
@@ -431,6 +434,26 @@ function TabPickerRow({ item, onAdd }: { item: MediaItem; onAdd: () => void }) {
         <Icon name="plus" size={14} />
       </button>
     </li>
+  );
+}
+
+/** Random Background: one of the Backgrounds tab's items, chosen at random, on the Media layer. */
+function RandomBackground() {
+  const count = useStore((s) => s.media.filter((m) => m.kind !== 'audio' && m.background).length);
+  return (
+    <button
+      type="button"
+      className="btn small random-background"
+      disabled={!count}
+      onClick={() => useStore.getState().playRandomBackground()}
+      title={
+        count
+          ? `Puts ${count === 1 ? 'the background' : `one of the ${count} backgrounds`} in Media ▸ Backgrounds on the audience screen`
+          : 'No backgrounds yet: add them in Media ▸ Backgrounds'
+      }
+    >
+      <Icon name="shuffle" size={12} /> Random Background
+    </button>
   );
 }
 
@@ -666,6 +689,7 @@ function MediaGrid() {
             <Icon name="plus" size={12} /> Add from Media Bin
           </button>
         )}
+        <RandomBackground />
         <TransitionButton target="media" className="media-transition" prefix="Media" />
       </div>
       {empty ? (

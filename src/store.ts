@@ -327,6 +327,8 @@ interface Actions {
   shuffleAudio(from: string): void;
   /** A random countdown video (not the one up now) on the Media layer. */
   playRandomCountdown(): void;
+  /** Puts one of the Backgrounds tab's items (not the one up now) on the Media layer, at random. */
+  playRandomBackground(): void;
   setAudioPaused(paused: boolean): void;
   restartAudio(): void;
   setVideoInput(input: LiveState['videoInput']): void;
@@ -1427,6 +1429,12 @@ export const useStore = create<AppState>()(
           const live = get().live;
           const playlistId = s.settings.countdownPlaylistId;
           if (playlistId && !(live.audioId && live.audioFrom === playlistId)) startAudioPlaylist(get(), playlistId);
+        },
+        playRandomBackground: () => {
+          const s = get();
+          const backgrounds = s.media.filter((m) => m.kind !== 'audio' && m.background).map((m) => m.id);
+          const choices = backgrounds.length > 1 ? backgrounds.filter((id) => id !== s.live.mediaId) : backgrounds;
+          if (choices.length) s.setLiveMedia(pick(choices));
         },
         setAudioPaused: (paused) => set((s) => ({ live: { ...s.live, audioPaused: paused } })),
         restartAudio: () => set((s) => ({ live: { ...s.live, audioPaused: false, audioRestart: s.live.audioRestart + 1 } })),

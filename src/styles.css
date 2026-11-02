@@ -655,6 +655,7 @@ body.resizing-y * {
   background: transparent;
   padding: 7px 0;
   font-size: 14px;
+  color: #fff;
 }
 
 .pop-results {
@@ -855,6 +856,8 @@ body.resizing-y * {
   background: transparent;
   padding: 0;
   font-size: 13px;
+  /* What's typed is white; the placeholder stays grey. */
+  color: #fff;
 }
 
 .filter-field .icon-btn {
@@ -6772,7 +6775,15 @@ h3.looks-name {
 }
 
 .tab-picker-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
   font-weight: 600;
+}
+
+/* The picker's close button sits in its top corner. */
+.tab-picker-head .icon-btn {
+  margin: -4px -4px -4px 0;
 }
 
 .tab-picker-list {
@@ -7090,4 +7101,12 @@ h3.looks-name {
 .random-countdown-music select {
   flex: 1;
   min-width: 0;
+}
+
+/* Random Background, beside the media transition in the media bin's top bar. */
+.random-background {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  margin-right: 8px;
 }

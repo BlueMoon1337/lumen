@@ -109,7 +109,9 @@ export const openPopupAtMenu = (node: ReactNode) => openPopup(lastPoint.x, lastP
 function useDismiss(open: boolean, inside: string, close: () => void, closeOnBlur: boolean) {
   useEffect(() => {
     if (!open) return;
-    const onDown = (e: MouseEvent) => {
+    // A press anywhere else closes it: the pointer press, which comes first and always arrives (an
+    // area that starts a selection box on the press can keep the Mac app from sending mousedown).
+    const onDown = (e: Event) => {
       if (!(e.target instanceof Element) || !e.target.closest(inside)) close();
     };
     const onKey = (e: KeyboardEvent) => {
@@ -119,13 +121,13 @@ function useDismiss(open: boolean, inside: string, close: () => void, closeOnBlu
       e.preventDefault();
       close();
     };
-    window.addEventListener('mousedown', onDown, true);
+    window.addEventListener('pointerdown', onDown, true);
     window.addEventListener('keydown', onKey, true);
     window.addEventListener('resize', close);
     // Not for panels: a color well's system picker takes focus from the window.
     if (closeOnBlur) window.addEventListener('blur', close);
     return () => {
-      window.removeEventListener('mousedown', onDown, true);
+      window.removeEventListener('pointerdown', onDown, true);
       window.removeEventListener('keydown', onKey, true);
       window.removeEventListener('resize', close);
       window.removeEventListener('blur', close);
