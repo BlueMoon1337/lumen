@@ -20,6 +20,7 @@ import {
   nearestGap,
   FilterField,
   setDragPreview,
+  useMarqueeSelect,
   hasOutsideFiles,
   Icon,
   IconButton,
@@ -605,6 +606,13 @@ function MediaGrid() {
   const [dropping, setDropping] = useState(false);
   const playlistId = playlist?.id ?? null;
   const selection = useMediaSelection((s) => s.ids);
+  // Dragging a box over the open space highlights the items it touches.
+  const marquee = useMarqueeSelect({
+    items: '.media-tile',
+    idOf: (el) => el.dataset.mediaId!,
+    selected: () => useMediaSelection.getState().ids,
+    select: (ids) => useMediaSelection.setState((s) => ({ ids, anchor: ids.includes(s.anchor ?? '') ? s.anchor : (ids.at(-1) ?? null) })),
+  });
   // Media dragged into the open space of the grid (between items, or after the last) goes to the nearest gap.
   const [gap, setGap] = useState<{ id: string; after: boolean } | null>(null);
   const gapAt = (e: DragEvent) => {
@@ -695,11 +703,12 @@ function MediaGrid() {
         </div>
       ) : (
         <div
+          ref={marquee.ref}
           className="media-grid"
           tabIndex={-1}
           style={{ gridTemplateColumns: `repeat(auto-fill, minmax(${size}px, 1fr))` }}
-          // A click between the items takes the highlight away.
-          onClick={(e) => e.target === e.currentTarget && useMediaSelection.setState({ ids: [], anchor: null })}
+          // A click between the items takes the highlight away; a drag there draws a box to highlight them.
+          onPointerDown={marquee.onPointerDown}
           onDragOver={(e) => {
             const at = gapAt(e);
             if (at) {
@@ -726,6 +735,7 @@ function MediaGrid() {
             s.moveInMediaPlaylist(playlist.id, ids, before);
           }}
         >
+          {marquee.marquee}
           {items.map((m, i) => (
             <MediaTile
               key={m.id}

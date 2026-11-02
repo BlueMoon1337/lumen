@@ -1,15 +1,5 @@
 import { moveSlides } from '../slideOps';
-import {
-  memo,
-  useEffect,
-  useMemo,
-  useRef,
-  useState,
-  type DragEvent,
-  type MouseEvent as ReactMouseEvent,
-  type PointerEvent as ReactPointerEvent,
-  type Ref,
-} from 'react';
+import { memo, useEffect, useMemo, useRef, useState, type DragEvent, type MouseEvent as ReactMouseEvent, type Ref } from 'react';
 import { getSequence } from '../lyrics';
 import { layerOf, useStore } from '../store';
 import { inkFor, resolveTheme, slideTheme } from '../theme';
@@ -21,7 +11,7 @@ import { clickSlide, selectForMenu } from './editCommands';
 import { slideMenu } from './menus';
 import { TargetTransitionPicker, TransitionButton, TransitionGlyph } from './TransitionPicker';
 import { importMediaFiles } from './MediaBin';
-import { DRAG_MEDIA, Icon, IconButton, nearestGap, setDragPreview } from './ui';
+import { DRAG_MEDIA, Icon, IconButton, nearestGap, setDragPreview, useMarqueeSelect } from './ui';
 
 /** A slide label's tag on a thumbnail or row. */
 export function LabelTag({ label }: { label: ColorLabel }) {
@@ -389,73 +379,17 @@ function useItemId(own: string | undefined) {
  * ⌘ or ⇧ adds to the slides already selected; a click on empty space selects none.
  */
 function useMarquee(presentationId: string, playlistItemId: string | null, continuous: boolean) {
-  const ref = useRef<HTMLDivElement>(null);
-  const [box, setBox] = useState<{ left: number; top: number; width: number; height: number } | null>(null);
-  const onPointerDown = (e: ReactPointerEvent) => {
-    const el = ref.current;
-    if (!el || e.button !== 0 || (e.target as Element).closest('[data-slide-id], button, input')) return;
-    e.preventDefault();
-    const s = useStore.getState();
-    if (s.selectedPresentationId !== presentationId) s.select(presentationId, continuous ? playlistItemId : s.selectedPlaylistItemId);
-    const adding = e.shiftKey || e.metaKey || e.ctrlKey;
-    const base = adding ? useStore.getState().selectedSlideIds : [];
-    // Positions inside the list, so the box stays put on the slides when the list scrolls.
-    const local = (x: number, y: number) => {
-      const r = el.getBoundingClientRect();
-      return { x: x - r.left + el.scrollLeft, y: y - r.top + el.scrollTop };
-    };
-    const start = local(e.clientX, e.clientY);
-    let last = { x: e.clientX, y: e.clientY };
-    let moved = false;
-    const update = () => {
-      const now = local(last.x, last.y);
-      const rect = {
-        left: Math.min(start.x, now.x),
-        top: Math.min(start.y, now.y),
-        width: Math.abs(now.x - start.x),
-        height: Math.abs(now.y - start.y),
-      };
-      setBox(rect);
-      const hits: string[] = [];
-      for (const slide of el.querySelectorAll<HTMLElement>('[data-slide-id]')) {
-        const r = slide.getBoundingClientRect();
-        const a = local(r.left, r.top);
-        if (a.x < rect.left + rect.width && a.x + r.width > rect.left && a.y < rect.top + rect.height && a.y + r.height > rect.top)
-          hits.push(slide.dataset.slideId!);
-      }
-      const ids = [...new Set([...base, ...hits])];
-      const current = useStore.getState().selectedSlideIds;
-      if (ids.length !== current.length || ids.some((id, i) => id !== current[i])) useStore.getState().setUI({ selectedSlideIds: ids });
-    };
-    // Near the top or bottom edge, the list scrolls along.
-    const scroller = (el.scrollHeight > el.clientHeight ? el : el.closest('.continuous-playlist')) as HTMLElement | null;
-    const timer = window.setInterval(() => {
-      if (!moved || !scroller) return;
-      const r = scroller.getBoundingClientRect();
-      const dy = last.y < r.top + 30 ? -12 : last.y > r.bottom - 30 ? 12 : 0;
-      if (dy) {
-        scroller.scrollTop += dy;
-        update();
-      }
-    }, 30);
-    const onMove = (ev: PointerEvent) => {
-      last = { x: ev.clientX, y: ev.clientY };
-      if (!moved && Math.abs(ev.clientX - e.clientX) + Math.abs(ev.clientY - e.clientY) < 4) return;
-      moved = true;
-      update();
-    };
-    const onUp = () => {
-      window.removeEventListener('pointermove', onMove);
-      window.removeEventListener('pointerup', onUp);
-      window.clearInterval(timer);
-      setBox(null);
-      if (!moved && !adding) useStore.getState().setUI({ selectedSlideIds: [] });
-    };
-    window.addEventListener('pointermove', onMove);
-    window.addEventListener('pointerup', onUp);
-  };
-  const marquee = box && <div className="marquee" style={box} />;
-  return { ref, onPointerDown, marquee };
+  return useMarqueeSelect({
+    items: '[data-slide-id]',
+    idOf: (el) => el.dataset.slideId!,
+    selected: () => useStore.getState().selectedSlideIds,
+    select: (ids) => useStore.getState().setUI({ selectedSlideIds: ids }),
+    onStart: () => {
+      const s = useStore.getState();
+      if (s.selectedPresentationId !== presentationId) s.select(presentationId, continuous ? playlistItemId : s.selectedPlaylistItemId);
+    },
+    scroller: (el) => (el.scrollHeight > el.clientHeight ? el : el.closest<HTMLElement>('.continuous-playlist')),
+  });
 }
 
 /** Clicking a slide: shows it, and in a continuous playlist selects its presentation too. */

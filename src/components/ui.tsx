@@ -1,4 +1,11 @@
-import { useEffect, useRef, type MouseEvent as ReactMouseEvent, type ReactNode } from 'react';
+import {
+  useEffect,
+  useRef,
+  useState,
+  type MouseEvent as ReactMouseEvent,
+  type PointerEvent as ReactPointerEvent,
+  type ReactNode,
+} from 'react';
 import { notify } from '../notices';
 
 const paths = {
@@ -501,6 +508,90 @@ export function nearestGap(container: HTMLElement, selector: string, x: number, 
   }
   const last = items[items.length - 1];
   return y > last.r.bottom ? { el: last.el, after: true } : null;
+}
+
+/**
+ * Selecting by dragging a box over the open space of a grid or list: the items it touches are
+ * selected (added to what's selected with ⇧, ⌘ or Ctrl held), and near the top or bottom edge the
+ * list scrolls along. A click on the open space without dragging selects nothing. Spread
+ * `onPointerDown` on the container (given `ref`, positioned) and render `marquee` inside it.
+ */
+export function useMarqueeSelect(opts: {
+  /** Selects the items, in the order shown. */
+  items: string;
+  idOf: (el: HTMLElement) => string;
+  selected: () => string[];
+  select: (ids: string[]) => void;
+  onStart?: () => void;
+  /** What scrolls when the box nears an edge (the container itself, unless given). */
+  scroller?: (el: HTMLElement) => HTMLElement | null;
+}) {
+  const ref = useRef<HTMLDivElement>(null);
+  const [box, setBox] = useState<{ left: number; top: number; width: number; height: number } | null>(null);
+  const onPointerDown = (e: ReactPointerEvent) => {
+    const el = ref.current;
+    if (!el || e.button !== 0 || (e.target as Element).closest(`${opts.items}, button, input`)) return;
+    e.preventDefault();
+    el.focus({ preventScroll: true });
+    opts.onStart?.();
+    const adding = e.shiftKey || e.metaKey || e.ctrlKey;
+    const base = adding ? opts.selected() : [];
+    // Positions inside the list, so the box stays put on the items when the list scrolls.
+    const local = (x: number, y: number) => {
+      const r = el.getBoundingClientRect();
+      return { x: x - r.left + el.scrollLeft, y: y - r.top + el.scrollTop };
+    };
+    const start = local(e.clientX, e.clientY);
+    let last = { x: e.clientX, y: e.clientY };
+    let moved = false;
+    const update = () => {
+      const now = local(last.x, last.y);
+      const rect = {
+        left: Math.min(start.x, now.x),
+        top: Math.min(start.y, now.y),
+        width: Math.abs(now.x - start.x),
+        height: Math.abs(now.y - start.y),
+      };
+      setBox(rect);
+      const hits: string[] = [];
+      for (const item of el.querySelectorAll<HTMLElement>(opts.items)) {
+        const r = item.getBoundingClientRect();
+        const a = local(r.left, r.top);
+        if (a.x < rect.left + rect.width && a.x + r.width > rect.left && a.y < rect.top + rect.height && a.y + r.height > rect.top)
+          hits.push(opts.idOf(item));
+      }
+      const ids = [...new Set([...base, ...hits])];
+      const current = opts.selected();
+      if (ids.length !== current.length || ids.some((id, i) => id !== current[i])) opts.select(ids);
+    };
+    const scroller = opts.scroller ? opts.scroller(el) : el;
+    const timer = window.setInterval(() => {
+      if (!moved || !scroller) return;
+      const r = scroller.getBoundingClientRect();
+      const dy = last.y < r.top + 30 ? -12 : last.y > r.bottom - 30 ? 12 : 0;
+      if (dy) {
+        scroller.scrollTop += dy;
+        update();
+      }
+    }, 30);
+    const onMove = (ev: PointerEvent) => {
+      last = { x: ev.clientX, y: ev.clientY };
+      if (!moved && Math.abs(ev.clientX - e.clientX) + Math.abs(ev.clientY - e.clientY) < 4) return;
+      moved = true;
+      update();
+    };
+    const onUp = () => {
+      window.removeEventListener('pointermove', onMove);
+      window.removeEventListener('pointerup', onUp);
+      window.clearInterval(timer);
+      setBox(null);
+      if (!moved && !adding) opts.select([]);
+    };
+    window.addEventListener('pointermove', onMove);
+    window.addEventListener('pointerup', onUp);
+  };
+  const marquee = box && <div className="marquee" style={box} />;
+  return { ref, onPointerDown, marquee };
 }
 
 /** The ids a drag carries: the highlighted items dragged together (`listType`), or the one (`type`). */

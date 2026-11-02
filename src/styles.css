@@ -1322,6 +1322,7 @@ body.resizing-y * {
 }
 
 .media-grid {
+  position: relative;
   flex: 1;
   overflow-y: auto;
   display: grid;
