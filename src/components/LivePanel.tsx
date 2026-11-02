@@ -7,6 +7,7 @@ import { useStore, type LiveTab } from '../store';
 import { ALL_LAYERS, isLayerLive, LAYERS } from '../layers';
 import { formatDuration, parseDuration } from '../util';
 import { AudioTab } from './AudioTab';
+import { RandomCountdown } from './RandomCountdown';
 import { seekAudio, useAudioStatus } from './AudioPlayer';
 import { OutputView } from './Canvas';
 import { ClearGroupsRow } from './ClearGroups';
@@ -335,28 +336,6 @@ function TimersTab() {
         <p className="muted small-print">
           This countdown is for the stage display only: the audience screen doesn't show it. To put it in front of the audience too, show
           the {'{countdown}'} message in Messages. The fade is set in Audio ▸ Countdown Fade.
-        </p>
-      </div>
-    </>
-  );
-}
-
-/** Countdown Videos: one of the media bin's countdowns, chosen at random, on the Media layer (for the audience). */
-function RandomCountdown() {
-  const count = useStore((s) => s.media.filter((m) => m.kind === 'video' && m.countdown).length);
-  const live = useStore((s) => s.media.find((m) => m.id === s.live.mediaId && m.countdown));
-  const s = useStore.getState();
-  return (
-    <>
-      <SectionHeader title="Countdown Videos" />
-      <div className="tab-pad random-countdown">
-        <button type="button" className="btn" disabled={!count} onClick={s.playRandomCountdown}>
-          <Icon name="shuffle" size={13} /> {live ? 'Play Another Random Countdown' : 'Play a Random Countdown'}
-        </button>
-        <p className="muted small-print">
-          {count
-            ? `Puts ${count === 1 ? 'the countdown video' : `one of the ${count} countdown videos`} in Media ▸ Countdowns on the audience screen.${live ? ` Now: ${live.name}.` : ''}`
-            : 'No countdown videos yet: add them in Media ▸ Countdowns.'}
         </p>
       </div>
     </>

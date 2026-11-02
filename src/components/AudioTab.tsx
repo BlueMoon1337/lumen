@@ -9,6 +9,7 @@ import type { MediaItem, MediaPlaylist } from '../types';
 import { formatDuration } from '../util';
 import { NamePopup, openContextMenu, openPopupAtMenu, openPopupBelow, type ContextEntries } from './ContextMenu';
 import { deleteAudioPlaylist, deleteMedia } from './deleting';
+import { RandomCountdown } from './RandomCountdown';
 import { Dialog, DRAG_AUDIO, setDragLabel, FilterField, hasOutsideFiles, Icon, IconButton, pickFiles, SectionHeader } from './ui';
 
 const st = () => useStore.getState();
@@ -505,6 +506,8 @@ export function AudioTab() {
         if (e.dataTransfer.files.length) void importAudio(Array.from(e.dataTransfer.files));
       }}
     >
+      {/* The same as the Timers tab's: the countdown, and the music fading out with it, are managed together here. */}
+      <RandomCountdown />
       <CountdownFade />
       <SectionHeader title="Playlists" collapsed={!playlistsOpen} onToggle={() => setPlaylistsOpen(!playlistsOpen)}>
         <IconButton
