@@ -58,6 +58,10 @@ export function AudioPlayer() {
   const incoming = useRef<HTMLAudioElement | null>(null);
   // Seconds to fade the next track in over, once it has loaded.
   const inMs = useRef(0);
+  // Music a countdown video took away at its end, to bring back if the countdown is pushed back
+  // (rewound) after all; and where a track brought back starts.
+  const resumable = useRef<{ mediaId: string; audioId: string; from: string | null; time: number } | null>(null);
+  const startAt = useRef<number | null>(null);
 
   const stopRamp = (a: HTMLAudioElement) => {
     const id = ramps.current.get(a);
@@ -182,7 +186,7 @@ export function AudioPlayer() {
       if (!clearing.current && !ramps.current.has(a) && incoming.current !== a) a.volume = 1;
       return;
     }
-    const tick = window.setInterval(() => {
+    const step = () => {
       if (clearing.current) return;
       const left: number[] = [];
       // A countdown that's already over (a video holding its last frame, a timer running into overtime)
@@ -195,10 +199,42 @@ export function AudioPlayer() {
       const remaining = Math.min(...left);
       const p = el(curRef.current);
       if (p && !ramps.current.has(p) && incoming.current !== p) p.volume = countdownVolume(remaining, fadeSettings.seconds);
-      if (remaining <= 0.1) useStore.getState().clearLayers(['audio']);
-    }, 50);
+      if (remaining <= 0.1) {
+        const live = useStore.getState().live;
+        // The video's end (not the timer's) keeps the music's place, in case it's pushed back.
+        resumable.current =
+          v && live.mediaId && live.audioId && v.duration - v.currentTime <= remaining + 0.05
+            ? { mediaId: live.mediaId, audioId: live.audioId, from: live.audioFrom, time: p?.currentTime ?? 0 }
+            : null;
+        useStore.getState().clearLayers(['audio']);
+      }
+    };
+    // At once too, so music starting (or brought back) late in a countdown starts at its faded volume.
+    step();
+    const tick = window.setInterval(step, 50);
     return () => window.clearInterval(tick);
   }, [videoCountdown, timerRunning, audioId, cur, fadeSettings.seconds]);
+
+  // A countdown pushed back (rewound) after it ended brings back the music it took away, where it
+  // was, at the volume the fade has for the time now left. Anything else (another video, other
+  // music) forgets it.
+  useEffect(() => {
+    const tick = window.setInterval(() => {
+      const keep = resumable.current;
+      if (!keep) return;
+      const live = useStore.getState().live;
+      if (live.mediaId !== keep.mediaId || live.audioId) {
+        resumable.current = null;
+        return;
+      }
+      const v = liveVideoElement();
+      if (!v || !Number.isFinite(v.duration) || v.duration - v.currentTime < 0.5) return;
+      resumable.current = null;
+      startAt.current = keep.time;
+      useStore.getState().playAudio(keep.audioId, keep.from);
+    }, 200);
+    return () => window.clearInterval(tick);
+  }, []);
 
   // A new track, or the same one again, starts from the top (fading in, when it's crossfading).
   const current = media[cur];
@@ -206,7 +242,9 @@ export function AudioPlayer() {
     const a = el(curRef.current);
     // While a crossfade switches players, only the incoming one starts.
     if (!a || !current || !audioId || (incoming.current && incoming.current !== a)) return;
-    a.currentTime = 0;
+    // From the top, or where music a countdown took away was (brought back by pushing it back).
+    a.currentTime = startAt.current ?? 0;
+    startAt.current = null;
     if (useStore.getState().live.audioPaused) return;
     void a.play().catch(() => {});
     if (incoming.current === a) {
