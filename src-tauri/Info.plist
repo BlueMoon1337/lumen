@@ -6,5 +6,11 @@
 	<string>Lumen shows cameras and capture cards on the Video Input layer.</string>
 	<key>NSAppleEventsUsageDescription</key>
 	<string>Lumen asks Keynote to export the slides of Keynote presentations you import.</string>
+	<!-- Media plays from Lumen's own server on this computer (127.0.0.1): allowed without HTTPS. -->
+	<key>NSAppTransportSecurity</key>
+	<dict>
+		<key>NSAllowsLocalNetworking</key>
+		<true/>
+	</dict>
 </dict>
 </plist>

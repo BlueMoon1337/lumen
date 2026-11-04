@@ -28,8 +28,19 @@ let base: Promise<string> | null = null;
 /** Documents ▸ Lumen, made if it isn't there. */
 const lumenBase = () => (base ??= window.lumenDesktop!.lumenFolder());
 
-/** What a file is played from: the desktop app's asset protocol, with the file's path. */
-const fileUrl = async (f: MediaFile) => convertFileSrc(`${await lumenBase()}/${f.folder}/${f.name}`);
+let server: Promise<string | null> | null = null;
+
+/**
+ * What a file is played from: Lumen's media server on this computer, which streams it as macOS's
+ * player expects (src-tauri/src/media_server.rs); or, failing that, the asset protocol, which
+ * hands over 1 MB a request and so can stutter on a 4K video's busiest seconds.
+ */
+const fileUrl = async (f: MediaFile) => {
+  server ??= (window.lumenDesktop?.mediaServer?.() ?? Promise.resolve(null)).catch(() => null);
+  const address = await server;
+  const path = `${f.folder}/${f.name}`;
+  return address ? `${address}/${path.split('/').map(encodeURIComponent).join('/')}` : convertFileSrc(`${await lumenBase()}/${path}`);
+};
 
 /** Items whose file isn't there: moved or deleted in Finder, or missing from what was imported. */
 export const useMissingMedia = create<{ ids: string[] }>(() => ({ ids: [] }));

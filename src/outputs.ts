@@ -65,6 +65,8 @@ export interface DesktopBridge {
   /** Makes Lumen's folders, and gives the path of Documents ▸ Lumen. */
   lumenFolder(): Promise<string>;
   lumenFileExists(folder: LumenFolder, name: string): Promise<boolean>;
+  /** The media server's address on this computer: media files play from `<it>/<folder>/<name>`. */
+  mediaServer(): Promise<string>;
   readLumenFile(folder: LumenFolder, name: string): Promise<ArrayBuffer>;
   removeLumenFile(folder: LumenFolder, name: string): Promise<void>;
   /** Opens a folder of Documents ▸ Lumen in Finder ("Libraries" for them all). */

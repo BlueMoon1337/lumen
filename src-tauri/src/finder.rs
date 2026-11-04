@@ -88,6 +88,12 @@ pub async fn read_lumen_file(app: AppHandle, folder: String, name: String) -> Re
     Ok(Response::new(data))
 }
 
+/// Where media files are played from: the media server on this computer (src/media_server.rs).
+#[tauri::command]
+pub fn media_server(app: AppHandle) -> Result<String, String> {
+    crate::media_server::address(base(&app)?)
+}
+
 /// Whether a media file is still where Lumen put it.
 #[tauri::command]
 pub fn lumen_file_exists(app: AppHandle, folder: String, name: String) -> Result<bool, String> {

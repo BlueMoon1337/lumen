@@ -63,6 +63,7 @@ export function installDesktopBridge() {
     revealFinderFile: (folder, name) => invoke('reveal_finder_file', { folder, name }),
     lumenFolder: () => invoke<string>('lumen_folder'),
     lumenFileExists: (folder, name) => invoke<boolean>('lumen_file_exists', { folder, name }),
+    mediaServer: () => invoke<string>('media_server'),
     readLumenFile: (folder, name) => invoke<ArrayBuffer>('read_lumen_file', { folder, name }),
     removeLumenFile: (folder, name) => invoke('remove_lumen_file', { folder, name }),
     revealLumenFolder: (folder) => invoke('reveal_lumen_folder', { folder }),

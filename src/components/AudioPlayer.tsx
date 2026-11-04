@@ -274,7 +274,7 @@ export function AudioPlayer() {
     <>
       {[0, 1].map((i) => (
         <audio
-          // Files from Documents ▸ Lumen come through the asset protocol; the capture records this sound.
+          // Files come from Lumen's media server on this computer; the capture records this sound.
           crossOrigin="anonymous"
           key={i}
           ref={refs[i]}

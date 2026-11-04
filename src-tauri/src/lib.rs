@@ -9,6 +9,7 @@ mod displays;
 mod edit;
 mod files;
 mod finder;
+mod media_server;
 mod icon;
 mod keynote;
 mod menu;
@@ -87,6 +88,7 @@ pub fn run() {
             finder::reveal_finder_file,
             finder::lumen_folder,
             finder::lumen_file_exists,
+            finder::media_server,
             finder::read_lumen_file,
             finder::remove_lumen_file,
             finder::reveal_lumen_folder,
