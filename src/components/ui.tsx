@@ -68,6 +68,8 @@ const paths = {
   repeat: 'M17 2l3 3-3 3M20 5H8a4 4 0 0 0-4 4v1M7 22l-3-3 3-3M4 19h12a4 4 0 0 0 4-4v-1',
   stop: 'M6 6h12v12H6z',
   back10: 'M11 7l-5 5 5 5M18 7l-5 5 5 5',
+  previousTrack: 'M5 6h2.5v12H5zM19 6v12L9 12z',
+  nextTrack: 'M16.5 6H19v12h-2.5zM5 6v12l10-6z',
   forward10: 'M13 7l5 5-5 5M6 7l5 5-5 5',
   film: 'M4 4h16v16H4zM8 4v16M16 4v16M4 8h4M4 12h4M4 16h4M16 8h4M16 12h4M16 16h4',
 } as const;
@@ -75,7 +77,7 @@ const paths = {
 export type IconName = keyof typeof paths;
 
 /** Icons drawn solid rather than as outlines, to read at a glance (pause: two bars). */
-const SOLID = new Set<IconName>(['pause']);
+const SOLID = new Set<IconName>(['pause', 'previousTrack', 'nextTrack']);
 
 export function Icon({ name, size = 16 }: { name: IconName; size?: number }) {
   if (SOLID.has(name))

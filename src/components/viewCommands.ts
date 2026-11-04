@@ -36,7 +36,7 @@ export function runViewCommand(id: string): boolean {
   if (!canRunView(id, s)) return false;
   if (id in MODES) s.setUI({ mode: MODES[id] });
   else if (id in SLIDE_VIEWS) s.updateSettings({ slideView: SLIDE_VIEWS[id] });
-  else if (id === 'continuous-playlist') s.updateSettings({ continuousPlaylist: !s.settings.continuousPlaylist });
+  else if (id === 'continuous-playlist') s.updateSettings({ continuousPlaylist: s.settings.continuousPlaylist === false });
   else return false;
   return true;
 }
@@ -64,7 +64,7 @@ export function useViewCommands() {
         const s = st();
         const state = {
           presentation: hasPresentation(s),
-          continuousPlaylist: !!s.settings.continuousPlaylist,
+          continuousPlaylist: s.settings.continuousPlaylist !== false,
           slideView: s.settings.slideView,
         };
         const key = JSON.stringify(state);
@@ -107,7 +107,7 @@ export function viewEntries(): ContextEntries {
     item('Reflow Editor', 'view-reflow', key('R')),
     item('Bibles', 'view-bibles', key('B')),
     '-',
-    item('Continuous Playlist', 'continuous-playlist', undefined, !!s.settings.continuousPlaylist),
+    item('Continuous Playlist', 'continuous-playlist', undefined, s.settings.continuousPlaylist !== false),
     '-',
     {
       label: 'Slide View',

@@ -319,6 +319,10 @@ interface Actions {
   playAudio(mediaId: string, playlistId?: string | null): void;
   /** The track ended: the next one in its playlist plays, or the Audio layer clears. */
   audioEnded(): void;
+  /** Skips to the next track of the playlist playing (nothing after the last, unless it loops). */
+  nextTrack(): void;
+  /** Goes back to the track before (in a shuffled playlist, the one played before); with none, plays this one from the start. */
+  previousTrack(): void;
   /** Loops the playing track, or stops looping it (nothing when no track is playing). */
   loopAudio(on: boolean): void;
   /** Moves audio playlists to before another one (null: to the end). */
@@ -615,6 +619,27 @@ const pick = <T>(list: T[]): T => list[Math.floor(Math.random() * list.length)];
  * The track after `id` where it was played from: the next in the playlist (back to the first if it
  * loops), or, shuffled, one not yet played this round (a new round if it loops). Null after the last.
  */
+/**
+ * The track before `id` where it was played from: the one before in the playlist (the last, if it
+ * loops), or, shuffled, the one played before it this round. Null when there's none.
+ */
+export function previousAudio(
+  s: Pick<LibraryData, 'media' | 'audioPlaylists'>,
+  id: string,
+  playlistId: string | null,
+  played: string[] = [],
+): string | null {
+  const src = audioSource(s, playlistId);
+  if (!src || !src.order.length) return null;
+  if (src.shuffle) {
+    const at = played.lastIndexOf(id);
+    return at > 0 ? played[at - 1] : null;
+  }
+  const at = src.order.indexOf(id);
+  if (at > 0) return src.order[at - 1];
+  return src.loop && src.order.length > 1 ? src.order[src.order.length - 1] : null;
+}
+
 export function nextAudio(
   s: Pick<LibraryData, 'media' | 'audioPlaylists'>,
   id: string,
@@ -1411,6 +1436,33 @@ export const useStore = create<AppState>()(
         },
         loopAudio: (on) => set((s) => (s.live.audioId ? { live: { ...s.live, audioLoop: on } } : {})),
         moveAudioPlaylists: (ids, beforeId) => set((s) => ({ audioPlaylists: moveBefore(s.audioPlaylists, (pl) => pl.id, ids, beforeId) })),
+        nextTrack: () => {
+          const s = get();
+          const next = s.live.audioId ? nextAudio(s, s.live.audioId, s.live.audioFrom, s.live.audioPlayed) : null;
+          if (next) s.playAudio(next, s.live.audioFrom);
+        },
+        previousTrack: () => {
+          const s = get();
+          const { audioId, audioFrom, audioPlayed } = s.live;
+          if (!audioId) return;
+          const before = previousAudio(s, audioId, audioFrom, audioPlayed);
+          if (!before) return s.restartAudio();
+          if (audioSource(s, audioFrom)?.shuffle) {
+            // Back through this round: it ends at the track gone back to.
+            const played = audioPlayed.slice(0, audioPlayed.lastIndexOf(audioId));
+            return set((st) => ({
+              live: {
+                ...st.live,
+                audioId: before,
+                audioPaused: false,
+                audioRestart: st.live.audioRestart + 1,
+                audioPlayed: played,
+                audioLoop: false,
+              },
+            }));
+          }
+          s.playAudio(before, audioFrom);
+        },
         shuffleAudio: (from) => {
           const s = get();
           const order = audioSource(s, from)?.order ?? [];

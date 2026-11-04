@@ -141,6 +141,37 @@ describe('shuffle', () => {
   });
 });
 
+describe('skipping songs', () => {
+  it('goes to the next and the previous song in the playlist, and from the start at the first', () => {
+    const pl = s().createAudioPlaylist('Worship');
+    s().addToAudioPlaylist(pl, ['a', 'b', 'c']);
+    s().playAudio('a', pl);
+    s().nextTrack();
+    expect(s().live.audioId).toBe('b');
+    s().nextTrack();
+    s().nextTrack();
+    expect(s().live.audioId).toBe('c');
+    s().previousTrack();
+    expect(s().live.audioId).toBe('b');
+    s().previousTrack();
+    const restarts = s().live.audioRestart;
+    s().previousTrack();
+    expect(s().live).toMatchObject({ audioId: 'a', audioRestart: restarts + 1 });
+  });
+
+  it('goes back through what was played when shuffled', () => {
+    const pl = s().createAudioPlaylist('Shuffled');
+    s().addToAudioPlaylist(pl, ['a', 'b', 'c']);
+    s().updateAudioPlaylist(pl, { shuffle: true });
+    s().playAudio('b', pl);
+    s().nextTrack();
+    const second = s().live.audioId;
+    expect(second).not.toBe('b');
+    s().previousTrack();
+    expect(s().live).toMatchObject({ audioId: 'b', audioFrom: pl, audioPlayed: ['b'] });
+  });
+});
+
 describe('a random countdown', () => {
   it('puts one of the countdown videos up, not the one already up', () => {
     useStore.setState({

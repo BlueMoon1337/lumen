@@ -1,4 +1,6 @@
 import { useEffect, useMemo, useState, type DragEvent, type MouseEvent } from 'react';
+import { create } from 'zustand';
+import { persist } from 'zustand/middleware';
 import { useShallow } from 'zustand/react/shallow';
 import { countdownFade, songCrossfade } from '../countdowns';
 import { canShowInFinder, FINDER_LABEL, missingEntries, offerReconnect, showInFinder, useIsMissing } from '../finder';
@@ -470,6 +472,21 @@ function AudioRow({ m }: { m: MediaItem }) {
 }
 
 /**
+ * Which of the Audio tab's sections and playlists are open: kept when another tab is chosen (the
+ * tab's contents go away then) and from one launch to the next.
+ */
+interface AudioTabView {
+  playlistsOpen: boolean;
+  audioOpen: boolean;
+  /** Playlists closed (their tracks hidden). */
+  closed: string[];
+}
+
+const useAudioTabView = create<AudioTabView>()(
+  persist((): AudioTabView => ({ playlistsOpen: true, audioOpen: true, closed: [] }), { name: 'lumen.audioTabView' }),
+);
+
+/**
  * ProPresenter's audio bin: music and sound effects that play on the Audio layer, from this
  * computer's speakers or sound card. Playlists play their tracks one after another; the Audio
  * Library window has every audio file.
@@ -481,15 +498,11 @@ export function AudioTab() {
   const crossfade = useStore(useShallow((s) => songCrossfade(s.settings)));
   const s = st();
   const [dropping, setDropping] = useState(false);
-  const [playlistsOpen, setPlaylistsOpen] = useState(true);
-  const [audioOpen, setAudioOpen] = useState(true);
-  const [closed, setClosed] = useState<Set<string>>(() => new Set());
+  const { playlistsOpen, audioOpen, closed } = useAudioTabView();
+  const setPlaylistsOpen = (open: boolean) => useAudioTabView.setState({ playlistsOpen: open });
+  const setAudioOpen = (open: boolean) => useAudioTabView.setState({ audioOpen: open });
   const toggleOpen = (id: string) =>
-    setClosed((c) => {
-      const next = new Set(c);
-      if (!next.delete(id)) next.add(id);
-      return next;
-    });
+    useAudioTabView.setState((v) => ({ closed: v.closed.includes(id) ? v.closed.filter((x) => x !== id) : [...v.closed, id] }));
   return (
     <div
       className={`audio-tab ${dropping ? 'dropping' : ''}`}
@@ -536,7 +549,7 @@ export function AudioTab() {
               key={pl.id}
               playlist={pl}
               nextId={playlists[i + 1]?.id ?? null}
-              open={!closed.has(pl.id)}
+              open={!closed.includes(pl.id)}
               onToggle={() => toggleOpen(pl.id)}
             />
           ))}

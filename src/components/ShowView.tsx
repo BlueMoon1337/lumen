@@ -217,7 +217,9 @@ export function ShowView() {
   const view = useStore((s) => s.settings.slideView);
   const gridSize = useStore((s) => s.settings.gridSize);
   const playlist = useStore((s) =>
-    s.settings.continuousPlaylist && s.sidebar === 'playlist' ? s.playlists.find((pl) => pl.id === s.activePlaylistId) : undefined,
+    s.settings.continuousPlaylist !== false && s.sidebar === 'playlist'
+      ? s.playlists.find((pl) => pl.id === s.activePlaylistId)
+      : undefined,
   );
   const s = useStore.getState();
 

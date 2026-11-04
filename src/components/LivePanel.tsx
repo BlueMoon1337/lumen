@@ -3,7 +3,7 @@ import { useRef, useState, type CSSProperties } from 'react';
 import { timerRemaining, useNow } from '../clock';
 import { COUNTDOWN_MESSAGE, BUILT_IN_MESSAGES, countdownFade } from '../countdowns';
 import { useLiveFrame } from '../liveFrame';
-import { useStore, type LiveTab } from '../store';
+import { nextAudio, useStore, type LiveTab } from '../store';
 import { ALL_LAYERS, isLayerLive, LAYERS } from '../layers';
 import { formatDuration, parseDuration } from '../util';
 import { AudioTab } from './AudioTab';
@@ -83,6 +83,7 @@ function NowPlaying() {
   const status = useAudioStatus();
   const s = useStore.getState();
   const image = useStore((s) => s.media.find((m) => m.id === s.live.mediaId && m.kind === 'image'));
+  const hasNext = useStore((s) => !!s.live.audioId && !!nextAudio(s, s.live.audioId, s.live.audioFrom, s.live.audioPlayed));
   if (!video && !image && !audio && !live.videoInput) return <div className="transport-name">Nothing playing</div>;
   return (
     <div className="now-playing">
@@ -106,12 +107,14 @@ function NowPlaying() {
           <span className="np-time">
             {time(status.time)} / {time(status.duration)}
           </span>
+          <IconButton icon="previousTrack" title="Previous song (or from the start, at the first)" onClick={s.previousTrack} />
           <IconButton icon="reset" title="Play from the start" onClick={s.restartAudio} />
           <IconButton
             icon={live.audioPaused ? 'play' : 'pause'}
             title={live.audioPaused ? 'Play' : 'Pause'}
             onClick={() => s.setAudioPaused(!live.audioPaused)}
           />
+          <IconButton icon="nextTrack" title={hasNext ? 'Next song' : 'No song after this one'} disabled={!hasNext} onClick={s.nextTrack} />
           <Scrubber time={status.time} duration={status.duration} onSeek={seekAudio} label="Position" />
         </div>
       )}
