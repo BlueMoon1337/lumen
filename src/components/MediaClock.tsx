@@ -15,8 +15,12 @@ export const useMediaStatus = create<{ time: number; duration: number }>(() => (
  */
 export const useVideoClock = create<VideoClock>(() => ({ endsAt: null, remainingMs: null, endedAt: null }));
 
-/** The live video's element: the capture records its picture and sound. */
-let liveVideo: HTMLVideoElement | null = null;
+/**
+ * The live video's clock: an audio player of the video's file, which plays its sound without
+ * decoding its picture (the screens and the preview already decode it; a 4K countdown decoded a
+ * third time stuttered as it faded out). The capture records its sound.
+ */
+let liveVideo: HTMLMediaElement | null = null;
 export const liveVideoElement = () => liveVideo;
 
 /**
@@ -33,7 +37,7 @@ export function MediaClock() {
   const restart = useStore((s) => s.live.mediaRestart);
   const seek = useStore((s) => s.live.mediaSeek);
   const media = useMedia(item ? mediaId : null);
-  const ref = useRef<HTMLVideoElement>(null);
+  const ref = useRef<HTMLAudioElement>(null);
   const seen = useRef(seek.n);
 
   useEffect(() => {
@@ -119,13 +123,12 @@ export function MediaClock() {
   }, [media]);
 
   return (
-    <video
+    <audio
       // Files from Documents ▸ Lumen come through the asset protocol; the capture records this sound.
       crossOrigin="anonymous"
       ref={ref}
       className="media-clock"
       src={media?.url}
-      playsInline
       preload="auto"
       loop={(item?.playback ?? 'loop') === 'loop'}
       onTimeUpdate={report}

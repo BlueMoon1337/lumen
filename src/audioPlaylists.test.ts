@@ -173,6 +173,24 @@ describe('skipping songs', () => {
 });
 
 describe('a random countdown', () => {
+  it('brings the logo up when it ends (unless turned off)', () => {
+    useStore.setState({
+      media: [
+        { id: 'cd1', name: 'Countdown 1', kind: 'video', mime: 'video/mp4', countdown: true, playback: 'stop' },
+        { id: 'logo', name: 'Logo', kind: 'image', mime: 'image/png', logo: true },
+      ],
+    });
+    s().updateSettings({ logoMediaId: 'logo' });
+    s().setLiveMedia('cd1');
+    s().mediaEnded();
+    expect(s().live).toMatchObject({ logo: true, mediaId: null });
+    s().clearLayers(['logo']);
+    s().updateSettings({ logoAfterCountdown: false });
+    s().setLiveMedia('cd1');
+    s().mediaEnded();
+    expect(s().live).toMatchObject({ logo: false, mediaId: 'cd1' });
+  });
+
   it('puts one of the countdown videos up, not the one already up', () => {
     useStore.setState({
       media: [

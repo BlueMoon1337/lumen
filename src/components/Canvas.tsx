@@ -231,7 +231,8 @@ function MediaFill({
   // A countdown's sound goes down with it over its last seconds.
   useEffect(() => {
     const v = video.current;
-    if (!v || !fadeOut) return;
+    // A muted copy (the screens, the preview) has no sound to fade: nothing to do every 50 ms.
+    if (!v || !fadeOut || muted) return;
     const tick = window.setInterval(() => {
       if (Number.isFinite(v.duration) && v.duration > 0) v.volume = countdownVolume(v.duration - v.currentTime, fadeOut);
     }, 50);
@@ -239,7 +240,7 @@ function MediaFill({
       window.clearInterval(tick);
       v.volume = 1;
     };
-  }, [fadeOut, media]);
+  }, [fadeOut, media, muted]);
   if (!media) return null;
   return media.isVideo ? (
     <video ref={video} className="media-fill" src={media.url} autoPlay={!paused} loop={loop} muted={muted} playsInline />

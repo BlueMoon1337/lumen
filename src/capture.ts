@@ -219,8 +219,9 @@ export class ScreenRenderer {
   /** An image, or a playing copy of a video, once loaded; null until then. */
   private source(mediaId: string, live: boolean): Drawable | null {
     if (live) {
+      // The operator window's clock of the live video plays its sound only: the capture draws its own copy.
       const v = liveVideoElement();
-      if (v && v.readyState >= 2) return v;
+      if (v instanceof HTMLVideoElement && v.readyState >= 2) return v;
     }
     const have = this.media.get(mediaId);
     if (have === 'loading') return null;

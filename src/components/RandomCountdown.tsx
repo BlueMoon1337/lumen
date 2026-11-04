@@ -10,6 +10,8 @@ export function RandomCountdown() {
   const live = useStore((s) => s.media.find((m) => m.id === s.live.mediaId && m.countdown));
   const playlists = useStore((s) => s.audioPlaylists);
   const chosen = useStore((s) => s.settings.countdownPlaylistId);
+  const logoAfter = useStore((s) => s.settings.logoAfterCountdown !== false);
+  const hasLogo = useStore((s) => s.media.some((m) => m.id === s.settings.logoMediaId));
   const playlistId = playlists.some((pl) => pl.id === chosen) ? chosen : '';
   const s = useStore.getState();
   return (
@@ -40,6 +42,14 @@ export function RandomCountdown() {
               </option>
             ))}
           </select>
+        </label>
+        <label className="check-row" title={hasLogo ? undefined : 'There’s no logo yet: choose one in Media ▸ Logo'}>
+          <input
+            type="checkbox"
+            checked={logoAfter}
+            onChange={(e) => s.updateSettings({ logoAfterCountdown: e.target.checked ? undefined : false })}
+          />
+          Show the logo when it ends
         </label>
         {!playlists.length && (
           <p className="muted small-print">Make an audio playlist in the Audio tab to play music with the countdown.</p>

@@ -323,6 +323,8 @@ export interface Settings {
   outroPlaylistId?: string;
   /** Countdown Videos: the audio playlist that starts with Play a Random Countdown (unset: none). */
   countdownPlaylistId?: string;
+  /** Countdown Videos: the logo comes up when a countdown ends (on unless turned off). */
+  logoAfterCountdown?: boolean;
   /** Countdown Fade (Audio tab): seconds before the end that music starts to fade; 10 when unset. */
   countdownFadeSeconds?: number;
   /** Countdown Fade follows countdown videos (on when unset) and the Timers tab's countdown (on when unset). */

@@ -1619,6 +1619,9 @@ export const useStore = create<AppState>()(
           if (!item || item.kind !== 'video') return;
           // Settings ▸ Outro: the logo (and a playlist with it) when the outro is over.
           if (item.outro && s.settings.logoAfterOutro) return s.afterOutro();
+          // Countdown Videos: the logo when the countdown is over (unless turned off).
+          if (item.countdown && s.settings.logoAfterCountdown !== false && s.media.some((m) => m.id === s.settings.logoMediaId))
+            return set((st) => ({ live: { ...clearLive(st.live, ['slide', 'media']), logo: true } }));
           if (item.playback === 'clear') s.clearLayers(['media']);
           if (item.playback === 'next') {
             const next = nextMedia(s, item.id, s.live.mediaFrom);
