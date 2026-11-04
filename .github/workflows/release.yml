@@ -76,7 +76,9 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - os: macos-latest
+          # An Intel Mac (it builds the same universal app): GitHub's Apple-silicon Macs were too busy to
+          # take builds at times. Back to macos-latest once they aren't.
+          - os: macos-15-intel
             args: --target universal-apple-darwin
           - os: windows-latest
             args: ''
@@ -89,7 +91,7 @@ jobs:
           cache: npm
       - uses: dtolnay/rust-toolchain@stable
         with:
-          targets: ${{ matrix.os == 'macos-latest' && 'aarch64-apple-darwin,x86_64-apple-darwin' || '' }}
+          targets: ${{ startsWith(matrix.os, 'macos') && 'aarch64-apple-darwin,x86_64-apple-darwin' || '' }}
       - uses: swatinem/rust-cache@v2
         with:
           workspaces: './src-tauri -> target'
@@ -109,7 +111,7 @@ jobs:
           # has no private key to sign them with.
           args: ${{ matrix.args }} --config '{"bundle":{"createUpdaterArtifacts":true}}'
       - name: Add the Read Me to the Mac disk image
-        if: matrix.os == 'macos-latest'
+        if: startsWith(matrix.os, 'macos')
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           RELEASE_ID: ${{ needs.release.outputs.id }}
