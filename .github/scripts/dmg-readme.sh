@@ -14,7 +14,9 @@ echo "Adding the Read Me to $name"
 
 # A compressed image is read-only: make a writable copy with room for the file.
 hdiutil convert "$dmg" -format UDRW -o "$work/rw.dmg" -quiet
-hdiutil resize -size +2m "$work/rw.dmg" || echo "::warning::Couldn't grow the disk image; trying as it is."
+# hdiutil resize wants a size in sectors (512 bytes): the current one plus 4 MB.
+sectors="$(hdiutil resize -limits "$work/rw.dmg" | tail -n 1 | awk '{print $2}')"
+hdiutil resize -sectors "$((sectors + 8192))" "$work/rw.dmg" || echo "::warning::Couldn't grow the disk image; trying as it is."
 mount="$(hdiutil attach "$work/rw.dmg" -readwrite -noverify -noautoopen | grep -o '/Volumes/.*$' | head -n 1)"
 volume="$(basename "$mount")"
 cp "$README" "$mount/"
@@ -33,7 +35,13 @@ end tell
 EOF
 
 sync
-hdiutil detach "$mount" -quiet || { sleep 3; hdiutil detach "$mount" -force -quiet; }
+# Finder can hold the volume for a few seconds after closing its window.
+for attempt in 1 2 3 4 5 6; do
+  hdiutil detach "$mount" -quiet && break
+  sleep 5
+  [ "$attempt" -ge 4 ] && hdiutil detach "$mount" -force -quiet && break
+done
+[ ! -d "$mount" ] || { echo "::error::Couldn't eject $mount"; exit 1; }
 hdiutil convert "$work/rw.dmg" -format UDZO -imagekey zlib-level=9 -o "$work/final.dmg" -quiet
 mv -f "$work/final.dmg" "$dmg"
 
