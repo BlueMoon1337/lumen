@@ -25,7 +25,12 @@ fn key() -> String {
     let mut out = String::new();
     for _ in 0..2 {
         let mut h = RandomState::new().build_hasher();
-        h.write_u128(std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).map(|d| d.as_nanos()).unwrap_or(0));
+        h.write_u128(
+            std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .map(|d| d.as_nanos())
+                .unwrap_or(0),
+        );
         h.write_u32(std::process::id());
         out.push_str(&format!("{:016x}", h.finish()));
     }
@@ -99,7 +104,11 @@ fn file_for(base: &Path, prefix: &str, target: &str) -> Option<PathBuf> {
     let folder = FOLDERS.iter().find(|f| rest.starts_with(&format!("{f}/")))?;
     let name = &rest[folder.len() + 1..];
     let path = Path::new(name);
-    if name.is_empty() || name.starts_with('.') || path.components().count() != 1 || !matches!(path.components().next(), Some(Component::Normal(_))) {
+    if name.is_empty()
+        || name.starts_with('.')
+        || path.components().count() != 1
+        || !matches!(path.components().next(), Some(Component::Normal(_)))
+    {
         return None;
     }
     Some(base.join(folder).join(name))
@@ -143,13 +152,22 @@ fn serve(stream: TcpStream, base: &Path, prefix: &str) -> std::io::Result<()> {
     // The pages ask from tauri://localhost (or http://localhost while developing).
     let cors = "Access-Control-Allow-Origin: *\r\nAccess-Control-Expose-Headers: Content-Range, Content-Length, Accept-Ranges\r\n";
     if method == "OPTIONS" {
-        return write!(out, "HTTP/1.1 204 No Content\r\n{cors}Access-Control-Allow-Headers: Range\r\nConnection: close\r\n\r\n");
+        return write!(
+            out,
+            "HTTP/1.1 204 No Content\r\n{cors}Access-Control-Allow-Headers: Range\r\nConnection: close\r\n\r\n"
+        );
     }
     let Some(path) = file_for(base, prefix, &target).filter(|_| method == "GET" || method == "HEAD") else {
-        return write!(out, "HTTP/1.1 404 Not Found\r\n{cors}Content-Length: 0\r\nConnection: close\r\n\r\n");
+        return write!(
+            out,
+            "HTTP/1.1 404 Not Found\r\n{cors}Content-Length: 0\r\nConnection: close\r\n\r\n"
+        );
     };
     let Ok(mut file) = File::open(&path) else {
-        return write!(out, "HTTP/1.1 404 Not Found\r\n{cors}Content-Length: 0\r\nConnection: close\r\n\r\n");
+        return write!(
+            out,
+            "HTTP/1.1 404 Not Found\r\n{cors}Content-Length: 0\r\nConnection: close\r\n\r\n"
+        );
     };
     let len = file.metadata()?.len();
     let kind = content_type(&path);
@@ -166,7 +184,11 @@ fn serve(stream: TcpStream, base: &Path, prefix: &str) -> std::io::Result<()> {
         None => ("200 OK", 0, len.saturating_sub(1)),
     };
     let count = if len == 0 { 0 } else { end - start + 1 };
-    let content_range = if status.starts_with("206") { format!("Content-Range: bytes {start}-{end}/{len}\r\n") } else { String::new() };
+    let content_range = if status.starts_with("206") {
+        format!("Content-Range: bytes {start}-{end}/{len}\r\n")
+    } else {
+        String::new()
+    };
     write!(
         out,
         "HTTP/1.1 {status}\r\n{cors}Content-Type: {kind}\r\nAccept-Ranges: bytes\r\n{content_range}Content-Length: {count}\r\nCache-Control: no-cache\r\nConnection: close\r\n\r\n"
@@ -217,12 +239,20 @@ mod streaming {
     fn streams_a_range_of_a_file() {
         let base = std::env::temp_dir().join(format!("lumen-media-test-{}", std::process::id()));
         std::fs::create_dir_all(base.join("Media/Assets")).unwrap();
-        std::fs::write(base.join("Media/Assets/a b.mp4"), (0..=255u8).cycle().take(3_000_000).collect::<Vec<_>>()).unwrap();
+        std::fs::write(
+            base.join("Media/Assets/a b.mp4"),
+            (0..=255u8).cycle().take(3_000_000).collect::<Vec<_>>(),
+        )
+        .unwrap();
         let address = super::address(base.clone()).unwrap();
         let rest = address.strip_prefix("http://").unwrap();
         let (host, key) = rest.split_once('/').unwrap();
         let mut s = TcpStream::connect(host).unwrap();
-        write!(s, "GET /{key}/Media/Assets/a%20b.mp4 HTTP/1.1\r\nHost: x\r\nRange: bytes=1000000-2999999\r\n\r\n").unwrap();
+        write!(
+            s,
+            "GET /{key}/Media/Assets/a%20b.mp4 HTTP/1.1\r\nHost: x\r\nRange: bytes=1000000-2999999\r\n\r\n"
+        )
+        .unwrap();
         let mut body = Vec::new();
         s.read_to_end(&mut body).unwrap();
         let split = body.windows(4).position(|w| w == b"\r\n\r\n").unwrap();

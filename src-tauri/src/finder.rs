@@ -45,7 +45,9 @@ pub fn remove_lumen_file(app: AppHandle, folder: String, name: String) -> Result
     }
     if library_folder(&folder).is_some() {
         // Gone once nothing's left in it but Finder's .DS_Store.
-        let left: Vec<_> = std::fs::read_dir(&dir).map(|d| d.flatten().map(|e| e.file_name()).collect()).unwrap_or_default();
+        let left: Vec<_> = std::fs::read_dir(&dir)
+            .map(|d| d.flatten().map(|e| e.file_name()).collect())
+            .unwrap_or_default();
         if left.iter().all(|n| n == ".DS_Store") {
             let _ = std::fs::remove_file(dir.join(".DS_Store"));
             let _ = std::fs::remove_dir(&dir);
@@ -57,7 +59,11 @@ pub fn remove_lumen_file(app: AppHandle, folder: String, name: String) -> Result
 /// Opens one of Lumen's folders in Finder (Libraries ▸ Songs, say), making it if it isn't there.
 #[tauri::command]
 pub fn reveal_lumen_folder(app: AppHandle, folder: String) -> Result<(), String> {
-    let path = if folder == "Libraries" { base(&app)?.join("Libraries") } else { self::folder(&app, &folder)? };
+    let path = if folder == "Libraries" {
+        base(&app)?.join("Libraries")
+    } else {
+        self::folder(&app, &folder)?
+    };
     std::fs::create_dir_all(&path).map_err(|e| format!("Couldn’t make the folder {}: {e}", path.display()))?;
     let result = if cfg!(target_os = "macos") {
         Command::new("open").arg(&path).spawn()
@@ -133,9 +139,19 @@ pub fn finder_file(app: AppHandle, folder: String, name: String, size: u64) -> R
     for n in 1..1000 {
         let candidate = if n == 1 { name.clone() } else { numbered(&name, n) };
         match std::fs::metadata(dir.join(&candidate)) {
-            Ok(meta) if meta.len() == size => return Ok(FinderFile { name: candidate, saved: true }),
+            Ok(meta) if meta.len() == size => {
+                return Ok(FinderFile {
+                    name: candidate,
+                    saved: true,
+                });
+            }
             Ok(_) => continue,
-            Err(_) => return Ok(FinderFile { name: candidate, saved: false }),
+            Err(_) => {
+                return Ok(FinderFile {
+                    name: candidate,
+                    saved: false,
+                });
+            }
         }
     }
     Err("There are too many files with that name.".into())
@@ -149,7 +165,9 @@ pub fn write_finder_file(app: AppHandle, request: Request<'_>) -> Result<(), Str
     check_name(&name)?;
     let dir = folder(&app, &header("x-folder"))?;
     std::fs::create_dir_all(&dir).map_err(|e| format!("Couldn’t make the folder {}: {e}", dir.display()))?;
-    let InvokeBody::Raw(bytes) = request.body() else { return Err("There was nothing to save.".into()) };
+    let InvokeBody::Raw(bytes) = request.body() else {
+        return Err("There was nothing to save.".into());
+    };
     let path = dir.join(&name);
     std::fs::write(&path, bytes).map_err(|e| format!("Couldn’t save {}: {e}", path.display()))
 }

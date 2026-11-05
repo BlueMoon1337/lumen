@@ -55,6 +55,7 @@ export function installDesktopBridge() {
           'x-file-extensions': encodeURIComponent(extensions.join(',')),
         },
       }),
+    exportApp: (format) => invoke<string | null>('export_app', { format }),
     chooseExportFolder: () => invoke<string | null>('choose_export_folder'),
     writeExportFile: (name, data) => invoke('write_export_file', data, { headers: { 'x-file-name': encodeURIComponent(name) } }),
     finderFile: (folder, name, size) => invoke('finder_file', { folder, name, size }),

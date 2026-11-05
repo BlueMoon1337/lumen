@@ -258,7 +258,9 @@ fn reopen_after_quitting() -> bool {
     use std::process::{Command, Stdio};
     let Ok(exe) = std::env::current_exe() else { return false };
     // …/Lumen.app/Contents/MacOS/lumen → …/Lumen.app
-    let Some(bundle) = exe.ancestors().nth(3).filter(|b| b.extension().is_some_and(|e| e == "app")) else { return false };
+    let Some(bundle) = exe.ancestors().nth(3).filter(|b| b.extension().is_some_and(|e| e == "app")) else {
+        return false;
+    };
     let script = "while kill -0 \"$1\" 2>/dev/null; do sleep 0.2; done; exec /usr/bin/open \"$2\"";
     Command::new("/bin/sh")
         .arg("-c")

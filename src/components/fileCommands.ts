@@ -291,6 +291,33 @@ export async function exportThemes(ids: string[]) {
   await saveBytes(`${name}.${EXTENSIONS.themes}`, data, 'Lumen Themes', [EXTENSIONS.themes], 'application/zip');
 }
 
+/** Export ▸ Lumen App: a copy of the app (not the presentations or media), to put on another computer. */
+export async function exportApp(format: 'dmg' | 'zip') {
+  const bridge = window.lumenDesktop;
+  if (!bridge?.exportApp) return;
+  const where = await working(format === 'dmg' ? 'Making a disk image of Lumen…' : 'Zipping Lumen…', () => bridge.exportApp!(format));
+  if (where) notify(`Exported Lumen to ${where}.`, 'success', 5000);
+}
+
+const isMac = typeof navigator !== 'undefined' && /Mac/.test(navigator.platform);
+
+/** Export ▸ Lumen App's items: only in the desktop app, and a disk image only on a Mac. */
+function appExportEntries(): ContextEntries {
+  if (!window.lumenDesktop?.exportApp) return [];
+  return isMac
+    ? [
+        '-',
+        {
+          label: 'Lumen App',
+          submenu: () => [
+            { label: 'Disk Image…', action: () => void exportApp('dmg').catch(failed('Couldn’t export Lumen')) },
+            { label: 'Zip…', action: () => void exportApp('zip').catch(failed('Couldn’t export Lumen')) },
+          ],
+        },
+      ]
+    : ['-', { label: 'Lumen App…', action: () => void exportApp('zip').catch(failed('Couldn’t export Lumen')) }];
+}
+
 // ---- The menu ---------------------------------------------------------------------------------
 
 /** What the File dialogs are working on. */
@@ -313,6 +340,8 @@ const COMMANDS: Record<string, () => unknown> = {
   'export-images': () => exportSlideImagesCommand(),
   'export-playlist': () => exportPlaylist(),
   'export-themes': exportThemesCommand,
+  'export-app-dmg': () => exportApp('dmg'),
+  'export-app-zip': () => exportApp('zip'),
 };
 
 /** Runs a File command from the desktop menu; false if `id` isn't one. */
@@ -347,6 +376,7 @@ export function exportEntries(): ContextEntries {
     '-',
     { label: 'Playlist…', action: () => void exportPlaylist() },
     { label: 'Themes…', action: exportThemesCommand },
+    ...appExportEntries(),
   ];
 }
 

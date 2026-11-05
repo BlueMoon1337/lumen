@@ -51,6 +51,8 @@ export interface DesktopBridge {
   setFileState(state: { presentation: boolean }): void;
   /** Shows the Save panel and writes the file; the path it went to, or null when cancelled. */
   saveFile(file: { name: string; data: Uint8Array; kind: string; extensions: string[] }): Promise<string | null>;
+  /** Saves a copy of the Lumen app as a disk image (Mac) or zip; where it went, or null when cancelled. */
+  exportApp?(format: 'dmg' | 'zip'): Promise<string | null>;
   /** Asks for a folder to export several files into; its path, or null when cancelled. */
   chooseExportFolder(): Promise<string | null>;
   /** Writes a file into the folder chosen last. */

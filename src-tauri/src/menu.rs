@@ -14,7 +14,7 @@ use crate::screens::{self, ScreensMenu};
 use crate::view::{self, ViewMenu};
 use crate::window::{self, WindowMenu};
 
-const COMMANDS: [&str; 16] = [
+const COMMANDS: [&str; 18] = [
     "check-updates",
     "new-presentation",
     "new-playlist",
@@ -31,6 +31,8 @@ const COMMANDS: [&str; 16] = [
     "export-images",
     "export-playlist",
     "export-themes",
+    "export-app-dmg",
+    "export-app-zip",
 ];
 
 /// File ▸ Export's items, on only when there's a presentation selected to export.
@@ -61,6 +63,19 @@ fn file_menu(app: &AppHandle) -> tauri::Result<(Vec<MenuItemKind<Wry>>, FileMenu
         MenuItem::with_id(app, "export-text", "Text…", false, None::<&str>)?,
         MenuItem::with_id(app, "export-images", "Slide Images…", false, None::<&str>)?,
     ];
+    // Lumen itself, to put on another computer: as a disk image or a zip on a Mac.
+    #[cfg(target_os = "macos")]
+    let app_export = Submenu::with_items(
+        app,
+        "Lumen App",
+        true,
+        &[
+            &item("export-app-dmg", "Disk Image…", None)?,
+            &item("export-app-zip", "Zip…", None)?,
+        ],
+    )?;
+    #[cfg(not(target_os = "macos"))]
+    let app_export = item("export-app-zip", "Lumen App…", None)?;
     let export = Submenu::with_items(
         app,
         "Export",
@@ -73,6 +88,8 @@ fn file_menu(app: &AppHandle) -> tauri::Result<(Vec<MenuItemKind<Wry>>, FileMenu
             &PredefinedMenuItem::separator(app)?,
             &item("export-playlist", "Playlist…", None)?,
             &item("export-themes", "Themes…", None)?,
+            &PredefinedMenuItem::separator(app)?,
+            &app_export,
         ],
     )?;
     let items = vec![
