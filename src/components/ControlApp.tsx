@@ -439,8 +439,10 @@ export default function ControlApp() {
       spellCheck={spellcheck}
     >
       <Toolbar onSettings={() => setDialog('settings')} onScreens={openScreens} />
-      {layout === 'show' && (
-        <>
+      {/* Show's library, slides and media bin stay put (hidden) while editing, so coming back to
+          Show is instant rather than rebuilding every list and reloading every thumbnail. */}
+      {(layout === 'show' || mode === 'edit' || mode === 'reflow') && (
+        <div style={{ display: layout === 'show' ? 'contents' : 'none' }}>
           <Sidebar />
           <main className="center">{mode === 'bible' ? <BibleView /> : <ShowView />}</main>
           {showMediaBin && (
@@ -449,9 +451,9 @@ export default function ControlApp() {
               <MediaContent />
             </>
           )}
-          <LivePanel />
-        </>
+        </div>
       )}
+      {layout === 'show' && <LivePanel />}
       {mode === 'edit' && <EditView />}
       {mode === 'reflow' && <ReflowView />}
       {mode === 'layouts' && <StageLayoutsEditor />}

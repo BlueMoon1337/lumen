@@ -158,7 +158,8 @@ function FittedText({ text, caption, theme }: { text: string; caption?: string; 
     if (cached != null) return setSize(cached);
     const box = boxRef.current;
     const content = contentRef.current;
-    if (!box || !content) return;
+    // Hidden (Show while editing): nothing to measure; it fits again when it's shown.
+    if (!box || !content || !box.clientWidth) return;
     const cs = getComputedStyle(box);
     const maxH = box.clientHeight - parseFloat(cs.paddingTop) - parseFloat(cs.paddingBottom);
     const maxW = box.clientWidth - parseFloat(cs.paddingLeft) - parseFloat(cs.paddingRight);
