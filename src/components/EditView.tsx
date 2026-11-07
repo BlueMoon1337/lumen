@@ -326,16 +326,34 @@ export function Rulers({ left, top, scale, width, height }: { left: number; top:
   );
 }
 
+/** A collapsed range at the text position under a point on screen, if there's text there. */
+function caretRangeAt(x: number, y: number): Range | null {
+  const doc = document as Document & {
+    caretPositionFromPoint?: (x: number, y: number) => { offsetNode: Node; offset: number } | null;
+    caretRangeFromPoint?: (x: number, y: number) => Range | null;
+  };
+  if (doc.caretRangeFromPoint) return doc.caretRangeFromPoint(x, y);
+  const pos = doc.caretPositionFromPoint?.(x, y);
+  if (!pos) return null;
+  const range = document.createRange();
+  range.setStart(pos.offsetNode, pos.offset);
+  range.collapse(true);
+  return range;
+}
+
 /** Plain-text editing directly on the slide, styled exactly like the rendered text. */
 function TextEditor({
   theme,
   fontSize,
   initial,
+  caretAt,
   onDone,
 }: {
   theme: Theme;
   fontSize: number;
   initial: string;
+  /** Where it was double-clicked: the caret goes there. Without it (Enter, the T button), all the text is selected. */
+  caretAt: { x: number; y: number } | null;
   onDone: (text: string) => void;
 }) {
   const ref = useRef<HTMLDivElement>(null);
@@ -345,10 +363,16 @@ function TextEditor({
     if (!el) return;
     el.innerText = initial;
     el.focus();
-    const range = document.createRange();
-    range.selectNodeContents(el);
+    let range = caretAt ? caretRangeAt(caretAt.x, caretAt.y) : null;
+    if (range && !el.contains(range.startContainer)) range = null;
+    if (!range) {
+      range = document.createRange();
+      range.selectNodeContents(el);
+      if (caretAt) range.collapse(false);
+    }
     window.getSelection()?.removeAllRanges();
     window.getSelection()?.addRange(range);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [initial]);
   return (
     <div className="slide-box" style={slideBoxStyle(theme)}>
@@ -560,8 +584,11 @@ export function EditCanvas({ presentation: p, slide }: { presentation: Presentat
   const commitInset = (next: Theme['inset']) => slide && s.updateSlide(p.id, slide.id, { style: { ...slide.style, inset: next } });
   const center = () => commitInset(centerInset(theme.inset));
 
-  const startEditing = () => {
+  // Where a double-click started the editing, for the caret.
+  const [caretAt, setCaretAt] = useState<{ x: number; y: number } | null>(null);
+  const startEditing = (at?: { x: number; y: number }) => {
     if (!slide) return;
+    setCaretAt(at ?? null);
     const rendered = slideRef.current?.querySelector<HTMLElement>('.slide-content');
     setEditSize(parseFloat(rendered?.style.fontSize ?? '') || theme.fontSize);
     s.setUI({ editTextSelected: true });
@@ -629,7 +656,7 @@ export function EditCanvas({ presentation: p, slide }: { presentation: Presentat
     >
       {area.w > 0 && <Rulers left={left} top={top} scale={scale} width={area.w} height={area.h} />}
       <div className="float-toolbar" style={{ left: RULER + innerW / 2 }}>
-        <button title="Edit text (Enter)" disabled={!slide} onClick={startEditing}>
+        <button title="Edit text (Enter)" disabled={!slide} onClick={() => startEditing()}>
           <span className="ft-glyph">T</span>
         </button>
         <button title="Center the text box on the slide" disabled={!slide} onClick={center}>
@@ -667,6 +694,7 @@ export function EditCanvas({ presentation: p, slide }: { presentation: Presentat
                   theme={theme}
                   fontSize={editSize}
                   initial={slide.text}
+                  caretAt={caretAt}
                   onDone={(text) => {
                     setEditing(false);
                     if (text !== slide.text) s.updateSlide(p.id, slide.id, { text });
@@ -680,10 +708,14 @@ export function EditCanvas({ presentation: p, slide }: { presentation: Presentat
               className={`element-frame ${selected ? 'selected' : ''}`}
               style={box}
               onPointerDown={(e) => startDrag(e, 'move')}
-              onDoubleClick={startEditing}
+              onDoubleClick={(e) => startEditing({ x: e.clientX, y: e.clientY })}
               onContextMenu={(e) => {
                 s.setUI({ editTextSelected: true });
-                if (group) openContextMenu(e, canvasMenu(p, slide, group, startEditing, center));
+                if (group)
+                  openContextMenu(
+                    e,
+                    canvasMenu(p, slide, group, () => startEditing(), center),
+                  );
               }}
               title="Drag to move · Double-click to edit text · Right-click for more"
             >
