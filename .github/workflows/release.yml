@@ -112,6 +112,8 @@ jobs:
           args: ${{ matrix.args }} --config '{"bundle":{"createUpdaterArtifacts":true}}'
       - name: Add the Read Me to the Mac disk image
         if: startsWith(matrix.os, 'macos')
+        # The disk image Tauri made is already uploaded; if this fails, the release keeps it.
+        continue-on-error: true
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           RELEASE_ID: ${{ needs.release.outputs.id }}
