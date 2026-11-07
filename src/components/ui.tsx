@@ -81,6 +81,8 @@ export type IconName = keyof typeof paths;
 
 /** Icons drawn solid rather than as outlines, to read at a glance (pause: two bars). */
 const SOLID = new Set<IconName>(['pause', 'previousTrack', 'nextTrack']);
+/** Icons with curves too close together for the usual line: drawn finer, so they stay open at small sizes. */
+const FINE: Partial<Record<IconName, number>> = { trebleClef: 1.5 };
 
 export function Icon({ name, size = 16 }: { name: IconName; size?: number }) {
   if (SOLID.has(name))
@@ -96,7 +98,7 @@ export function Icon({ name, size = 16 }: { name: IconName; size?: number }) {
       viewBox="0 0 24 24"
       fill="none"
       stroke="currentColor"
-      strokeWidth={2}
+      strokeWidth={FINE[name] ?? 2}
       strokeLinecap="round"
       strokeLinejoin="round"
       aria-hidden
