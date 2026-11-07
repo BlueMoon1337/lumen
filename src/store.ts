@@ -48,7 +48,7 @@ import type {
   Theme,
   TimerState,
 } from './types';
-import { fitsTab } from './types';
+import { fitsTab, type LibraryIcon } from './types';
 import { nextOccurrence, uid } from './util';
 
 /** The part of the state that is saved and exported. */
@@ -239,6 +239,7 @@ interface Actions {
 
   createLibrary(name: string): Category;
   renameLibrary(id: Category, name: string): void;
+  setLibraryIcon(id: Category, icon: LibraryIcon): void;
   /** Deletes a library and the presentations in it (they come out of playlists too). One library always stays. */
   deleteLibrary(id: Category): void;
   /** Moves libraries to before another one (null: to the end). */
@@ -1091,6 +1092,7 @@ export const useStore = create<AppState>()(
           return library.id;
         },
         renameLibrary: (id, name) => set((s) => ({ libraries: s.libraries.map((l) => (l.id === id ? { ...l, name } : l)) })),
+        setLibraryIcon: (id, icon) => set((s) => ({ libraries: s.libraries.map((l) => (l.id === id ? { ...l, icon } : l)) })),
         moveLibraries: (ids, beforeId) => set((s) => ({ libraries: moveBefore(s.libraries, (l) => l.id, ids, beforeId) })),
         movePlaylists: (ids, beforeId) => set((s) => ({ playlists: moveBefore(s.playlists, (pl) => pl.id, ids, beforeId) })),
         deleteLibrary: (id) => {

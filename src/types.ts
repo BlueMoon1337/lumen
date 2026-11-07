@@ -112,7 +112,12 @@ export type Category = string;
 export interface Library {
   id: Category;
   name: string;
+  /** Its icon in the sidebar; unset is the Bible for Scripture, the box for the others. */
+  icon?: LibraryIcon;
 }
+
+/** The icons a library can have (right-click it ▸ Icon). */
+export type LibraryIcon = 'library' | 'bible' | 'powerpoint' | 'trebleClef';
 
 export interface Presentation {
   id: string;

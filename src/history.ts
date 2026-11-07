@@ -334,6 +334,7 @@ const LABELS: Record<string, string | ((args: unknown[]) => string)> = {
   deleteStageObject: 'Delete Object',
   restackStageObject: 'Arrange Object',
   renameLibrary: 'Rename Library',
+  setLibraryIcon: 'Change Library Icon',
   deleteLibrary: 'Delete Library',
   moveLibraries: 'Move Library',
   movePlaylists: 'Move Playlist',

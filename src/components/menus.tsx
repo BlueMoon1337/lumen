@@ -20,6 +20,7 @@ import {
   withChanges,
 } from '../transitions';
 import { fitsTab } from '../types';
+import { libraryIcon, LIBRARY_ICONS } from '../libraryIcons';
 import type { Group, Library, MediaItem, Playlist, PlaylistItem, Presentation, Slide, SlideTransition, VideoPlayback } from '../types';
 import { ColorPickerPanel } from './ColorPicker';
 import { QuickEdit } from './EditView';
@@ -451,6 +452,16 @@ export function libraryMenu(lib: Library, onRename: () => void): ContextEntries 
   return [
     { label: 'Open', action: open },
     { label: 'Rename…', action: onRename },
+    {
+      label: 'Icon',
+      submenu: () =>
+        LIBRARY_ICONS.map(({ id, name }) => ({
+          label: name,
+          icon: id,
+          checked: libraryIcon(lib) === id,
+          action: () => s.setLibraryIcon(lib.id, id),
+        })),
+    },
     canShowInFinder() && { label: FINDER_LABEL, action: () => void revealLibrary(lib.name) },
     '-',
     { label: 'New Presentation…', action: () => void newPresentationNamed(lib.id) },

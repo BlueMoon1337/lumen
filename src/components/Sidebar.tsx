@@ -1,5 +1,6 @@
 import { useMemo, useState, type DragEvent } from 'react';
 import { importFiles } from '../commands';
+import { libraryIcon } from '../libraryIcons';
 import { useStore } from '../store';
 import type { Category } from '../types';
 import { openContextMenu, type ContextEntries } from './ContextMenu';
@@ -96,7 +97,7 @@ function Collections() {
             dragType={DRAG_LIBRARY}
             dragId={lib.id}
             moveAt={moving?.id === lib.id ? moving.at : null}
-            icon={lib.id === 'scripture' ? 'bible' : 'library'}
+            icon={libraryIcon(lib)}
             kind="library"
             name={lib.name}
             selected={sidebar === 'library' && category === lib.id}

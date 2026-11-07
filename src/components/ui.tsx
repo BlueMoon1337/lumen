@@ -71,6 +71,9 @@ const paths = {
   previousTrack: 'M5 6h2.5v12H5zM19 6v12L9 12z',
   nextTrack: 'M16.5 6H19v12h-2.5zM5 6v12l10-6z',
   forward10: 'M13 7l5 5-5 5M6 7l5 5-5 5',
+  powerpoint: 'M4 4h16v16H4zM9.5 17V8h3a2.5 2.5 0 0 1 0 5h-3',
+  trebleClef:
+    'M10.5 20.5a1.6 1.6 0 0 0 2.6-1.3L12.2 4.5c0-1.6 2.6-1.8 2.6.6 0 2.8-6.3 5-6.3 9.2a3.6 3.6 0 0 0 7.2 0 2.6 2.6 0 0 0-5.2 0c0 1 .7 1.6 1.6 1.6',
   film: 'M4 4h16v16H4zM8 4v16M16 4v16M4 8h4M4 12h4M4 16h4M16 8h4M16 12h4M16 16h4',
 } as const;
 

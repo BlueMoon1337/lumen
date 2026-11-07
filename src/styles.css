@@ -7112,3 +7112,10 @@ h3.looks-name {
   /* Its words and shuffle symbol white (dimmed with the button when there are no backgrounds). */
   color: #fff;
 }
+
+/* A menu item with an icon before its name (a library's Icon menu). */
+.menu-icon-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}

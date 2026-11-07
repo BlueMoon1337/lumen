@@ -3,6 +3,7 @@ import { create } from 'zustand';
 import { LABEL_SWATCHES } from '../labels';
 import type { ColorLabel } from '../types';
 import { MenuList, type MenuEntry } from './MenuSelect';
+import { Icon, type IconName } from './ui';
 
 /**
  * A right-click menu entry: an action, a submenu, a section header, or "-" for a separator.
@@ -16,6 +17,8 @@ export type ContextEntry =
       checked?: boolean;
       shortcut?: string;
       swatch?: string;
+      /** An icon before the label. */
+      icon?: IconName;
       danger?: boolean;
       title?: string;
     }
@@ -44,8 +47,16 @@ function toMenu(entries: ContextEntries, actions: Map<string, () => void>): Menu
     } else {
       const value = `action-${actions.size}`;
       actions.set(value, e.action);
-      const { action: _action, ...rest } = e;
-      out.push({ type: 'item', value, ...rest, checked: e.checked ?? false });
+      const { action: _action, icon, ...rest } = e;
+      const label = icon ? (
+        <span className="menu-icon-label">
+          <Icon name={icon} size={14} />
+          {e.label}
+        </span>
+      ) : (
+        e.label
+      );
+      out.push({ type: 'item', value, ...rest, label, checked: e.checked ?? false });
     }
   }
   while (out.length && out[out.length - 1].type === 'separator') out.pop();
