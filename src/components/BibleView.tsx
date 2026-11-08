@@ -18,6 +18,7 @@ import { importBibleFile } from '../commands';
 import { getSequence } from '../lyrics';
 import { notify } from '../notices';
 import { useStore } from '../store';
+import { versesLibrary } from '../libraryIcons';
 import { defaultThemes } from '../seed';
 import type { BibleReferences, BibleSettings, BibleSlot, BibleTranslation, Category, Theme } from '../types';
 import { SlidePreview } from './Canvas';
@@ -165,6 +166,10 @@ export function BibleView() {
 
   const b = bibleSettings(settings, bibles[0]?.id);
   const update = (patch: Partial<BibleSettings>) => s.updateSettings({ bible: { ...settings.bible, ...patch } });
+  // Where saved passages go: the library chosen, or the one for scripture if that's gone.
+  const libraries = useStore((st) => st.libraries);
+  const library = versesLibrary(libraries, b.library);
+  const libraryName = libraries.find((l) => l.id === library)?.name ?? 'the library';
   const template = themes.find((t) => t.id === b.themeId) ?? themes.find((t) => t.id === 'theme-bible') ?? themes[0] ?? defaultThemes[0];
   const sources = b.translations.map((t) => sourceFor(t.bibleId, bibles));
   const primary = sources[0];
@@ -325,10 +330,23 @@ export function BibleView() {
       type: 'submenu',
       label: 'Save to Playlist',
       disabled: !seq.length || !playlists.length,
-      entries: playlists.map((p): MenuEntry => ({ type: 'item', value: `playlist:${p.id}`, label: p.name })),
+      entries: [
+        { type: 'header', label: `Saved in ${libraryName}, added to:` },
+        ...playlists.map((p): MenuEntry => ({ type: 'item', value: `playlist:${p.id}`, label: p.name })),
+      ],
+    },
+    { type: 'separator' },
+    {
+      type: 'submenu',
+      label: `Library: ${libraryName}`,
+      entries: [
+        { type: 'header', label: 'Save passages in' },
+        ...libraries.map((l): MenuEntry => ({ type: 'item', value: `library:${l.id}`, label: l.name, checked: l.id === library })),
+      ],
     },
   ];
   const onSave = (value: string) => {
+    if (value.startsWith('library:')) return update({ library: value.slice(8) });
     if (!draft) return;
     if (value === 'save') setSaving(true);
     else if (value === 'copy' && selectedId && selected) {
@@ -336,8 +354,8 @@ export function BibleView() {
       notify(`Added ${draft.title} to “${selected.title}”.`, 'success');
     } else if (value.startsWith('playlist:')) {
       const playlist = playlists.find((p) => p.id === value.slice(9));
-      s.saveBible({ title: draft.title, category: b.library, playlistId: playlist?.id });
-      notify(`Saved ${draft.title} to the ${playlist?.name ?? ''} playlist.`, 'success');
+      s.saveBible({ title: draft.title, category: library, playlistId: playlist?.id });
+      notify(`Saved ${draft.title} in ${libraryName} and added it to the ${playlist?.name ?? ''} playlist.`, 'success');
     }
   };
 
@@ -525,7 +543,7 @@ export function BibleView() {
       {saving && draft && (
         <SaveDialog
           title={draft.title}
-          library={b.library}
+          library={library}
           onClose={() => setSaving(false)}
           onSave={(title, category) => {
             const id = s.saveBible({ title, category });
@@ -635,6 +653,10 @@ function BibleOptions({
   const [tab, setTab] = useState<'slides' | 'bibles'>('slides');
   const themes = useStore((s) => s.themes);
   const bibles = useStore((s) => s.bibles);
+  const library = versesLibrary(
+    useStore((s) => s.libraries),
+    b.library,
+  );
   const s = useStore.getState();
   const check = (key: 'showVerseNumbers' | 'breakOnNewVerse' | 'displayTranslation', label: string) => (
     <label className="check-row">
@@ -693,14 +715,15 @@ function BibleOptions({
             </button>
           </div>
           <div className="bible-options-row">
-            <span>Import Library</span>
-            <select value={b.library} onChange={(e) => update({ library: e.target.value as Category })}>
+            <span>Save Library</span>
+            <select value={library} onChange={(e) => update({ library: e.target.value as Category })}>
               <LibraryOptions />
             </select>
           </div>
           <p className="muted small-print">
             Verses go into the template’s {template.textName ?? 'Text'} box and references into its {template.captionBox?.name ?? 'caption'}
-            ; change which with the Verse and Reference menus. Save As puts slides in the Import Library.
+            ; change which with the Verse and Reference menus. Save As and Save to Playlist put the passage in the Save Library (also in the
+            Save As menu).
           </p>
         </div>
       ) : (

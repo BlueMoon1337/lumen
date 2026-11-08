@@ -49,6 +49,7 @@ import type {
   TimerState,
 } from './types';
 import { fitsTab, type LibraryIcon } from './types';
+import { versesLibrary } from './libraryIcons';
 import { nextOccurrence, uid } from './util';
 
 /** The part of the state that is saved and exported. */
@@ -1107,7 +1108,9 @@ export const useStore = create<AppState>()(
               libraries,
               libraryCategory: st.libraryCategory === id ? next : st.libraryCategory,
               settings:
-                st.settings.bible?.library === id ? { ...st.settings, bible: { ...st.settings.bible, library: next } } : st.settings,
+                st.settings.bible?.library === id
+                  ? { ...st.settings, bible: { ...st.settings.bible, library: versesLibrary(libraries) } }
+                  : st.settings,
             };
           });
         },
@@ -1523,9 +1526,7 @@ export const useStore = create<AppState>()(
           if (!draft) return null;
           // The library chosen may have been deleted since.
           const { libraries } = get();
-          const library = libraries.some((l) => l.id === category)
-            ? category
-            : (libraries.find((l) => l.id === 'scripture') ?? libraries[0]).id;
+          const library = versesLibrary(libraries, category);
           const id = get().createPresentation({ title, category: library, themeId: draft.themeId, ...cloneGroups(draft) });
           if (playlistId) get().addToPlaylist(id, undefined, playlistId);
           return id;
