@@ -53,8 +53,12 @@ function setMissing(id: string, missing: boolean) {
 /** Bumped when an item's file changes (reconnected), so whatever shows it loads it again. */
 const useMediaVersions = create<Record<string, number>>(() => ({}));
 
+/** Told when an item's file changes (reconnected), e.g. to make its thumbnail again. */
+export const mediaChangeListeners = new Set<(id: string) => void>();
+
 /** Drops what's loaded for an item, so it loads again from its new file. */
 function forget(id: string) {
+  mediaChangeListeners.forEach((f) => f(id));
   const cached = loaded.get(id);
   if (cached?.url.startsWith('blob:')) URL.revokeObjectURL(cached.url);
   loaded.delete(id);

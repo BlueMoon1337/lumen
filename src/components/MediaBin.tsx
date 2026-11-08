@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState, type DragEvent } from 'react';
 import { useShallow } from 'zustand/react/shallow';
 import { loadMedia, useMedia } from '../media';
+import { useThumbnail } from '../thumbnails';
 import { convertHeicPhotos } from '../heic';
 import { dismiss, notify } from '../notices';
 import { useStore } from '../store';
@@ -496,7 +497,10 @@ function MediaTile({
 }) {
   const media = useMedia(item.id);
   const missing = useIsMissing(item.id);
-  const [duration, setDuration] = useState(0);
+  // A small picture of it, made once: drawing the 4K file itself in every tile made scrolling stutter.
+  const thumb = useThumbnail(item.id, media?.url);
+  const [loadedDuration, setDuration] = useState(0);
+  const duration = loadedDuration || thumb?.duration || 0;
   const [drop, setDrop] = useState<'before' | 'after' | null>(null);
   const s = useStore.getState();
   const side = (e: DragEvent) => {
@@ -565,8 +569,10 @@ function MediaTile({
             <Icon name="link" size={20} />
             <span>File missing</span>
           </div>
-        ) : !media ? (
+        ) : !media || thumb === undefined ? (
           <div className="media-thumb-img" />
+        ) : thumb ? (
+          <img className="media-thumb-img" src={thumb.url} alt="" decoding="async" draggable={false} />
         ) : media.isVideo ? (
           <video
             className="media-thumb-img"

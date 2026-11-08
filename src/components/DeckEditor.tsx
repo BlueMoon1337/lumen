@@ -481,7 +481,7 @@ export function DeckEditor({ presentation: p, slide, group }: { presentation: Pr
             </div>
           ) : (
             <>
-              <div className="edit-slide" style={{ left, top, width: cw, height: ch }}>
+              <div className="edit-slide" style={{ left, top, width: cw, height: ch, background: '#202124' }}>
                 <canvas ref={canvasRef} width={width} height={height} style={{ width: cw, height: ch, display: 'block' }} />
               </div>
               <div
