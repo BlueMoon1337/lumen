@@ -7119,3 +7119,35 @@ h3.looks-name {
   align-items: center;
   gap: 8px;
 }
+
+/* A long menu's scroll arrows (as on a Mac): over the first or last row, while there's more that way. */
+.msl-scroll-arrow {
+  position: sticky;
+  z-index: 1;
+  flex: none;
+  display: grid;
+  place-items: center;
+  height: 22px;
+  margin: 0 -5px;
+  color: var(--text-2);
+  background: #1e1e1e;
+  cursor: default;
+}
+
+.msl-scroll-arrow.up {
+  top: -5px;
+  box-shadow: 0 8px 8px #1e1e1e;
+  margin-top: -5px;
+  margin-bottom: -17px;
+}
+
+.msl-scroll-arrow.down {
+  bottom: -5px;
+  box-shadow: 0 -8px 8px #1e1e1e;
+  margin-top: -17px;
+  margin-bottom: -5px;
+}
+
+.msl-scroll-arrow:hover {
+  color: var(--text);
+}

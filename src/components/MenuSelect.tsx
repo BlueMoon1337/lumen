@@ -1,5 +1,16 @@
-import { useEffect, useLayoutEffect, useRef, useState, type CSSProperties, type KeyboardEvent, type ReactNode } from 'react';
+import {
+  useCallback,
+  useEffect,
+  useLayoutEffect,
+  useRef,
+  useState,
+  type CSSProperties,
+  type KeyboardEvent,
+  type ReactNode,
+  type RefObject,
+} from 'react';
 import { createPortal } from 'react-dom';
+import { Icon } from './ui';
 
 /** Entries of a ProPresenter-style pop-up menu: a checkmark on the current item, section headers, separators and submenus. */
 export type MenuEntry =
@@ -84,6 +95,7 @@ export function MenuList({
   const { ref, style } = usePlacement(true, anchor, side);
   const [sub, setSub] = useState<{ index: number; rect: DOMRect } | null>(null);
   const subEntry = sub ? entries[sub.index] : undefined;
+  const more = useScrollArrows(ref);
 
   useEffect(() => {
     // Focus the checked item (or the first) so the arrow keys work straight away.
@@ -111,7 +123,8 @@ export function MenuList({
   };
 
   return (
-    <div ref={ref} className={`menu-select-list ${className}`} style={style} role="menu" onKeyDown={onKey}>
+    <div ref={ref} className={`menu-select-list ${className}`} style={style} role="menu" onKeyDown={onKey} onScroll={more.update}>
+      {more.up && <ScrollArrow dir="up" list={ref} onEnter={() => setSub(null)} />}
       {entries.map((entry, i) => {
         if (entry.type === 'header')
           return (
@@ -169,6 +182,7 @@ export function MenuList({
           </button>
         );
       })}
+      {more.down && <ScrollArrow dir="down" list={ref} onEnter={() => setSub(null)} />}
       {subEntry?.type === 'submenu' &&
         sub &&
         (host ?? ref.current?.parentElement) &&
@@ -186,6 +200,57 @@ export function MenuList({
           />,
           (host ?? ref.current?.parentElement)!,
         )}
+    </div>
+  );
+}
+
+/** Whether a menu that's too long for the screen has more above or below what's showing. */
+function useScrollArrows(ref: RefObject<HTMLDivElement | null>) {
+  const [more, setMore] = useState({ up: false, down: false });
+  const update = useCallback(() => {
+    const el = ref.current;
+    if (!el) return;
+    const up = el.scrollTop > 1;
+    const down = el.scrollTop + el.clientHeight < el.scrollHeight - 1;
+    setMore((m) => (m.up === up && m.down === down ? m : { up, down }));
+  }, [ref]);
+  useLayoutEffect(() => {
+    update();
+    const el = ref.current;
+    if (!el) return;
+    const ro = new ResizeObserver(update);
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, [ref, update]);
+  return { ...more, update };
+}
+
+/**
+ * The arrow at the top or bottom of a long menu, as on a Mac: resting the pointer on it scrolls
+ * the menu that way; clicking it scrolls a page.
+ */
+function ScrollArrow({ dir, list, onEnter }: { dir: 'up' | 'down'; list: RefObject<HTMLDivElement | null>; onEnter: () => void }) {
+  const timer = useRef<number | null>(null);
+  const stop = () => {
+    if (timer.current !== null) window.clearInterval(timer.current);
+    timer.current = null;
+  };
+  useEffect(() => stop, []);
+  const sign = dir === 'up' ? -1 : 1;
+  return (
+    <div
+      className={`msl-scroll-arrow ${dir}`}
+      aria-hidden
+      onMouseEnter={() => {
+        onEnter();
+        stop();
+        timer.current = window.setInterval(() => list.current?.scrollBy({ top: sign * 10 }), 16);
+      }}
+      onMouseLeave={stop}
+      onMouseDown={(e) => e.preventDefault()}
+      onClick={() => list.current?.scrollBy({ top: sign * (list.current.clientHeight - 60), behavior: 'smooth' })}
+    >
+      <Icon name={dir === 'up' ? 'chevronUp' : 'chevronDown'} size={14} />
     </div>
   );
 }
