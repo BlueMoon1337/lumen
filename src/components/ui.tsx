@@ -73,13 +73,15 @@ const paths = {
   forward10: 'M13 7l5 5-5 5M6 7l5 5-5 5',
   powerpoint: 'M4 4h16v16H4zM9.5 17V8h3a2.5 2.5 0 0 1 0 5h-3',
   trebleClef: 'M12 21V4.2c0-1.6 2.7-1.7 2.7.7 0 3.1-7.2 4.6-7.2 9.6a4.5 4.5 0 0 0 9 0 3 3 0 0 0-6 0M12 21a1.6 1.6 0 1 1-1.6-1.6',
+  musicNotes:
+    'M8.2 6.4 20.2 3.2v12.2h-1.8V7.9l-8.4 2.2v7.6H8.2zM10 17.6c0 1.6-1.6 2.9-3.5 2.9S3.2 19.6 3.4 18.3c.2-1.5 1.8-2.6 3.6-2.6 1.7 0 3 .8 3 1.9zM20.2 15.3c0 1.6-1.6 2.9-3.5 2.9s-3.3-.9-3.1-2.2c.2-1.5 1.8-2.6 3.6-2.6 1.7 0 3 .8 3 1.9z',
   film: 'M4 4h16v16H4zM8 4v16M16 4v16M4 8h4M4 12h4M4 16h4M16 8h4M16 12h4M16 16h4',
 } as const;
 
 export type IconName = keyof typeof paths;
 
 /** Icons drawn solid rather than as outlines, to read at a glance (pause: two bars). */
-const SOLID = new Set<IconName>(['pause', 'previousTrack', 'nextTrack']);
+const SOLID = new Set<IconName>(['pause', 'previousTrack', 'nextTrack', 'musicNotes']);
 /** Icons with curves too close together for the usual line: drawn finer, so they stay open at small sizes. */
 const FINE: Partial<Record<IconName, number>> = { trebleClef: 1.5 };
 

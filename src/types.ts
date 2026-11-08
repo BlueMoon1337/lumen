@@ -117,7 +117,7 @@ export interface Library {
 }
 
 /** The icons a library can have (right-click it ▸ Icon). */
-export type LibraryIcon = 'library' | 'bible' | 'powerpoint' | 'trebleClef';
+export type LibraryIcon = 'library' | 'bible' | 'powerpoint' | 'trebleClef' | 'musicNotes';
 
 export interface Presentation {
   id: string;

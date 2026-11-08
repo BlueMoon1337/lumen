@@ -6,6 +6,7 @@ export const LIBRARY_ICONS: { id: LibraryIcon; name: string }[] = [
   { id: 'bible', name: 'Scripture' },
   { id: 'powerpoint', name: 'PowerPoint' },
   { id: 'trebleClef', name: 'Treble Clef' },
+  { id: 'musicNotes', name: 'Music Notes' },
 ];
 
 /** A library's icon: the one chosen, else the Bible for Scripture and the box for the others. */
