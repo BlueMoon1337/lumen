@@ -4,6 +4,7 @@ import {
   BIBLE_DRAFT_ID,
   BIBLE_LIVE_ID,
   bibleGroups,
+  SPLIT_COLORS,
   bibleSettings,
   buildBibleSlides,
   rangeLabel,
@@ -231,6 +232,19 @@ describe('long verses', () => {
     ]);
     expect(groups[1].slides.map((sl) => sl.label?.name)).toEqual(['Exodus 1:2', 'Exodus 1:2']);
     expect(arrangement).toEqual(groups.map((g) => g.id));
+  });
+
+  it("color a split verse's labels, a different color for each split verse in a row", () => {
+    const two = passage('Exodus', 'TST', 'Exodus 1:1-3', [
+      [1, 1, 'Short verse.'],
+      [1, 2, long.verses[1].text],
+      [1, 3, long.verses[1].text],
+    ]);
+    const { groups } = bibleGroups(buildBibleSlides([two], settings(), 120));
+    const colors = groups.map((g) => [...new Set(g.slides.map((sl) => sl.label?.color))]);
+    expect(colors[0]).toEqual([groups[0].color]);
+    expect(colors[1]).toEqual([SPLIT_COLORS[0]]);
+    expect(colors[2]).toEqual([SPLIT_COLORS[1]]);
   });
 
   it('splits text into even parts at clause ends', () => {

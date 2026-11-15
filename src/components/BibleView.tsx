@@ -18,6 +18,7 @@ import { importBibleFile } from '../commands';
 import { getSequence } from '../lyrics';
 import { notify } from '../notices';
 import { useStore } from '../store';
+import { LabelTag } from './ShowView';
 import { versesLibrary } from '../libraryIcons';
 import { defaultThemes } from '../seed';
 import type { BibleReferences, BibleSettings, BibleSlot, BibleTranslation, Category, Theme } from '../types';
@@ -504,7 +505,11 @@ export function BibleView() {
                 <div className="slide-thumb-label bible-label">
                   <span className="slide-number">{i + 1}</span>
                   <span className="slide-group">{indexInGroup === 0 ? group.name : ''}</span>
-                  <span className="bible-slide-verse">{slide.label?.name ?? group.name}</span>
+                  {slide.label && slide.label.color !== group.color ? (
+                    <LabelTag label={slide.label} />
+                  ) : (
+                    <span className="bible-slide-verse">{slide.label?.name ?? group.name}</span>
+                  )}
                 </div>
               </div>
             ))}

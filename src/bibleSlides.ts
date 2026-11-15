@@ -198,5 +198,16 @@ export function bibleGroups(slides: BibleSlide[]): { groups: Group[]; arrangemen
     if (last && last.name === s.label) last.slides.push(slide);
     else groups.push({ id: uid(), name: s.label, color: GROUP_COLOR, slides: [slide] });
   }
+  // A verse over several slides has its label in a color, so its parts read as one verse; the
+  // next split verse takes the next color, so two in a row can be told apart.
+  let next = 0;
+  for (const g of groups) {
+    if (g.slides.length < 2) continue;
+    const color = SPLIT_COLORS[next++ % SPLIT_COLORS.length];
+    for (const sl of g.slides) sl.label = { name: g.name, color };
+  }
   return { groups, arrangement: groups.map((g) => g.id) };
 }
+
+/** Labels of verses split over several slides, in turn: blue, orange, green, purple, red, teal. */
+export const SPLIT_COLORS = ['#2563eb', '#d97706', '#16a34a', '#9333ea', '#dc2626', '#0d9488'];
