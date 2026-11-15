@@ -185,13 +185,18 @@ export function buildBibleSlides(passages: (Passage | null)[], settings: BibleSe
   });
 }
 
-/** One group per slide, named after its verses, as Bible slides are labelled in ProPresenter. */
+/**
+ * One group per verse (or run of verses), named after them, as in ProPresenter: a verse split
+ * over several slides is one group of those slides. Every slide is labelled with its verses too,
+ * so each thumbnail says which verse it is, not only the group's first.
+ */
 export function bibleGroups(slides: BibleSlide[]): { groups: Group[]; arrangement: string[] } {
-  const groups = slides.map((s) => ({
-    id: uid(),
-    name: s.label,
-    color: GROUP_COLOR,
-    slides: [{ id: uid(), text: s.text, caption: s.caption }],
-  }));
+  const groups: Group[] = [];
+  for (const s of slides) {
+    const slide = { id: uid(), text: s.text, caption: s.caption, label: { name: s.label, color: GROUP_COLOR } };
+    const last = groups[groups.length - 1];
+    if (last && last.name === s.label) last.slides.push(slide);
+    else groups.push({ id: uid(), name: s.label, color: GROUP_COLOR, slides: [slide] });
+  }
   return { groups, arrangement: groups.map((g) => g.id) };
 }

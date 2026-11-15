@@ -223,6 +223,16 @@ describe('long verses', () => {
     expect(slides[2].text.startsWith('²')).toBe(false);
   });
 
+  it('put a split verse's slides in one group, each labelled with the verse', () => {
+    const { groups, arrangement } = bibleGroups(buildBibleSlides([long], settings(), 120));
+    expect(groups.map((g) => [g.name, g.slides.length])).toEqual([
+      ['Exodus 1:1', 1],
+      ['Exodus 1:2', 2],
+    ]);
+    expect(groups[1].slides.map((sl) => sl.label?.name)).toEqual(['Exodus 1:2', 'Exodus 1:2']);
+    expect(arrangement).toEqual(groups.map((g) => g.id));
+  });
+
   it('splits text into even parts at clause ends', () => {
     expect(splitText('One two three. Four five six.', 2)).toEqual(['One two three.', 'Four five six.']);
     expect(splitText('abc', 1)).toEqual(['abc']);

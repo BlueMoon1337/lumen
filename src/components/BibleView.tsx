@@ -487,7 +487,7 @@ export function BibleView() {
           </div>
         ) : (
           <div className="slide-grid" style={{ gridTemplateColumns: `repeat(auto-fill, minmax(${gridSize}px, 1fr))` }}>
-            {seq.map(({ group, slide }, i) => (
+            {seq.map(({ group, slide, indexInGroup }, i) => (
               <div
                 key={slide.id}
                 ref={i === liveIndex ? liveRef : undefined}
@@ -502,7 +502,9 @@ export function BibleView() {
                   <SlidePreview text={slide.text} caption={slide.caption} theme={template} />
                 </div>
                 <div className="slide-thumb-label bible-label">
-                  <span className="slide-group">{group.name}</span>
+                  <span className="slide-number">{i + 1}</span>
+                  <span className="slide-group">{indexInGroup === 0 ? group.name : ''}</span>
+                  <span className="bible-slide-verse">{slide.label?.name ?? group.name}</span>
                 </div>
               </div>
             ))}
