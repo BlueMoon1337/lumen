@@ -1,6 +1,15 @@
 import { describe, expect, it } from 'vitest';
 import { STANDARD_BOOKS, parseReference, type Passage } from './bible';
-import { BIBLE_DRAFT_ID, BIBLE_LIVE_ID, bibleGroups, bibleSettings, buildBibleSlides, rangeLabel, slideCapacity } from './bibleSlides';
+import {
+  BIBLE_DRAFT_ID,
+  BIBLE_LIVE_ID,
+  bibleGroups,
+  bibleSettings,
+  buildBibleSlides,
+  rangeLabel,
+  slideCapacity,
+  splitText,
+} from './bibleSlides';
 import { getSequence } from './lyrics';
 import { useStore } from './store';
 import { defaultThemes } from './seed';
@@ -158,5 +167,69 @@ describe('Bible mode in the store', () => {
       'Second verse text.',
       'Third verse text.',
     ]);
+  });
+});
+
+describe('long verses', () => {
+  const long = passage('Exodus', 'TST', 'Exodus 1:1-2', [
+    [1, 1, 'Short verse.'],
+    [
+      1,
+      2,
+      'Then he arose and went to the town, and when he came to the gate of the city, behold, a widow was there gathering sticks; and he called to her and said, bring me a little water in a vessel, that I may drink.',
+    ],
+  ]);
+  const otro = passage('Éxodo', 'PRB', 'Éxodo 1:1-2', [
+    [1, 1, 'Versículo corto.'],
+    [
+      1,
+      2,
+      'Entonces él se levantó y se fue a la ciudad, y cuando llegó a la puerta, he aquí una viuda que estaba allí recogiendo leña; y él la llamó, y le dijo: te ruego que me traigas un poco de agua en un vaso, para que beba.',
+    ],
+  ]);
+
+  it('go over several slides, each with the verse as its reference, as in ProPresenter', () => {
+    const slides = buildBibleSlides([long], settings(), 120);
+    expect(slides.map((s) => s.label)).toEqual(['Exodus 1:1', 'Exodus 1:2', 'Exodus 1:2']);
+    expect(slides[1].caption).toBe('Exodus 1:2');
+    // Split at the end of a clause, with nothing lost.
+    expect(slides[1].text).toMatch(/[;,]$/);
+    expect(`${slides[1].text} ${slides[2].text}`).toBe(long.verses[1].text);
+  });
+
+  it('fit on one slide when the template has room', () => {
+    expect(buildBibleSlides([long], settings(), 1000)).toHaveLength(2);
+  });
+
+  it('split a second translation into as many parts', () => {
+    const slides = buildBibleSlides(
+      [long, otro],
+      settings({
+        translations: [
+          { bibleId: 'tst', verse: 'text', reference: 'caption' },
+          { bibleId: 'prb', verse: 'text', reference: 'caption' },
+        ],
+      }),
+      120,
+    );
+    expect(slides).toHaveLength(3);
+    expect(slides[1].text.split('\n\n')).toHaveLength(2);
+    expect(slides[2].text).toContain('para que beba.');
+  });
+
+  it('only number the first part of a verse', () => {
+    const slides = buildBibleSlides([long], settings({ showVerseNumbers: true }), 120);
+    expect(slides[1].text.startsWith('² ')).toBe(true);
+    expect(slides[2].text.startsWith('²')).toBe(false);
+  });
+
+  it('splits text into even parts at clause ends', () => {
+    expect(splitText('One two three. Four five six.', 2)).toEqual(['One two three.', 'Four five six.']);
+    expect(splitText('abc', 1)).toEqual(['abc']);
+  });
+
+  it('a template with a bigger font holds fewer characters', () => {
+    const t = defaultThemes[0];
+    expect(slideCapacity({ ...t, fontSize: 140 })).toBeLessThan(slideCapacity({ ...t, fontSize: 70 }));
   });
 });

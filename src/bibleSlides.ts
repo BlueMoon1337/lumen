@@ -36,27 +36,93 @@ export function rangeLabel(verses: Verse[]): string {
   return `${first.book_name} ${first.chapter}:${first.verse}${end}`;
 }
 
-/** Roughly how many characters fit the template's main box at a comfortable size; used to fill slides when not breaking on each verse. */
+const SAMPLE = 'Then he arose and went to Zarephath; y cuando llegó a la puerta de la ciudad, he aquí una mujer viuda';
+
+/** The width of an average character in the template's font, measured where there's a page to measure on. */
+function charWidth(theme: Theme, size: number): number {
+  try {
+    const ctx = document.createElement('canvas').getContext('2d');
+    if (ctx) {
+      ctx.font = `${theme.italic ? 'italic ' : ''}${theme.fontWeight} ${size}px ${theme.fontFamily}`;
+      const text = theme.uppercase ? SAMPLE.toUpperCase() : SAMPLE;
+      const w = ctx.measureText(text).width / text.length;
+      if (w > 0) return w;
+    }
+  } catch {
+    // No page (tests): estimate.
+  }
+  return size * (theme.uppercase ? 0.68 : 0.55);
+}
+
+/**
+ * Roughly how many characters fit the template's main box near its font size (shrinking it a
+ * little at most). A verse longer than this goes over several slides, as in ProPresenter, rather
+ * than shrinking to fit; when not breaking on each verse, slides are filled up to it.
+ */
 export function slideCapacity(theme: Theme): number {
   const width = 1920 * (1 - (theme.inset.left + theme.inset.right) / 100);
   const height = 1080 * (1 - (theme.inset.top + theme.inset.bottom) / 100);
-  const size = Math.max(36, theme.fontSize * 0.7);
-  return Math.max(60, Math.floor((width / (size * 0.55)) * (height / (size * theme.lineHeight)) * 0.85));
+  const size = Math.max(36, theme.fontSize * 0.85);
+  const perLine = Math.max(8, Math.floor(width / charWidth(theme, size)));
+  const lines = Math.max(1, Math.floor(height / (size * theme.lineHeight)));
+  return Math.max(40, Math.floor(perLine * lines * 0.85));
 }
 
-function chunkVerses(verses: Verse[], breakOnNewVerse: boolean, capacity: number): Verse[][] {
-  if (breakOnNewVerse) return verses.map((v) => [v]);
-  const chunks: Verse[][] = [];
-  let chunk: Verse[] = [];
+/**
+ * Splits text into `parts` pieces of about the same length, each ending at the end of a sentence
+ * or clause where there's one near, else at a space.
+ */
+export function splitText(text: string, parts: number): string[] {
+  if (parts <= 1) return [text];
+  const out: string[] = [];
+  let rest = text;
+  for (let left = parts; left > 1; left--) {
+    const target = rest.length / left;
+    const window = target * 0.3;
+    const near = (re: RegExp) => {
+      let best = -1;
+      for (const m of rest.matchAll(re)) {
+        const at = m.index + m[0].length;
+        if (Math.abs(at - target) <= window && (best < 0 || Math.abs(at - target) < Math.abs(best - target))) best = at;
+      }
+      return best;
+    };
+    let cut = near(/[.;:!?»”"')]+\s/g);
+    if (cut < 0) cut = near(/,\s/g);
+    if (cut < 0) cut = near(/\s/g);
+    if (cut < 0) cut = Math.round(target);
+    out.push(rest.slice(0, cut).trim());
+    rest = rest.slice(cut).trim();
+  }
+  out.push(rest);
+  return out.filter(Boolean);
+}
+
+/** A verse, or a part of one too long for a slide. */
+interface Piece {
+  verse: Verse;
+  /** Which part, of how many. */
+  part: number;
+  parts: number;
+}
+
+function chunkVerses(verses: Verse[], breakOnNewVerse: boolean, capacity: number): Piece[][] {
+  const pieces = verses.flatMap((verse): Piece[] => {
+    const parts = Math.max(1, Math.ceil(clean(verse.text).length / capacity));
+    return splitText(clean(verse.text), parts).map((_, part, all) => ({ verse, part, parts: all.length }));
+  });
+  if (breakOnNewVerse) return pieces.map((p) => [p]);
+  const chunks: Piece[][] = [];
+  let chunk: Piece[] = [];
   let length = 0;
-  for (const v of verses) {
-    const n = clean(v.text).length + 1;
+  for (const p of pieces) {
+    const n = clean(p.verse.text).length / p.parts + 1;
     if (chunk.length && length + n > capacity) {
       chunks.push(chunk);
       chunk = [];
       length = 0;
     }
-    chunk.push(v);
+    chunk.push(p);
     length += n;
   }
   if (chunk.length) chunks.push(chunk);
@@ -83,13 +149,22 @@ export function buildBibleSlides(passages: (Passage | null)[], settings: BibleSe
   const byVerse = passages.map((p) => new Map((p?.verses ?? []).map((v) => [`${v.chapter}:${v.verse}`, v])));
 
   return chunks.map((chunk, index) => {
-    const keys = chunk.map((v) => `${v.chapter}:${v.verse}`);
     const boxes: Record<Exclude<BibleSlot, 'none'>, string[]> = { text: [], caption: [] };
     settings.translations.forEach((row, i) => {
       const passage = passages[i];
       if (!passage) return;
-      const verses = keys.map((k) => byVerse[i].get(k)).filter((v): v is Verse => !!v);
-      const body = verses.map((v) => `${settings.showVerseNumbers ? `${superscript(v.verse)} ` : ''}${clean(v.text)}`).join(' ');
+      // The same verses in this translation, split into the same number of parts.
+      const found = chunk
+        .map((p) => ({ p, v: byVerse[i].get(`${p.verse.chapter}:${p.verse.verse}`) }))
+        .filter((x): x is { p: Piece; v: Verse } => !!x.v);
+      const verses = [...new Set(found.map((x) => x.v))];
+      const body = found
+        .map(({ p, v }) => {
+          const text = splitText(clean(v.text), p.parts)[p.part] ?? '';
+          return `${settings.showVerseNumbers && p.part === 0 ? `${superscript(v.verse)} ` : ''}${text}`;
+        })
+        .filter(Boolean)
+        .join(' ');
       let reference = '';
       if (settings.references === 'verse') reference = rangeLabel(verses);
       else if (settings.references === 'passage-each') reference = passage.reference;
@@ -102,7 +177,11 @@ export function buildBibleSlides(passages: (Passage | null)[], settings: BibleSe
       if (own.text.length) boxes.text.push(own.text.join('\n'));
       if (own.caption.length) boxes.caption.push(own.caption.join('\n'));
     });
-    return { label: rangeLabel(chunk), text: boxes.text.join('\n\n'), caption: boxes.caption.join('\n') || undefined };
+    return {
+      label: rangeLabel([...new Set(chunk.map((p) => p.verse))]),
+      text: boxes.text.join('\n\n'),
+      caption: boxes.caption.join('\n') || undefined,
+    };
   });
 }
 

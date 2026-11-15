@@ -128,7 +128,7 @@ npm run format       # Prettier
 - **Stage display** showing the current and next slide, notes, clock, timer, and a flashing message to the stage.
 - **ProPresenter import** of `.pro` presentations, `.proplaylist` playlists and `.rvbible` Bibles (see below).
 - **PowerPoint and Keynote import** into their own library, with their slides editable in Edit mode (see below).
-- **Bible mode**, laid out like ProPresenter's (see Bible below), from imported Bibles (offline) or public-domain translations via [bible-api.com](https://bible-api.com).
+- **Bible mode**, laid out like ProPresenter's (see Bible below), from imported Bibles (offline) or public-domain translations via [bible-api.com](https://bible-api.com). A verse too long for the template at its font size goes over two or more slides (each labelled with the verse), split at the end of a sentence or clause, as in ProPresenter; a bigger font means shorter slides.
 - **File menu** like ProPresenter's: new presentations, playlists and libraries; import songs, folders, media, text from the clipboard and Bibles; export presentations, bundles, text, slide images, playlists and themes (see The File menu below).
 - **Edit menu** like ProPresenter's, for text fields and for slides: select several slides (⌘-click, ⇧-click, Select All) and cut, copy, paste (or paste and match style), duplicate or delete them, or copy and paste their text style (see The Edit menu below).
 - **Deleting** that asks first for anything holding other things, goes straight away for a slide, and can always be undone (see Deleting below).
