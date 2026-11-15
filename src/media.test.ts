@@ -169,6 +169,22 @@ describe('outros', () => {
     expect(s().settings.outroMediaId).toBeUndefined();
   });
 
+  it('take the screen to themselves: everything else on it goes', () => {
+    s().markMedia('outro', 'v3', true);
+    s().setActiveMedia('outro', 'v3');
+    useStore.setState({
+      media: [...s().media.filter((m) => m.id !== 'tune'), { id: 'tune', name: 'Tune', kind: 'audio', mime: 'audio/mpeg' }],
+    });
+    const song = s().createPresentation({ title: 'Song' }, 'Amazing grace');
+    s().goLive(song, 0);
+    s().setLiveMedia('v1');
+    s().playAudio('tune');
+    s().showMessage(s().messages[0].id);
+    s().setVideoInput({ deviceId: 'cam', label: 'Camera' } as never);
+    s().playOutro();
+    expect(s().live).toMatchObject({ mediaId: 'v3', slide: null, audioId: null, messageId: null, videoInput: null, logo: false });
+  });
+
   it('leave the media bin alone when removed from the Countdowns or Outro tab', () => {
     s().setActiveMedia('outro', 'v1');
     s().updateMedia('v2', { countdown: true });

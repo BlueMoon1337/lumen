@@ -1603,7 +1603,8 @@ export const useStore = create<AppState>()(
         setLiveMedia: (id, from = null) =>
           set((s) => {
             const outro = !!id && id !== s.live.mediaId && !!s.media.find((m) => m.id === id)?.outro;
-            const live = outro ? clearLive(s.live, ['audio']) : s.live;
+            // An outro takes the screen to itself: the slide, music, messages, announcements, logo and video input go.
+            const live = outro ? clearLive(s.live, ['slide', 'audio', 'messages', 'announcements', 'logo', 'videoInput']) : s.live;
             return {
               live: {
                 ...live,
