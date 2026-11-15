@@ -1,6 +1,8 @@
 import { useEffect, useState, type CSSProperties } from 'react';
 import { useShallow } from 'zustand/react/shallow';
 import { CROSSFADE_MAX, songCrossfade } from '../countdowns';
+import { inkFor } from '../theme';
+import { SPLIT_COLORS, splitVerseColors } from '../bibleSlides';
 import { checkForUpdates, useUpdates } from '../updates';
 import { DEFAULT_APP_ICON } from '../appIcons';
 import { addFontFiles, importFiles } from '../commands';
@@ -30,6 +32,61 @@ const ALT = IS_MAC ? '⌥' : 'Alt';
  * Settings ▸ Startup: open Lumen when the computer starts (when the operator logs in). The
  * system keeps the setting, so it's read from there rather than from Lumen's own settings.
  */
+/**
+ * Settings ▸ Split Verse Colors: the colors a verse split over several slides has its label in, in the order
+ * they're used (the first split verse takes the first color, the next the second, and so on).
+ */
+function BibleSection() {
+  const colors = useStore(useShallow((st) => splitVerseColors(st.settings)));
+  const s = useStore.getState();
+  const save = (next: string[]) => s.updateSettings({ splitVerseColors: next });
+  const move = (i: number, by: number) => {
+    const next = [...colors];
+    [next[i], next[i + by]] = [next[i + by], next[i]];
+    save(next);
+  };
+  return (
+    <section className="settings-section">
+      <h4>Split Verse Colors</h4>
+      <p className="muted small-print">
+        In Bible mode, a verse that goes over several slides has its label in one of these colors, in this order, so its slides read as one
+        verse and the next split verse looks different.
+      </p>
+      <ol className="split-colors">
+        {colors.map((c, i) => (
+          <li key={i}>
+            <span className="split-color-number">{i + 1}</span>
+            <ColorButton value={c} label={`Color ${i + 1}`} onChange={(color) => save(colors.map((x, j) => (j === i ? color : x)))} />
+            <span className="split-color-sample" style={{ background: c, color: inkFor(c) }}>
+              1 Reyes 17:10
+            </span>
+            <IconButton icon="chevronUp" title="Earlier" disabled={i === 0} onClick={() => move(i, -1)} />
+            <IconButton icon="chevronDown" title="Later" disabled={i === colors.length - 1} onClick={() => move(i, 1)} />
+            <IconButton
+              icon="close"
+              title="Remove this color"
+              disabled={colors.length === 1}
+              onClick={() => save(colors.filter((_, j) => j !== i))}
+            />
+          </li>
+        ))}
+      </ol>
+      <div className="button-row">
+        <button className="btn" onClick={() => save([...colors, SPLIT_COLORS[colors.length % SPLIT_COLORS.length]])}>
+          Add Color
+        </button>
+        <button
+          className="btn"
+          disabled={!useStore.getState().settings.splitVerseColors}
+          onClick={() => s.updateSettings({ splitVerseColors: undefined })}
+        >
+          Reset
+        </button>
+      </div>
+    </section>
+  );
+}
+
 /** Settings ▸ Audio: Crossfade Songs, and how long a crossfade lasts (up to 5 seconds). */
 function AudioSection() {
   const fade = useStore(useShallow((st) => songCrossfade(st.settings)));
@@ -287,6 +344,7 @@ export function SettingsDialog({ onClose, onScreens }: { onClose: () => void; on
       </section>
       <OutroSection />
       <AudioSection />
+      <BibleSection />
       <section className="settings-section">
         <h4>Groups & Labels</h4>
         <p className="muted small-print">

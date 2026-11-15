@@ -247,6 +247,11 @@ describe('long verses', () => {
     expect(colors[2]).toEqual([SPLIT_COLORS[1]]);
   });
 
+  it('take the colors chosen in Settings, in their order', () => {
+    const { groups } = bibleGroups(buildBibleSlides([long], settings(), 120), ['#123456']);
+    expect(groups[1].slides.map((sl) => sl.label?.color)).toEqual(['#123456', '#123456']);
+  });
+
   it('splits text into even parts at clause ends', () => {
     expect(splitText('One two three. Four five six.', 2)).toEqual(['One two three.', 'Four five six.']);
     expect(splitText('abc', 1)).toEqual(['abc']);

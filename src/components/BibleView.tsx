@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
+import { useShallow } from 'zustand/react/shallow';
 import {
   bookLabel,
   formatRange,
@@ -13,7 +14,15 @@ import {
   type Passage,
   type PassageRange,
 } from '../bible';
-import { BIBLE_DRAFT_ID, BIBLE_LIVE_ID, bibleGroups, bibleSettings, buildBibleSlides, slideCapacity } from '../bibleSlides';
+import {
+  BIBLE_DRAFT_ID,
+  BIBLE_LIVE_ID,
+  bibleGroups,
+  bibleSettings,
+  buildBibleSlides,
+  slideCapacity,
+  splitVerseColors,
+} from '../bibleSlides';
 import { importBibleFile } from '../commands';
 import { getSequence } from '../lyrics';
 import { notify } from '../notices';
@@ -230,13 +239,14 @@ export function BibleView() {
     if (!passages || !first) return null;
     return { title: `${first.reference} (${first.translation_id})`, slides: buildBibleSlides(passages, b, slideCapacity(template)) };
   }, [passages, optionsKey, template]);
+  const colors = useStore(useShallow((st) => splitVerseColors(st.settings)));
   useEffect(() => {
     if (!content) return;
-    const key = JSON.stringify([content.title, template.id, content.slides]);
+    const key = JSON.stringify([content.title, template.id, content.slides, colors]);
     if (key === lastDraftKey && draft) return;
     lastDraftKey = key;
-    s.setBibleDraft({ title: content.title, themeId: template.id, ...bibleGroups(content.slides) });
-  }, [content, template.id]);
+    s.setBibleDraft({ title: content.title, themeId: template.id, ...bibleGroups(content.slides, colors) });
+  }, [content, template.id, colors]);
 
   const seq = draft && content ? getSequence(draft) : [];
   const liveIndex = live?.presentationId === BIBLE_LIVE_ID && liveCopy && draft && liveCopy.updatedAt === draft.updatedAt ? live.index : -1;

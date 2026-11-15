@@ -190,7 +190,8 @@ export function buildBibleSlides(passages: (Passage | null)[], settings: BibleSe
  * over several slides is one group of those slides. Every slide is labelled with its verses too,
  * so each thumbnail says which verse it is, not only the group's first.
  */
-export function bibleGroups(slides: BibleSlide[]): { groups: Group[]; arrangement: string[] } {
+export function bibleGroups(slides: BibleSlide[], colors: string[] = SPLIT_COLORS): { groups: Group[]; arrangement: string[] } {
+  const palette = colors.length ? colors : SPLIT_COLORS;
   const groups: Group[] = [];
   for (const s of slides) {
     const slide = { id: uid(), text: s.text, caption: s.caption, label: { name: s.label, color: GROUP_COLOR } };
@@ -203,7 +204,7 @@ export function bibleGroups(slides: BibleSlide[]): { groups: Group[]; arrangemen
   let next = 0;
   for (const g of groups) {
     if (g.slides.length < 2) continue;
-    const color = SPLIT_COLORS[next++ % SPLIT_COLORS.length];
+    const color = palette[next++ % palette.length];
     for (const sl of g.slides) sl.label = { name: g.name, color };
   }
   return { groups, arrangement: groups.map((g) => g.id) };
@@ -211,3 +212,7 @@ export function bibleGroups(slides: BibleSlide[]): { groups: Group[]; arrangemen
 
 /** Labels of verses split over several slides, in turn: blue, orange, green, purple, red, teal. */
 export const SPLIT_COLORS = ['#2563eb', '#d97706', '#16a34a', '#9333ea', '#dc2626', '#0d9488'];
+
+/** Settings ▸ Split Verse Colors for split verses, in their order. */
+export const splitVerseColors = (settings: Settings): string[] =>
+  settings.splitVerseColors?.length ? settings.splitVerseColors : SPLIT_COLORS;
