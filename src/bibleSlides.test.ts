@@ -223,7 +223,7 @@ describe('long verses', () => {
     expect(slides[2].text.startsWith('²')).toBe(false);
   });
 
-  it('put a split verse's slides in one group, each labelled with the verse', () => {
+  it("put a split verse's slides in one group, each labelled with the verse", () => {
     const { groups, arrangement } = bibleGroups(buildBibleSlides([long], settings(), 120));
     expect(groups.map((g) => [g.name, g.slides.length])).toEqual([
       ['Exodus 1:1', 1],
