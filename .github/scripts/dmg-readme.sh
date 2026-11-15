@@ -49,12 +49,19 @@ EOF
 
 sync
 # Finder can hold the volume for a few seconds after closing its window.
+mounted() { mount | grep -qF " on $mount ("; }
 for attempt in 1 2 3 4 5 6; do
-  hdiutil detach "$mount" -quiet && break
+  mounted || break
+  if [ "$attempt" -ge 4 ]; then flag=-force; else flag=; fi
+  hdiutil detach "$mount" $flag || echo "Ejecting didn't work (try $attempt); trying again."
+  mounted || break
   sleep 5
-  [ "$attempt" -ge 4 ] && hdiutil detach "$mount" -force -quiet && break
 done
-[ ! -d "$mount" ] || { echo "::error::Couldn't eject $mount"; exit 1; }
+# The volume's folder can outlast it; what matters is that it's no longer mounted.
+if mounted; then
+  echo "::error::Couldn't eject $mount"
+  exit 1
+fi
 hdiutil convert "$work/rw.dmg" -format UDZO -imagekey zlib-level=9 -o "$work/final.dmg" -quiet
 mv -f "$work/final.dmg" "$dmg"
 
