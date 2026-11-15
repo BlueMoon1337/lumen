@@ -58,7 +58,7 @@ function BibleSection() {
             <span className="split-color-number">{i + 1}</span>
             <ColorButton value={c} label={`Color ${i + 1}`} onChange={(color) => save(colors.map((x, j) => (j === i ? color : x)))} />
             <span className="split-color-sample" style={{ background: c, color: inkFor(c) }}>
-              1 Reyes 17:10
+              Genesis 1:1
             </span>
             <IconButton icon="chevronUp" title="Earlier" disabled={i === 0} onClick={() => move(i, -1)} />
             <IconButton icon="chevronDown" title="Later" disabled={i === colors.length - 1} onClick={() => move(i, 1)} />
