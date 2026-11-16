@@ -2494,11 +2494,31 @@ body.resizing-y * {
 }
 
 .settings-section h4 {
-  margin: 0 0 8px;
-  font-size: 11px;
-  text-transform: uppercase;
-  letter-spacing: 0.06em;
-  color: var(--muted);
+  margin: 6px 0 4px;
+  font-size: 17px;
+  font-weight: 700;
+  color: #fff;
+}
+
+/* Settings: room to breathe, as wide and tall as the window allows. */
+.dialog.settings-dialog {
+  width: min(820px, calc(100vw - 48px));
+  max-height: calc(100vh - 48px);
+}
+
+/* A part of a Settings section with its own heading (Bibles ▸ Split Verse Colors). */
+.settings-subsection {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-top: 8px;
+}
+
+.settings-subsection h5 {
+  margin: 0;
+  font-size: 14px;
+  font-weight: 700;
+  color: #fff;
 }
 
 .settings-section {

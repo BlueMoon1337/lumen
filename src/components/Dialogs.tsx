@@ -36,7 +36,7 @@ const ALT = IS_MAC ? '⌥' : 'Alt';
  * Settings ▸ Split Verse Colors: the colors a verse split over several slides has its label in, in the order
  * they're used (the first split verse takes the first color, the next the second, and so on).
  */
-function BibleSection() {
+function SplitVerseColors() {
   const colors = useStore(useShallow((st) => splitVerseColors(st.settings)));
   const s = useStore.getState();
   const save = (next: string[]) => s.updateSettings({ splitVerseColors: next });
@@ -46,8 +46,8 @@ function BibleSection() {
     save(next);
   };
   return (
-    <section className="settings-section">
-      <h4>Split Verse Colors</h4>
+    <div className="settings-subsection">
+      <h5>Split Verse Colors</h5>
       <p className="muted small-print">
         In Bible mode, a verse that goes over several slides has its label in one of these colors, in this order, so its slides read as one
         verse and the next split verse looks different.
@@ -83,7 +83,7 @@ function BibleSection() {
           Reset
         </button>
       </div>
-    </section>
+    </div>
   );
 }
 
@@ -291,7 +291,7 @@ export function SettingsDialog({ onClose, onScreens }: { onClose: () => void; on
   };
 
   return (
-    <Dialog title="Settings" onClose={onClose}>
+    <Dialog title="Settings" onClose={onClose} className="settings-dialog">
       {window.lumenDesktop && <UpdatesSection />}
       {window.lumenDesktop && <StartupSection />}
       <section className="settings-section">
@@ -344,19 +344,6 @@ export function SettingsDialog({ onClose, onScreens }: { onClose: () => void; on
       </section>
       <OutroSection />
       <AudioSection />
-      <BibleSection />
-      <section className="settings-section">
-        <h4>Groups & Labels</h4>
-        <p className="muted small-print">
-          {groupPresets(settings).length} groups and {labelPresets(settings).length} slide labels to choose from when you right-click a
-          slide.
-        </p>
-        <div className="button-row">
-          <button className="btn" onClick={() => s.setUI({ dialog: 'labels' })}>
-            Edit Groups & Labels…
-          </button>
-        </div>
-      </section>
       <section className="settings-section">
         <h4>Highlight Color</h4>
         <div className="highlight-choices" role="radiogroup" aria-label="Highlight color">
@@ -392,13 +379,6 @@ export function SettingsDialog({ onClose, onScreens }: { onClose: () => void; on
         </p>
       </section>
       <section className="settings-section">
-        <h4>App Icon</h4>
-        <IconPicker value={settings.appIcon ?? DEFAULT_APP_ICON} onChange={(appIcon) => s.updateSettings({ appIcon })} />
-        {window.lumenDesktop?.platform === 'darwin' && (
-          <p className="muted small-print">The Dock shows the new icon while Lumen runs; Finder keeps the one Lumen was installed with.</p>
-        )}
-      </section>
-      <section className="settings-section">
         <h4>Screens</h4>
         <p className="muted small-print">
           {screens.filter((x) => x.kind === 'audience').length} audience and {screens.filter((x) => x.kind === 'stage').length} stage screen
@@ -427,6 +407,19 @@ export function SettingsDialog({ onClose, onScreens }: { onClose: () => void; on
         <div className="button-row">
           <button className="btn" onClick={() => pickFiles('.rvbible').then((files) => importFiles(files))}>
             Import Bible (.rvbible)…
+          </button>
+        </div>
+        <SplitVerseColors />
+      </section>
+      <section className="settings-section">
+        <h4>Groups & Labels</h4>
+        <p className="muted small-print">
+          {groupPresets(settings).length} groups and {labelPresets(settings).length} slide labels to choose from when you right-click a
+          slide.
+        </p>
+        <div className="button-row">
+          <button className="btn" onClick={() => s.setUI({ dialog: 'labels' })}>
+            Edit Groups & Labels…
           </button>
         </div>
       </section>
@@ -512,6 +505,13 @@ export function SettingsDialog({ onClose, onScreens }: { onClose: () => void; on
           A backup holds every presentation, playlist, theme, message and setting; media files and Bible text stay on this computer. To
           share songs or playlists, use File ▸ Export.
         </p>
+      </section>
+      <section className="settings-section">
+        <h4>App Icon</h4>
+        <IconPicker value={settings.appIcon ?? DEFAULT_APP_ICON} onChange={(appIcon) => s.updateSettings({ appIcon })} />
+        {window.lumenDesktop?.platform === 'darwin' && (
+          <p className="muted small-print">The Dock shows the new icon while Lumen runs; Finder keeps the one Lumen was installed with.</p>
+        )}
       </section>
       <section className="settings-section">
         <h4>Keyboard</h4>
