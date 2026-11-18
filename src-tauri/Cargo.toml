@@ -1,6 +1,6 @@
 [package]
 name = "lumen"
-version = "1.0.9"
+version = "1.0.10"
 description = "Lumen: live presentation software for worship services and events"
 edition = "2024"
 rust-version = "1.90"
