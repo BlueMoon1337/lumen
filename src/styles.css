@@ -7211,3 +7211,11 @@ h3.looks-name {
   font-size: 12px;
   font-weight: 600;
 }
+
+/* Settings ▸ Updates: Install from Zip, Go Back and Export Lumen, with room between their rows. */
+.zip-updates {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-top: 10px;
+}
