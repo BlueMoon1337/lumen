@@ -119,6 +119,17 @@ export interface DesktopBridge {
   setViewState(state: { presentation: boolean; continuousPlaylist: boolean; slideView: string }): void;
   /** Turns the Presentation menu's items on and off, and lists the clear groups in Clear Groups. */
   setPresentationState(state: { enabled: string[]; clearGroups: { id: string; name: string }[] }): void;
+  /** Interface updates from a zip (Settings ▸ Updates): see src-tauri/src/interface.rs. */
+  interfaceUpdates?: {
+    state(): Promise<{ app: string; interface: string | null; previous: string | null }>;
+    /** Asks for a package; its path, or null when cancelled. */
+    pick(): Promise<string | null>;
+    check(path: string): Promise<{ version: string; current: string; compared: 'newer' | 'same' | 'older'; notes: string | null }>;
+    /** Installs it, and Lumen restarts. */
+    install(path: string): Promise<void>;
+    /** Back to the interface the last update replaced (and Lumen restarts). */
+    goBack(): Promise<void>;
+  };
   /** Shows the Open panel for files (or a folder, giving the files in it with those extensions). */
   openFiles(options: {
     extensions: string[];

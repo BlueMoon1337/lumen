@@ -93,6 +93,18 @@ export function installDesktopBridge() {
     keynoteDone: (id) => invoke('keynote_done', { id }),
     openAtLogin: () => invoke<boolean>('open_at_login'),
     setOpenAtLogin: (on) => invoke('set_open_at_login', { on }),
+    interfaceUpdates: {
+      state: () => invoke('interface_state'),
+      pick: async () => {
+        const opened = await invoke<{ files: { path: string }[] }>('open_files', {
+          options: { extensions: ['zip'], kind: 'Lumen Update', multiple: false, folder: false },
+        });
+        return opened.files[0]?.path ?? null;
+      },
+      check: (path) => invoke('check_interface_package', { path }),
+      install: (path) => invoke('install_interface_package', { path }),
+      goBack: () => invoke('interface_go_back'),
+    },
     openFiles: async (options) => {
       const opened = await invoke<{ folder: string | null; files: { name: string; path: string }[] }>('open_files', { options });
       const files = await Promise.all(

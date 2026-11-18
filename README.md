@@ -68,6 +68,14 @@ The update files are signed with a private key kept as the repository secret `TA
 
 On a Mac, open the `.dmg` from the release: its window shows how to install (drag Lumen onto Applications) with a **Read Me First** file below for the first launch. The Mac background is drawn by `scripts/dmg-background.py`, and `.github/scripts/dmg-readme.sh` adds the Read Me during the release. The apps from a release are ad-hoc signed, not notarized, so the first time you open one downloaded with a browser, macOS asks: right-click it and choose **Open** (or **System Settings ▸ Privacy & Security ▸ Open Anyway**). Updates installed by the Update button don't ask again. If the Update window says macOS is running Lumen from a temporary, read-only copy (App Translocation, for an app downloaded with a browser), quit Lumen, make sure it's in Applications, run `xattr -dr com.apple.quarantine /Applications/Lumen.app` in Terminal once, and open it again. An app you build yourself with `npm run desktop:build` can update itself the same way.
 
+**Updates without building the app (interface updates).** Most changes are to Lumen's interface (its pages, scripts and styles), not to the app around it (`src-tauri`). Those can be released without GitHub Actions, so without a Mac and without Actions minutes:
+
+1. Raise `version` in `package.json` only, and commit it as "Interface update X".
+2. `LUMEN_SIGNING_KEY=path/to/lumen-updater.key npm run interface-package` builds the interface and signs it with the update key, into `release/Lumen-<version>-interface.zip` (and `release/lumen-interface.json`). The package records the oldest app it runs on: the first full release after `src-tauri` last changed. If `src-tauri` has changed since the last full release, it refuses: that needs a full release.
+3. Either publish a release with both files (`gh release create vX release/Lumen-X-interface.zip release/lumen-interface.json`): uploading a release uses no Actions minutes, and the **Update** button installs it like any other version. Or hand the zip over, and install it with **Settings ▸ Updates ▸ Install from Zip…**.
+
+Lumen checks the package's signature (the same key as full updates), that it's for Lumen, and that the app is new enough for it, then keeps it in its data folder and serves the interface from there, in place of the one built into the app, and restarts. **Go Back to …** in **Settings ▸ Updates** switches back to the interface it replaced (and again to switch forward). A later full update to a newer app leaves an older interface update unused. Lumen 1.0.9 is the first app that can take interface updates.
+
 ### Other scripts
 
 ```sh

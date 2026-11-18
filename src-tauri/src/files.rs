@@ -172,15 +172,19 @@ pub async fn open_files(app: AppHandle, opened: tauri::State<'_, OpenedFiles>, o
     Ok(Opened { folder, files })
 }
 
-/// The contents of a file chosen in an Open panel.
-#[tauri::command]
-pub async fn read_opened_file(opened: tauri::State<'_, OpenedFiles>, path: String) -> Result<Response, String> {
+/// The contents of a file chosen in an Open panel (only those can be read).
+pub(crate) fn read_opened(opened: &OpenedFiles, path: &str) -> Result<Vec<u8>, String> {
     let path = PathBuf::from(path);
     if !opened.0.lock().map_err(|e| e.to_string())?.contains(&path) {
         return Err("That file wasn’t chosen in an Open panel.".into());
     }
-    let data = std::fs::read(&path).map_err(|e| format!("Couldn’t open {}: {e}", path.display()))?;
-    Ok(Response::new(data))
+    std::fs::read(&path).map_err(|e| format!("Couldn’t open {}: {e}", path.display()))
+}
+
+/// The contents of a file chosen in an Open panel.
+#[tauri::command]
+pub async fn read_opened_file(opened: tauri::State<'_, OpenedFiles>, path: String) -> Result<Response, String> {
+    Ok(Response::new(read_opened(&opened, &path)?))
 }
 
 /// Shows the Save panel for a file (named, and filtered to its type, as the front end says) and

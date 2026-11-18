@@ -242,7 +242,70 @@ function UpdatesSection() {
           {ready ? 'Update…' : u.hasToken === false ? 'Set Up Updates…' : 'Check for Updates…'}
         </button>
       </div>
+      <ZipUpdates />
     </section>
+  );
+}
+
+const message = (e: unknown) => (e instanceof Error ? e.message : String(e));
+
+/**
+ * Install from Zip… and Go Back: updates to Lumen's interface that come as a file (made without
+ * GitHub's build machines), and going back to the version before.
+ */
+function ZipUpdates() {
+  const bridge = window.lumenDesktop?.interfaceUpdates;
+  const [state, setState] = useState<{ app: string; interface: string | null; previous: string | null } | null>(null);
+  useEffect(() => void bridge?.state().then(setState, () => setState(null)), [bridge]);
+  if (!bridge) return null;
+  const install = async () => {
+    const path = await bridge.pick();
+    if (!path) return;
+    try {
+      const found = await bridge.check(path);
+      const ok = await confirmDialog({
+        title: `Install Lumen ${found.version}?`,
+        message:
+          (found.compared === 'newer'
+            ? `It replaces Lumen ${found.current}.`
+            : found.compared === 'same'
+              ? `Lumen ${found.current} is already in use; this installs it again.`
+              : `It’s older than Lumen ${found.current}, which is in use now.`) +
+          ' Lumen restarts to finish. Your library, media and settings stay as they are, and Go Back puts this version back.' +
+          (found.notes ? `\n\n${found.notes}` : ''),
+        confirmLabel: found.compared === 'newer' ? 'Install and Restart' : 'Install Anyway',
+      });
+      if (ok) await bridge.install(path);
+    } catch (e) {
+      await alertDialog({ title: 'Zip File Invalid', message: message(e) });
+    }
+  };
+  const goBack = async () => {
+    if (!state?.previous) return;
+    const ok = await confirmDialog({
+      title: `Go back to Lumen ${state.previous}?`,
+      message: `Lumen restarts with version ${state.previous}. Go Back again switches back to ${state.interface ?? state.app}.`,
+      confirmLabel: 'Go Back and Restart',
+    });
+    if (ok) await bridge.goBack().catch((e) => alertDialog({ title: 'Couldn’t go back', message: message(e) }));
+  };
+  return (
+    <div className="zip-updates">
+      <div className="button-row">
+        <button className="btn" onClick={() => void install()}>
+          Install from Zip…
+        </button>
+        {state?.previous && (
+          <button className="btn" onClick={() => void goBack()}>
+            Go Back to {state.previous}
+          </button>
+        )}
+      </div>
+      <p className="muted small-print">
+        Install from Zip takes a Lumen update package (Lumen-…-interface.zip) when the Update button can’t be used.
+        {state?.interface ? ` This is Lumen ${state.interface}, on the Lumen ${state.app} app.` : ''}
+      </p>
+    </div>
   );
 }
 

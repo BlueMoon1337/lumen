@@ -11,6 +11,7 @@ mod export_app;
 mod files;
 mod finder;
 mod icon;
+mod interface;
 mod keynote;
 mod media_server;
 mod menu;
@@ -43,6 +44,9 @@ fn fill_work_area(window: &tauri::WebviewWindow) {
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
+    // An interface update, once installed, is served in place of the interface built in.
+    let mut context = tauri::generate_context!();
+    interface::wrap_assets(&mut context);
     tauri::Builder::default()
         // One Lumen at a time: opening it again (from the Dock, Finder or a disk image) brings the
         // open one to the front instead of starting a second copy.
@@ -89,6 +93,10 @@ pub fn run() {
             files::choose_export_folder,
             files::write_export_file,
             export_app::export_app,
+            interface::interface_state,
+            interface::check_interface_package,
+            interface::install_interface_package,
+            interface::interface_go_back,
             finder::finder_file,
             finder::write_finder_file,
             finder::reveal_finder_file,
@@ -150,6 +158,6 @@ pub fn run() {
         })
         .on_menu_event(menu::on_event)
         .on_window_event(outputs::on_window_event)
-        .run(tauri::generate_context!())
+        .run(context)
         .expect("error while running Lumen");
 }

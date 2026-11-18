@@ -25,6 +25,10 @@ rustls = { version = "0.23", default-features = false, features = ["ring"] }
 url = "2"
 tauri-plugin-autostart = "2"
 tauri-plugin-single-instance = "2"
+# Interface updates (src/interface.rs): reading packages and checking their signatures.
+zip = { version = "4", default-features = false, features = ["deflate"] }
+minisign-verify = "0.3"
+base64 = "0.22"
 
 [profile.release]
 codegen-units = 1

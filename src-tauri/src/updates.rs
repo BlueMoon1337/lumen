@@ -19,9 +19,16 @@ use url::Url;
 /// Where releases come from.
 pub const REPOSITORY: &str = "BlueMoon1337/lumen";
 
+/// What the last check found, ready to install: a whole new app, or a new interface for this one
+/// (see interface.rs), by its download address.
+pub enum Pending {
+    App(Update),
+    Interface(String),
+}
+
 /// The update found by the last check, ready to install.
 #[derive(Default)]
-pub struct Updates(Mutex<Option<Update>>);
+pub struct Updates(Mutex<Option<Pending>>);
 
 fn token_path(app: &AppHandle) -> Result<PathBuf, String> {
     Ok(app.path().app_config_dir().map_err(|e| e.to_string())?.join("update-token"))
@@ -49,10 +56,10 @@ pub fn update_blocker() -> Option<&'static str> {
     translocated().then_some("translocated")
 }
 
-/// Lumen's version, as built.
+/// Lumen's version: an installed interface update's, or the app's as built.
 #[tauri::command]
 pub fn app_version(app: AppHandle) -> String {
-    app.package_info().version.to_string()
+    crate::interface::effective_version(&app)
 }
 
 /// Whether a GitHub token has been given.
@@ -151,11 +158,70 @@ async fn latest_release(token: &str) -> Result<Release, String> {
     }
 }
 
+/// Downloads a release file through GitHub's API.
+async fn download(token: &str, url: &str) -> Result<Vec<u8>, String> {
+    let res = reqwest::Client::new()
+        .get(url)
+        .headers(headers(token, "application/octet-stream")?)
+        .send()
+        .await
+        .map_err(|e| format!("Couldn’t reach GitHub: {e}"))?;
+    if !res.status().is_success() {
+        return Err(format!(
+            "GitHub answered with an error ({}). Try again later.",
+            res.status().as_u16()
+        ));
+    }
+    Ok(res.bytes().await.map_err(|e| format!("The download stopped: {e}"))?.to_vec())
+}
+
+/// A release made without building the app (no Actions minutes needed) carries a new interface:
+/// `lumen-interface.json` says its version and the app it needs, `Lumen-<version>-interface.zip` is it.
+async fn interface_release(app: &AppHandle, token: &str, release: &Release) -> Result<Option<(Found, String)>, String> {
+    let (Some(info), Some(package)) = (
+        release.assets.iter().find(|a| a.name == crate::interface::MANIFEST),
+        release.assets.iter().find(|a| a.name.ends_with("-interface.zip")),
+    ) else {
+        return Ok(None);
+    };
+    let manifest: crate::interface::Manifest =
+        serde_json::from_slice(&download(token, &info.url).await?).map_err(|e| format!("GitHub sent something unexpected: {e}"))?;
+    let native = app.package_info().version.to_string();
+    let current = crate::interface::effective_version(app);
+    if crate::interface::compare(&manifest.version, &current).is_le() {
+        return Ok(None);
+    }
+    if crate::interface::compare(&manifest.requires, &native).is_gt() {
+        return Err(format!(
+            "Lumen {} needs a newer Lumen app ({} or later; this is {native}): install that from its disk image first.",
+            manifest.version, manifest.requires
+        ));
+    }
+    let found = Found {
+        version: manifest.version,
+        current,
+        notes: manifest.notes,
+        date: None,
+    };
+    Ok(Some((found, package.url.clone())))
+}
+
 /// Looks for a newer version. Returns it, or nothing when Lumen is up to date.
 #[tauri::command]
 pub async fn check_update(app: AppHandle, updates: tauri::State<'_, Updates>) -> Result<Option<Found>, String> {
     let token = token(&app).ok_or("Add a GitHub token first.")?;
     let release = latest_release(&token).await?;
+    if let Some((found, url)) = interface_release(&app, &token, &release).await? {
+        *updates.0.lock().unwrap() = Some(Pending::Interface(url));
+        return Ok(Some(found));
+    }
+    if release.assets.iter().all(|a| a.name != "latest.json") {
+        // An interface-only release that isn't newer than this Lumen.
+        if release.assets.iter().any(|a| a.name == crate::interface::MANIFEST) {
+            *updates.0.lock().unwrap() = None;
+            return Ok(None);
+        }
+    }
     let manifest = release.assets.iter().find(|a| a.name == "latest.json").ok_or(format!(
         "{} has no update files yet. It may still be building: try again in a few minutes.",
         release.tag_name
@@ -191,7 +257,7 @@ pub async fn check_update(app: AppHandle, updates: tauri::State<'_, Updates>) ->
         notes: update.body.clone().filter(|b| !b.trim().is_empty()),
         date: update.date.map(|d| d.date().to_string()),
     };
-    *updates.0.lock().unwrap() = Some(update);
+    *updates.0.lock().unwrap() = Some(Pending::App(update));
     Ok(Some(found))
 }
 
@@ -229,7 +295,28 @@ pub async fn install_update(app: AppHandle, updates: tauri::State<'_, Updates>) 
                 .into(),
         );
     }
-    let update = updates.0.lock().unwrap().take().ok_or("Check for updates first.")?;
+    let pending = updates.0.lock().unwrap().take().ok_or("Check for updates first.")?;
+    let update = match pending {
+        Pending::App(update) => update,
+        Pending::Interface(url) => {
+            let token = token(&app).ok_or("Add a GitHub token first.")?;
+            let _ = app.emit_to("main", "update-progress", Progress { received: 0, total: None });
+            let bytes = download(&token, &url).await?;
+            let total = bytes.len() as u64;
+            let _ = app.emit_to(
+                "main",
+                "update-progress",
+                Progress {
+                    received: total,
+                    total: Some(total),
+                },
+            );
+            let (package, _) = crate::interface::check(&app, &bytes)?;
+            crate::interface::install(&app.config().identifier, &package)?;
+            restart(&app);
+            return Ok(());
+        }
+    };
     let mut received = 0u64;
     let progress = app.clone();
     update
@@ -242,10 +329,16 @@ pub async fn install_update(app: AppHandle, updates: tauri::State<'_, Updates>) 
         )
         .await
         .map_err(|e| format!("Couldn’t install the update: {e}"))?;
+    restart(&app);
+    Ok(())
+}
+
+/// Quits Lumen and opens it again (on a Mac, once this copy has quit: see below).
+pub fn restart(app: &AppHandle) {
     #[cfg(target_os = "macos")]
     if reopen_after_quitting() {
         app.exit(0);
-        return Ok(());
+        return;
     }
     app.restart();
 }
