@@ -227,8 +227,11 @@ pub async fn check_update(app: AppHandle, updates: tauri::State<'_, Updates>) ->
         release.tag_name
     ))?;
     let endpoint = Url::parse(&manifest.url).map_err(|e| e.to_string())?;
+    // Newer than the version in use, which an interface update may have made newer than the app.
+    let in_use = crate::interface::effective_version(&app);
     let updater = app
         .updater_builder()
+        .version_comparator(move |_, remote| crate::interface::compare(&remote.version.to_string(), &in_use).is_gt())
         .endpoints(vec![endpoint])
         .map_err(|e| e.to_string())?
         .headers(headers(&token, "application/octet-stream")?)
@@ -253,7 +256,7 @@ pub async fn check_update(app: AppHandle, updates: tauri::State<'_, Updates>) ->
     update.download_url = Url::parse(&asset.url).map_err(|e| e.to_string())?;
     let found = Found {
         version: update.version.clone(),
-        current: update.current_version.clone(),
+        current: crate::interface::effective_version(&app),
         notes: update.body.clone().filter(|b| !b.trim().is_empty()),
         date: update.date.map(|d| d.date().to_string()),
     };
