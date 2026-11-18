@@ -301,6 +301,15 @@ export async function exportApp(format: 'dmg' | 'zip') {
 
 const isMac = typeof navigator !== 'undefined' && /Mac/.test(navigator.platform);
 
+/** The kinds of copy of Lumen this computer can export: a disk image or a zip on a Mac, a zip elsewhere. */
+export const appExportFormats = (): { format: 'dmg' | 'zip'; label: string }[] =>
+  isMac
+    ? [
+        { format: 'dmg', label: 'Disk Image…' },
+        { format: 'zip', label: 'Zip…' },
+      ]
+    : [{ format: 'zip', label: 'Zip…' }];
+
 /** Export ▸ Lumen App's items: only in the desktop app, and a disk image only on a Mac. */
 function appExportEntries(): ContextEntries {
   if (!window.lumenDesktop?.exportApp) return [];

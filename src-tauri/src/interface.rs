@@ -36,6 +36,12 @@ pub struct Manifest {
 }
 
 pub const MANIFEST: &str = "lumen-interface.json";
+/// The signed package an installed interface came from, kept with it, so File ▸ Export ▸ Lumen App
+/// can take it along.
+pub const KEPT_PACKAGE: &str = "lumen-update-package.zip";
+/// A package an exported copy of Lumen carries inside it (see export_app.rs): installed the first
+/// time that copy opens, so it opens at the version it was exported at.
+pub const BUNDLED: &str = "interface-update.zip";
 
 /// "1.2.10" → [1, 2, 10]; anything after a "-" or "+" is ignored.
 fn parts(v: &str) -> Vec<u64> {
@@ -220,11 +226,14 @@ pub fn open_package(bytes: &[u8], config_key: &str) -> Result<Package, String> {
     Ok(Package { manifest, files })
 }
 
-/// Puts a checked package in place (the interface it replaces kept for Go Back).
-pub fn install(identifier: &str, package: &Package) -> Result<(), String> {
+/// Puts a checked package in place (the interface it replaces kept for Go Back), keeping the
+/// package itself (`bytes`) with it.
+pub fn install(identifier: &str, package: &Package, bytes: &[u8]) -> Result<(), String> {
     let root = root(identifier).ok_or("Couldn’t find Lumen’s data folder.")?;
     let staging = root.join("staging");
     let _ = fs::remove_dir_all(&staging);
+    fs::create_dir_all(&staging).map_err(|e| format!("Couldn’t install the update: {e}"))?;
+    fs::write(staging.join(KEPT_PACKAGE), bytes).map_err(|e| format!("Couldn’t install the update: {e}"))?;
     for (path, data) in &package.files {
         let to = staging.join(path);
         if let Some(dir) = to.parent() {
@@ -288,7 +297,11 @@ fn identifier<R: Runtime>(app: &AppHandle<R>) -> String {
 }
 
 fn update_key<R: Runtime>(app: &AppHandle<R>) -> Result<String, String> {
-    app.config()
+    config_key(app.config())
+}
+
+fn config_key(config: &tauri::Config) -> Result<String, String> {
+    config
         .plugins
         .0
         .get("updater")
@@ -384,7 +397,7 @@ pub fn check_interface_package(
 pub fn install_interface_package(app: AppHandle, opened: tauri::State<'_, crate::files::OpenedFiles>, path: String) -> Result<(), String> {
     let bytes = crate::files::read_opened(&opened, &path)?;
     let (package, _) = check(&app, &bytes)?;
-    install(&identifier(&app), &package)?;
+    install(&identifier(&app), &package, &bytes)?;
     crate::updates::restart(&app);
     Ok(())
 }
@@ -397,9 +410,43 @@ pub fn interface_go_back(app: AppHandle) -> Result<(), String> {
     Ok(())
 }
 
+/// The package kept with the interface in use, and its version, when it's an installed one.
+pub fn active_package(identifier: &str, native: &str) -> Option<(PathBuf, String)> {
+    let (dir, m) = active(identifier, native)?;
+    let zip = dir.join(KEPT_PACKAGE);
+    zip.is_file().then_some((zip, m.version))
+}
+
+/// Where an exported copy of Lumen carries its package: in the app's Resources on a Mac, beside
+/// the program elsewhere.
+fn bundled_package() -> Option<PathBuf> {
+    let exe = std::env::current_exe().ok()?;
+    let dir = exe.parent()?;
+    #[cfg(target_os = "macos")]
+    let dir = dir.parent()?.join("Resources");
+    Some(dir.join(BUNDLED)).filter(|p| p.is_file())
+}
+
+/// An exported copy of Lumen opening for the first time: installs the interface it carries, if
+/// it's newer than what's here (checked like any package).
+fn install_bundled(config: &tauri::Config, native: &str) {
+    let Some(path) = bundled_package() else { return };
+    let Ok(bytes) = fs::read(&path) else { return };
+    let Ok(key) = config_key(config) else { return };
+    let Ok(package) = open_package(&bytes, &key) else { return };
+    let current = active(&config.identifier, native)
+        .map(|(_, m)| m.version)
+        .unwrap_or_else(|| native.to_string());
+    let m = &package.manifest;
+    if compare(&m.version, &current).is_gt() && compare(&m.requires, native).is_le() {
+        let _ = install(&config.identifier, &package, &bytes);
+    }
+}
+
 /// The webview's files: the installed interface's, when there's one to use.
 pub fn wrap_assets<R: Runtime>(context: &mut tauri::Context<R>) {
     let native = context.package_info().version.to_string();
+    install_bundled(context.config(), &native);
     let dir = active(&context.config().identifier, &native).map(|(dir, _)| dir);
     let built_in = context.set_assets(Box::new(NoAssets));
     context.set_assets(Box::new(InterfaceAssets::new(built_in, dir)));
@@ -456,7 +503,11 @@ mod package_tests {
             std::env::set_var("XDG_DATA_HOME", home.join("data"));
         }
         let id = "com.lumen.test";
-        install(id, &package).unwrap();
+        install(id, &package, &bytes).unwrap();
+        assert_eq!(
+            active_package(id, &package.manifest.requires).map(|(_, v)| v),
+            Some(package.manifest.version.clone())
+        );
         let (dir, m) = active(id, &package.manifest.requires).unwrap();
         assert_eq!(m.version, package.manifest.version);
         assert!(dir.join("index.html").is_file());

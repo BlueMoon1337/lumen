@@ -16,7 +16,8 @@ import { IconPicker } from './IconChooser';
 import { TransitionButton } from './TransitionPicker';
 import { alertDialog, confirmDialog, confirmThen } from './Ask';
 import { deleteBible, deleteFont, undoHint } from './deleting';
-import { saveBytes } from './fileCommands';
+import { appExportFormats, exportApp, failed, saveBytes } from './fileCommands';
+import { openContextMenu } from './ContextMenu';
 import { Dialog, IconButton, pickFiles } from './ui';
 
 const HIGHLIGHTS = [
@@ -301,8 +302,28 @@ function ZipUpdates() {
           </button>
         )}
       </div>
+      {window.lumenDesktop?.exportApp && (
+        <div className="button-row">
+          <button
+            className="btn"
+            onClick={(e) =>
+              openContextMenu(
+                e,
+                appExportFormats().map(({ format, label }) => ({
+                  label,
+                  action: () => void exportApp(format).catch(failed('Couldn’t export Lumen')),
+                })),
+              )
+            }
+          >
+            Export Lumen…
+          </button>
+        </div>
+      )}
       <p className="muted small-print">
-        Install from Zip takes a Lumen update package (Lumen-…-interface.zip) when the Update button can’t be used.
+        Export Lumen saves a copy of this Lumen (a disk image or zip, as in File ▸ Export ▸ Lumen App) to install on another computer, with
+        any update installed from a zip inside it. Install from Zip takes a Lumen update package (Lumen-…-interface.zip) when the Update
+        button can’t be used.
         {state?.interface ? ` This is Lumen ${state.interface}, on the Lumen ${state.app} app.` : ''}
       </p>
     </div>

@@ -312,7 +312,7 @@ pub async fn install_update(app: AppHandle, updates: tauri::State<'_, Updates>) 
                 },
             );
             let (package, _) = crate::interface::check(&app, &bytes)?;
-            crate::interface::install(&app.config().identifier, &package)?;
+            crate::interface::install(&app.config().identifier, &package, &bytes)?;
             restart(&app);
             return Ok(());
         }
