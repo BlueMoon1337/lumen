@@ -432,6 +432,13 @@ fn bundled_package() -> Option<PathBuf> {
 fn install_bundled(config: &tauri::Config, native: &str) {
     let Some(path) = bundled_package() else { return };
     let Ok(bytes) = fs::read(&path) else { return };
+    // Only once: after that, Go Back (or a newer update) is the operator's choice, not undone at the next start.
+    let Some(root) = root(&config.identifier) else { return };
+    let marker = root.join("bundled-installed");
+    let stamp = format!("{}:{}", path.display(), bytes.len());
+    if fs::read_to_string(&marker).is_ok_and(|s| s == stamp) {
+        return;
+    }
     let Ok(key) = config_key(config) else { return };
     let Ok(package) = open_package(&bytes, &key) else { return };
     let current = active(&config.identifier, native)
@@ -441,6 +448,8 @@ fn install_bundled(config: &tauri::Config, native: &str) {
     if compare(&m.version, &current).is_gt() && compare(&m.requires, native).is_le() {
         let _ = install(&config.identifier, &package, &bytes);
     }
+    let _ = fs::create_dir_all(&root);
+    let _ = fs::write(&marker, stamp);
 }
 
 /// The webview's files: the installed interface's, when there's one to use.

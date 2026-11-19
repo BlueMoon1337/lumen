@@ -31,6 +31,8 @@ permissions:
 
 jobs:
   release:
+    # An interface update (scripts/interface-package.mjs) is published as a package, not built.
+    if: ${{ !startsWith(github.event.head_commit.message, 'Interface update') }}
     runs-on: ubuntu-latest
     outputs:
       tag: ${{ steps.release.outputs.tag }}

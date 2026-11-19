@@ -39,6 +39,8 @@ const ALT = IS_MAC ? '⌥' : 'Alt';
  */
 function SplitVerseColors() {
   const colors = useStore(useShallow((st) => splitVerseColors(st.settings)));
+  // Read as it changes, so Reset turns off once it's done.
+  const custom = useStore((st) => !!st.settings.splitVerseColors);
   const s = useStore.getState();
   const save = (next: string[]) => s.updateSettings({ splitVerseColors: next });
   const move = (i: number, by: number) => {
@@ -76,11 +78,7 @@ function SplitVerseColors() {
         <button className="btn" onClick={() => save([...colors, SPLIT_COLORS[colors.length % SPLIT_COLORS.length]])}>
           Add Color
         </button>
-        <button
-          className="btn"
-          disabled={!useStore.getState().settings.splitVerseColors}
-          onClick={() => s.updateSettings({ splitVerseColors: undefined })}
-        >
+        <button className="btn" disabled={!custom} onClick={() => s.updateSettings({ splitVerseColors: undefined })}>
           Reset
         </button>
       </div>

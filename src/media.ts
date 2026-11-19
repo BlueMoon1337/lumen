@@ -53,7 +53,7 @@ function setMissing(id: string, missing: boolean) {
 /** Bumped when an item's file changes (reconnected), so whatever shows it loads it again. */
 const useMediaVersions = create<Record<string, number>>(() => ({}));
 
-/** Told when an item's file changes (reconnected), e.g. to make its thumbnail again. */
+/** Told when an item's file changes (reconnected) or goes (deleted), e.g. to drop its thumbnail. */
 export const mediaChangeListeners = new Set<(id: string) => void>();
 
 /** Drops what's loaded for an item, so it loads again from its new file. */
@@ -113,6 +113,8 @@ export async function storeMediaFile(id: string, blob: Blob, fileName: string, k
 }
 
 export const deleteMediaBlob = (id: string) => {
+  // Its thumbnail goes with it (thumbnails.ts listens).
+  mediaChangeListeners.forEach((f) => f(id));
   const cached = loaded.get(id);
   if (cached?.url.startsWith('blob:')) URL.revokeObjectURL(cached.url);
   loaded.delete(id);

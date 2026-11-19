@@ -18,11 +18,11 @@ const root = path.resolve(path.dirname(new URL(import.meta.url).pathname), '..')
 const git = (...args) => execFileSync('git', args, { cwd: root, encoding: 'utf8' }).trim();
 const version = JSON.parse(fs.readFileSync(path.join(root, 'package.json'), 'utf8')).version;
 
-// The oldest app this interface runs on: the first full release ("Release X") made after the app's
-// own code last changed. A version bump alone (Cargo.toml, Cargo.lock) isn't a change to the app.
+// The oldest app this interface runs on: the first full release ("Release X") made after (or with)
+// the app's own code last changing. A version bump alone (Cargo.toml, Cargo.lock) isn't a change to the app.
 function requires() {
   const changed = git('log', '-1', '--format=%H', '--', 'src-tauri', ':(exclude)src-tauri/Cargo.toml', ':(exclude)src-tauri/Cargo.lock');
-  const releases = git('log', '--reverse', '--format=%s', '-E', '--grep=^Release [0-9]', `${changed}..HEAD`)
+  const releases = git('log', '--reverse', '--format=%s', '-E', '--grep=^Release [0-9]', `${changed}^..HEAD`)
     .split('\n')
     .filter(Boolean);
   const first = releases[0]?.match(/^Release (\S+)/)?.[1];
