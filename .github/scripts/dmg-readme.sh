@@ -62,7 +62,24 @@ if mounted; then
   echo "::error::Couldn't eject $mount"
   exit 1
 fi
-hdiutil convert "$work/rw.dmg" -format UDZO -imagekey zlib-level=9 -o "$work/final.dmg" -quiet
+# The image itself can stay attached (busy) a while after its volume is gone; converting it
+# then fails. Wait for it to be let go, forcing it after a while, and retry the conversion.
+attached() { hdiutil info | grep -qF "$work/rw.dmg"; }
+for attempt in 1 2 3 4 5 6 7 8 9 10; do
+  attached || break
+  sleep 3
+  if [ "$attempt" -ge 5 ]; then
+    dev="$(hdiutil info | awk -v img="$work/rw.dmg" '$0 ~ "image-path" && index($0, img) {found=1} found && /^\/dev\/disk/ {print $1; exit}')"
+    [ -n "$dev" ] && hdiutil detach "$dev" -force -quiet || true
+  fi
+done
+for attempt in 1 2 3 4 5; do
+  rm -f "$work/final.dmg"
+  hdiutil convert "$work/rw.dmg" -format UDZO -imagekey zlib-level=9 -o "$work/final.dmg" -quiet && break
+  echo "Converting the disk image didn't work (try $attempt); trying again."
+  [ "$attempt" -lt 5 ] || exit 1
+  sleep 5
+done
 mv -f "$work/final.dmg" "$dmg"
 
 # Swap the uploaded .dmg for the new one: upload it under another name first, so the release
