@@ -130,6 +130,10 @@ fn range(header: &str, len: u64) -> Option<(u64, u64)> {
 }
 
 fn serve(stream: TcpStream, base: &Path, prefix: &str) -> std::io::Result<()> {
+    // A player that stops reading (a paused video) would otherwise hold this thread for good; it
+    // asks again for the rest when it carries on.
+    stream.set_read_timeout(Some(std::time::Duration::from_secs(30)))?;
+    stream.set_write_timeout(Some(std::time::Duration::from_secs(60)))?;
     let mut reader = BufReader::new(stream.try_clone()?);
     let mut line = String::new();
     reader.read_line(&mut line)?;

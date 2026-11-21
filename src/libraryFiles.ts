@@ -49,18 +49,32 @@ export function plannedFiles(
   return out;
 }
 
-let running = false;
-let again = false;
+let running: Promise<void> | null = null;
+let again: Promise<void> | null = null;
+
+/**
+ * Brings the Libraries folder up to date. While a sync runs, another is queued after it (one at a
+ * time), and the promise settles when the files reflect the library as it is now, so Show in Finder
+ * can wait for a file it's about to show.
+ */
+export function syncLibraryFiles(): Promise<void> {
+  if (!running) {
+    running = runSync().finally(() => {
+      running = null;
+    });
+    return running;
+  }
+  again ??= running.then(() => {
+    again = null;
+    return syncLibraryFiles();
+  });
+  return again;
+}
 
 /** Writes, moves and removes presentation files to match the library. */
-export async function syncLibraryFiles() {
+async function runSync() {
   const desktop = window.lumenDesktop;
   if (!desktop?.writeFinderFile || !desktop.removeLumenFile) return;
-  if (running) {
-    again = true;
-    return;
-  }
-  running = true;
   try {
     await desktop.lumenFolder();
     const s = useStore.getState();
@@ -92,12 +106,8 @@ export async function syncLibraryFiles() {
     } catch {
       // Without it, files are written again next time.
     }
-  } finally {
-    running = false;
-    if (again) {
-      again = false;
-      void syncLibraryFiles();
-    }
+  } catch {
+    // Tried again at the next change.
   }
 }
 

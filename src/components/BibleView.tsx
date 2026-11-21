@@ -26,6 +26,7 @@ import {
 import { importBibleFile } from '../commands';
 import { getSequence } from '../lyrics';
 import { notify } from '../notices';
+import { useFontsVersion } from '../fonts';
 import { useStore } from '../store';
 import { LabelTag } from './ShowView';
 import { versesLibrary } from '../libraryIcons';
@@ -234,11 +235,14 @@ export function BibleView() {
 
   // Turn the passage into slides in the template, and keep Bible mode's working presentation in step.
   const optionsKey = JSON.stringify([b.translations, b.showVerseNumbers, b.breakOnNewVerse, b.displayTranslation, b.references]);
+  // Measured in the template's font: again once fonts finish loading, so slides split as they'll show.
+  const fontsVersion = useFontsVersion();
   const content = useMemo(() => {
     const first = passages?.[0];
     if (!passages || !first) return null;
     return { title: `${first.reference} (${first.translation_id})`, slides: buildBibleSlides(passages, b, slideCapacity(template)) };
-  }, [passages, optionsKey, template]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [passages, optionsKey, template, fontsVersion]);
   const colors = useStore(useShallow((st) => splitVerseColors(st.settings)));
   useEffect(() => {
     if (!content) return;
