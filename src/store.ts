@@ -1481,10 +1481,14 @@ export const useStore = create<AppState>()(
           const countdowns = s.media.filter((m) => m.kind === 'video' && m.countdown).map((m) => m.id);
           const choices = countdowns.length > 1 ? countdowns.filter((id) => id !== s.live.mediaId) : countdowns;
           if (!choices.length) return;
+          // The countdown takes the screen: the slide, messages, announcements, logo and video input go,
+          // and so does music other than its own playlist (which, already playing, carries on).
+          const playlistId = s.settings.countdownPlaylistId;
+          const ownMusic = !!playlistId && !!s.live.audioId && s.live.audioFrom === playlistId;
+          s.clearLayers(['slide', 'messages', 'announcements', 'logo', 'videoInput', ...(ownMusic ? [] : (['audio'] as const))]);
           s.setLiveMedia(pick(choices));
           // Its music starts with it, unless that playlist is playing already (another countdown, same music).
           const live = get().live;
-          const playlistId = s.settings.countdownPlaylistId;
           if (playlistId && !(live.audioId && live.audioFrom === playlistId)) startAudioPlaylist(get(), playlistId);
         },
         playRandomBackground: () => {

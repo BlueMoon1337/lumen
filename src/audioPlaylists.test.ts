@@ -222,4 +222,18 @@ describe('a random countdown', () => {
     s().playRandomCountdown();
     expect(s().live.audioId).toBe('b');
   });
+
+  it('clears everything else on screen, and music other than its own', () => {
+    useStore.setState({
+      media: [track('a'), track('b'), { id: 'cd1', name: 'Countdown 1', kind: 'video', mime: 'video/mp4', countdown: true }],
+    });
+    s().updateSettings({ countdownPlaylistId: undefined });
+    const song = s().createPresentation({ title: 'Song' }, 'Amazing grace');
+    s().goLive(song, 0);
+    s().playAudio('b');
+    s().showMessage(s().messages[0]?.id ?? null);
+    s().setVideoInput({ deviceId: 'cam', label: 'Camera' } as never);
+    s().playRandomCountdown();
+    expect(s().live).toMatchObject({ mediaId: 'cd1', slide: null, audioId: null, messageId: null, videoInput: null, logo: false });
+  });
 });
