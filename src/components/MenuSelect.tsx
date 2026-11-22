@@ -123,7 +123,18 @@ export function MenuList({
   };
 
   return (
-    <div ref={ref} className={`menu-select-list ${className}`} style={style} role="menu" onKeyDown={onKey} onScroll={more.update}>
+    <div
+      ref={ref}
+      className={`menu-select-list ${className}`}
+      style={style}
+      role="menu"
+      onKeyDown={onKey}
+      onScroll={() => {
+        more.update();
+        // A submenu sits beside the row it opened from: scrolled away, it closes.
+        setSub(null);
+      }}
+    >
       {more.up && <ScrollArrow dir="up" list={ref} onEnter={() => setSub(null)} />}
       {entries.map((entry, i) => {
         if (entry.type === 'header')

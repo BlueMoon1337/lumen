@@ -498,7 +498,7 @@ function MediaTile({
   const media = useMedia(item.id);
   const missing = useIsMissing(item.id);
   // A small picture of it, made once: drawing the 4K file itself in every tile made scrolling stutter.
-  const thumb = useThumbnail(item.id, media?.url);
+  const thumb = useThumbnail(item.id, media);
   const [loadedDuration, setDuration] = useState(0);
   const duration = loadedDuration || thumb?.duration || 0;
   const [drop, setDrop] = useState<'before' | 'after' | null>(null);

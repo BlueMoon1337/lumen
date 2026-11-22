@@ -43,9 +43,12 @@ async function idb<T>(mode: IDBTransactionMode, run: (s: IDBObjectStore) => IDBR
 
 const ready = new Map<string, Thumbnail>();
 const making = new Map<string, Promise<Thumbnail | null>>();
+/** How many times each item's file has changed: a thumbnail begun before a change is thrown away. */
+const generation = new Map<string, number>();
 
 // A reconnected file gets a new thumbnail.
 mediaChangeListeners.add((id) => {
+  generation.set(id, (generation.get(id) ?? 0) + 1);
   const t = ready.get(id);
   if (t) URL.revokeObjectURL(t.url);
   ready.delete(id);
@@ -122,19 +125,28 @@ function thumbnail(id: string): Promise<Thumbnail | null> {
   if (have) return Promise.resolve(have);
   let p = making.get(id);
   if (p) return p;
+  const gen = generation.get(id) ?? 0;
+  const current = () => (generation.get(id) ?? 0) === gen;
   p = (async () => {
     let saved = await idb<Saved | undefined>('readonly', (s) => s.get(id)).catch(() => undefined);
     if (!saved) {
       const media = await loadMedia(id);
       if (!media) return null;
       saved = await inTurn(() => (media.isVideo ? fromVideo(media.url) : fromImage(media.url)));
+      if (!current()) return null;
       void idb('readwrite', (s) => s.put(saved, id)).catch(() => {});
     }
+    if (!current()) return null;
     const t = { url: URL.createObjectURL(saved.blob), duration: saved.duration };
     ready.set(id, t);
     return t;
   })().catch(() => null);
   making.set(id, p);
+  // Only a made thumbnail is kept: one that couldn't be made (a video too slow to open, say) is
+  // tried again the next time it's asked for.
+  void p.then((t) => {
+    if (!t && making.get(id) === p) making.delete(id);
+  });
   return p;
 }
 

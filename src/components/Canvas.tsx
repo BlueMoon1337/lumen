@@ -179,6 +179,8 @@ function FittedText({ text, caption, theme }: { text: string; caption?: string; 
       best = lo;
     }
     content.style.fontSize = `${best}px`;
+    // Kept small: every text measured while typing would otherwise stay for the whole session.
+    if (fitCache.size > 4000) fitCache.clear();
     fitCache.set(key, best);
     setSize(best);
   }, [key, theme.fontSize]);

@@ -4024,6 +4024,8 @@ body.resizing-y * {
 }
 
 .menu-select-list {
+  /* Arrow keys stop a row clear of the scroll arrows, not under them. */
+  scroll-padding-block: 22px;
   position: fixed;
   z-index: 200;
   display: flex;
