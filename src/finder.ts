@@ -78,6 +78,8 @@ export async function reconnectMedia(m: MediaItem): Promise<void> {
     return void notify(`“${m.name}” is ${m.kind === 'audio' ? 'audio' : `a ${m.kind}`}: choose a file of that kind.`, 'info');
   try {
     await storeMediaFile(m.id, file, file.name, m.kind, type);
+    // A file of another type (a .mov for an .mp4): the item's type follows it.
+    if (type.toLowerCase() !== m.mime.toLowerCase()) useStore.getState().updateMedia(m.id, { mime: type });
     notify(`Reconnected “${m.name}”.`, 'success', 2500);
   } catch (e) {
     notify(`Couldn’t reconnect “${m.name}”: ${e instanceof Error ? e.message : String(e)}`, 'error');
@@ -132,6 +134,12 @@ export async function moveMediaToFolders(): Promise<void> {
     renotify(notice, `Moving media into Documents ▸ Lumen ▸ Media (${++done} of ${waiting.length})…`);
   }
   dismiss(notice);
+  if (failed)
+    notify(
+      `${failed} item${failed === 1 ? '' : 's'} couldn’t be moved into Documents ▸ Lumen ▸ Media (is the disk full?). Lumen keeps ${failed === 1 ? 'it' : 'them'} as before and tries again next time it opens.`,
+      'error',
+      8000,
+    );
   if (done - failed > 0)
     notify(
       `Moved ${done - failed} item${done - failed === 1 ? '' : 's'} into Documents ▸ Lumen ▸ Media (Assets and Audio).`,

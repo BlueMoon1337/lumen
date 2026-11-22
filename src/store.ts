@@ -265,7 +265,7 @@ interface Actions {
   /** Adds media whose files are already stored (from an imported bundle). */
   addMedia(items: MediaItem[]): void;
   deleteMedia(id: string): void;
-  updateMedia(id: string, patch: Partial<Pick<MediaItem, 'name' | 'loop' | 'playback' | 'countdown' | 'background'>>): void;
+  updateMedia(id: string, patch: Partial<Pick<MediaItem, 'name' | 'mime' | 'loop' | 'playback' | 'countdown' | 'background'>>): void;
   /** Puts an item in the Outro or Logo tab, or takes it out. The first one in a tab becomes its active one. */
   markMedia(tab: MarkedTab, id: string, on: boolean): void;
   /** Adds items to (or takes them out of) the Backgrounds, Countdowns, Outro or Logo tab, by hand. They stay in the media bin. */

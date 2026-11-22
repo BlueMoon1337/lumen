@@ -61,7 +61,14 @@ export interface DesktopBridge {
    * Media files in Documents ▸ Lumen ▸ Media ▸ Assets (or Audio): the name a file would get there
    * (its own, or numbered if a different file has it), and whether that file is there already.
    */
-  finderFile(folder: LumenFolder, name: string, size: number): Promise<{ name: string; saved: boolean }>;
+  /** `head` and `tail`: the file's first and last bytes, so a different file of the same name and size isn't taken for it. */
+  finderFile(
+    folder: LumenFolder,
+    name: string,
+    size: number,
+    head?: Uint8Array,
+    tail?: Uint8Array,
+  ): Promise<{ name: string; saved: boolean }>;
   writeFinderFile(folder: LumenFolder, name: string, data: Uint8Array): Promise<void>;
   revealFinderFile(folder: LumenFolder, name: string): Promise<void>;
   /** Makes Lumen's folders, and gives the path of Documents ▸ Lumen. */

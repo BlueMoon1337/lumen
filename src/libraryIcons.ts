@@ -20,6 +20,8 @@ export const libraryIcon = (lib: Library): LibraryIcon => lib.icon ?? (lib.id ==
 export function versesLibrary(libraries: Library[], chosen?: string): string {
   if (chosen && libraries.some((l) => l.id === chosen)) return chosen;
   const looks = (l: Library) =>
-    l.id === 'scripture' || libraryIcon(l) === 'bible' || /scripture|verse|bible|biblia|escritura|vers[ií]culo|pasaje/i.test(l.name);
+    l.id === 'scripture' ||
+    libraryIcon(l) === 'bible' ||
+    /\b(scriptures?|verses?|bibles?|biblias?|escrituras?|vers[ií]culos?|pasajes?)(?![a-zà-ÿ])/i.test(l.name);
   return (libraries.find(looks) ?? libraries[0]).id;
 }

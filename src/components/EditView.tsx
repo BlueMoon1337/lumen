@@ -373,7 +373,7 @@ function TextEditor({
     window.getSelection()?.removeAllRanges();
     window.getSelection()?.addRange(range);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [initial]);
+  }, []); // Once, when editing starts: a change to the slide meanwhile mustn't wipe what's typed.
   return (
     <div className="slide-box" style={slideBoxStyle(theme)}>
       <div

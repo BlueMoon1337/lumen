@@ -15,6 +15,9 @@ describe('versesLibrary', () => {
     expect(versesLibrary([lib('song', 'Songs'), lib('v', 'Versículos')])).toBe('v');
     expect(versesLibrary([lib('song', 'Songs'), lib('w', 'Word', 'bible')])).toBe('w');
   });
+  it('matches whole words only', () => {
+    expect(versesLibrary([lib('song', 'Songs'), lib('u', 'Universe Kids')])).toBe('song');
+  });
   it('uses the first when none looks like scripture', () => {
     expect(versesLibrary([lib('song', 'Songs'), lib('t', 'Titles')])).toBe('song');
   });

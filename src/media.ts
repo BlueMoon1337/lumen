@@ -119,7 +119,11 @@ export async function storeMediaFile(
       .replace(/[/\\:]/g, '-')
       .replace(/^\.+/, '')
       .trim() || 'Untitled';
-  const file = await desktop.finderFile(folder, name, blob.size);
+  // Its first and last 64 KB, so a different file of the same name and size isn't taken for it.
+  const SAMPLE = 64 * 1024;
+  const head = new Uint8Array(await blob.slice(0, Math.min(SAMPLE, blob.size)).arrayBuffer());
+  const tail = new Uint8Array(await blob.slice(Math.max(0, blob.size - SAMPLE)).arrayBuffer());
+  const file = await desktop.finderFile(folder, name, blob.size, head, tail);
   if (!file.saved) await desktop.writeFinderFile(folder, file.name, new Uint8Array(await blob.arrayBuffer()));
   const kept: MediaFile = { folder, name: file.name, type: type || blob.type };
   await request('readwrite', (s) => s.put(kept, id));

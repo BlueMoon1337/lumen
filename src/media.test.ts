@@ -230,6 +230,10 @@ describe('logos', () => {
     expect(s().media.some((m) => m.id === 'v2')).toBe(true);
     expect(s().settings.logoMediaId).toBeUndefined();
     expect(isLogoName('Church Logo White')).toBe(true);
+    expect(isLogoName('logo-white.png')).toBe(true);
+    expect(isLogoName('ChurchLogo.png')).toBe(true);
+    expect(isLogoName('Catálogo de eventos.jpg')).toBe(false);
+    expect(isLogoName('Epilogo.mp4')).toBe(false);
     // The Logo button clears the words and the background as it shows the logo; music and messages stay.
     s().setActiveMedia('logo', 'i1');
     if (s().live.logo) s().toggleLogo();

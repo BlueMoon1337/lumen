@@ -131,15 +131,37 @@ pub struct FinderFile {
     saved: bool,
 }
 
+/// Whether a file starts with `head` and ends with `tail`: with the same size, the same file (a
+/// different one of the same size and name almost never matches both).
+fn same_ends(path: &std::path::Path, head: &[u8], tail: &[u8]) -> bool {
+    use std::io::{Read, Seek, SeekFrom};
+    let Ok(mut f) = std::fs::File::open(path) else { return false };
+    let mut buf = vec![0; head.len()];
+    if f.read_exact(&mut buf).is_err() || buf != head {
+        return false;
+    }
+    let mut buf = vec![0; tail.len()];
+    f.seek(SeekFrom::End(-(tail.len() as i64))).is_ok() && f.read_exact(&mut buf).is_ok() && buf == tail
+}
+
 /// Where an item's copy goes: its own name, or a numbered one if a different file has that name.
+/// A file there with the same size, beginning and end is this one, already saved.
 #[tauri::command]
-pub fn finder_file(app: AppHandle, folder: String, name: String, size: u64) -> Result<FinderFile, String> {
+pub fn finder_file(
+    app: AppHandle,
+    folder: String,
+    name: String,
+    size: u64,
+    head: Option<Vec<u8>>,
+    tail: Option<Vec<u8>>,
+) -> Result<FinderFile, String> {
     check_name(&name)?;
     let dir = self::folder(&app, &folder)?;
+    let (head, tail) = (head.unwrap_or_default(), tail.unwrap_or_default());
     for n in 1..1000 {
         let candidate = if n == 1 { name.clone() } else { numbered(&name, n) };
         match std::fs::metadata(dir.join(&candidate)) {
-            Ok(meta) if meta.len() == size => {
+            Ok(meta) if meta.len() == size && same_ends(&dir.join(&candidate), &head, &tail) => {
                 return Ok(FinderFile {
                     name: candidate,
                     saved: true,
@@ -192,7 +214,18 @@ pub fn reveal_finder_file(app: AppHandle, folder: String, name: String) -> Resul
 
 #[cfg(test)]
 mod tests {
-    use super::numbered;
+    use super::{numbered, same_ends};
+
+    #[test]
+    fn knows_a_file_by_its_ends() {
+        let path = std::env::temp_dir().join(format!("lumen-same-ends-{}", std::process::id()));
+        std::fs::write(&path, b"abcdefghij").unwrap();
+        assert!(same_ends(&path, b"abc", b"hij"));
+        assert!(!same_ends(&path, b"abd", b"hij"));
+        assert!(!same_ends(&path, b"abc", b"hiJ"));
+        assert!(same_ends(&path, b"", b""));
+        let _ = std::fs::remove_file(path);
+    }
 
     #[test]
     fn numbers_names_before_the_extension() {
