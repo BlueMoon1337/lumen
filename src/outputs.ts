@@ -2,7 +2,7 @@ import { create } from 'zustand';
 import { notify } from './notices';
 import { activeOutputs, hostRoute, planHosts, type DetectedDisplay, type OutputHost } from './screens';
 import { useStore } from './store';
-import type { RemoteStatus } from './remote';
+import type { RemoteRequest, RemoteStatus } from './remote';
 import type { AppIconId, ScreenKind } from './types';
 
 /** Lumen's media folders, in Documents ▸ Lumen. */
@@ -121,8 +121,8 @@ export interface DesktopBridge {
   /** Settings ▸ Open at Login: whether Lumen starts when the operator logs in, and changing it. */
   /** Lumen Remote (src/remote.ts): tells the desktop app what Player can play… */
   setRemoteStatus(status: RemoteStatus): void;
-  /** …and Player's requests to play it ("random-countdown" or "outro"). */
-  onRemotePlay(cb: (what: string) => void): () => void;
+  /** …and Player's requests ("random-countdown", "outro", "fade-music" with its length). */
+  onRemotePlay(cb: (request: RemoteRequest) => void): () => void;
   openAtLogin(): Promise<boolean>;
   setOpenAtLogin(on: boolean): Promise<void>;
   keynotePptx(id: string): Promise<ArrayBuffer>;

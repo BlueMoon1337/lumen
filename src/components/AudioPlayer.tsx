@@ -18,6 +18,19 @@ export function seekAudio(seconds: number) {
 }
 
 const FADE_MS = 600;
+/** How long the next clearing of the Audio layer fades for (fadeOutMusic), instead of FADE_MS. */
+let nextClearMs: number | null = null;
+
+/**
+ * Fades the music on the Audio layer out over `seconds`, then clears the layer (Player's Fade Out
+ * Music box asks for this; see src/remote.ts). Nothing playing: nothing to do.
+ */
+export function fadeOutMusic(seconds: number) {
+  const s = useStore.getState();
+  if (!s.live.audioId) return;
+  nextClearMs = Math.max(0.1, Math.min(30, Number.isFinite(seconds) ? seconds : 4)) * 1000;
+  s.clearLayers(['audio']);
+}
 
 /** Two tracks crossfade at equal power, so the sound doesn't dip in the middle. */
 const fadeIn = (t: number) => Math.sin((t * Math.PI) / 2);
@@ -111,14 +124,16 @@ export function AudioPlayer() {
     const asked = crossNext.current;
     crossNext.current = false;
     if (!audioId) {
-      // Cleared: whatever is playing fades out.
+      // Cleared: whatever is playing fades out (quickly, or over the time fadeOutMusic asked for).
+      const ms = nextClearMs ?? FADE_MS;
+      nextClearMs = null;
       clearing.current = true;
       let left = 0;
       [0, 1].forEach((j) => {
         const p = el(j);
         if (!p || p.paused) return release(j);
         left++;
-        ramp(p, false, FADE_MS, () => {
+        ramp(p, false, ms, () => {
           release(j);
           if (--left === 0) clearing.current = false;
         });

@@ -56,14 +56,14 @@ export function RandomCountdown() {
         {desktop && (
           <label
             className="check-row"
-            title="Player's Random Countdown and Outro boxes, on this computer or another one on the network, play them here"
+            title="Player's Random Countdown, Outro and Fade Out Music boxes, on this computer or another one on the network, do these here"
           >
             <input
               type="checkbox"
               checked={playerRemote}
               onChange={(e) => s.updateSettings({ playerRemote: e.target.checked ? undefined : false })}
             />
-            Player can play the countdown and outro
+            Player can play the countdown and outro, and fade the music
           </label>
         )}
         {!playlists.length && (

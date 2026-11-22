@@ -1,16 +1,18 @@
 //! Lumen Remote: lets Player (github.com/BlueMoon1337/Player), on this computer or another one on
 //! the local network, play a random countdown or the outro, from boxes at either end of its song
-//! list.
+//! list, and fade out the music.
 //!
 //! JSON over UDP on port 57312. Player asks `{"app":"lumen-remote","v":1,"cmd":"hello"}` (to
 //! everyone on the network, or to this computer) and Lumen answers with its name and what it can
-//! play; `{"app":"lumen-remote","v":1,"cmd":"play","what":"random-countdown"|"outro","id":"…"}`
-//! plays it, and Lumen answers whether it did. Lumen only ever answers: it sends nothing by itself.
-//! What's playable (and whether Player may: Timers ▸ Countdown Videos) is told by the interface
-//! (src/remote.ts), which also does the playing.
+//! do; `{"app":"lumen-remote","v":1,"cmd":"play","what":"random-countdown","id":"…"}` does it
+//! ("outro"; "fade-music" with "seconds"), and Lumen answers whether it did. Lumen only ever
+//! answers: it sends nothing by itself. Which commands there are, whether each can be done now
+//! (and whether Player may: Timers ▸ Countdown Videos) is told by the interface (src/remote.ts),
+//! which also does them, so a new command needs only the interface.
 
-use serde::Deserialize;
+use serde::{Deserialize, Serialize};
 use serde_json::json;
+use std::collections::HashMap;
 use std::net::UdpSocket;
 use std::sync::Mutex;
 use tauri::{AppHandle, Emitter, Manager};
@@ -28,6 +30,19 @@ pub struct Status {
     pub countdowns: u32,
     /// The active outro's name, if there is one.
     pub outro: Option<String>,
+    /// The track on the Audio layer, if any.
+    #[serde(default)]
+    pub music: Option<String>,
+    /// Each command: None when it can be done now, else why not.
+    #[serde(default)]
+    pub can: HashMap<String, Option<String>>,
+}
+
+/// What the interface is asked to do.
+#[derive(Clone, Serialize)]
+struct Play {
+    what: String,
+    seconds: Option<f64>,
 }
 
 /// None until the interface has said (it's still starting).
@@ -41,6 +56,7 @@ struct Request {
     cmd: String,
     what: Option<String>,
     id: Option<String>,
+    seconds: Option<f64>,
 }
 
 /// The interface tells what can be played, whenever that changes.
@@ -73,17 +89,27 @@ fn computer_name() -> String {
         .unwrap_or_else(|| "Lumen".into())
 }
 
-/// Why a request to play `what` can't be done now, if it can't.
-fn refusal(status: Option<&Status>, what: &str) -> Option<&'static str> {
-    let Some(s) = status else { return Some("Lumen is still starting.") };
+/// Why `what` can't be done now, if it can't.
+fn refusal(status: Option<&Status>, what: &str) -> Option<String> {
+    let Some(s) = status else {
+        return Some("Lumen is still starting.".into());
+    };
     if !s.allowed {
-        return Some("Lumen is set not to let Player play anything (Timers ▸ Countdown Videos).");
+        return Some("Lumen is set not to let Player play anything (Timers ▸ Countdown Videos).".into());
     }
-    match what {
-        "random-countdown" if s.countdowns == 0 => Some("Lumen has no countdown videos (Media ▸ Countdowns)."),
-        "outro" if s.outro.is_none() => Some("Lumen has no outro (Media ▸ Outro)."),
-        "random-countdown" | "outro" => None,
-        _ => Some("Lumen doesn't know that command; it may need updating."),
+    let unknown = || Some("Lumen doesn't know that command; it may need updating.".to_string());
+    if s.can.is_empty() {
+        // An interface from before the command list (1.0.17's, after Go Back): what it could do then.
+        return match what {
+            "random-countdown" if s.countdowns == 0 => Some("Lumen has no countdown videos (Media ▸ Countdowns).".into()),
+            "outro" if s.outro.is_none() => Some("Lumen has no outro (Media ▸ Outro).".into()),
+            "random-countdown" | "outro" => None,
+            _ => unknown(),
+        };
+    }
+    match s.can.get(what) {
+        None => unknown(),
+        Some(why) => why.clone(),
     }
 }
 
@@ -103,12 +129,18 @@ fn answer(app: &AppHandle, packet: &[u8], name: &str) -> Option<serde_json::Valu
             "allowed": status.as_ref().is_some_and(|s| s.allowed),
             "countdowns": status.as_ref().map_or(0, |s| s.countdowns),
             "outro": status.as_ref().and_then(|s| s.outro.clone()),
+            "music": status.as_ref().and_then(|s| s.music.clone()),
+            "can": status.as_ref().map(|s| s.can.clone()).unwrap_or_default(),
         })),
         "play" => {
             let what = req.what.unwrap_or_default();
             let refused = refusal(status.as_ref(), &what);
             if refused.is_none() {
-                let _ = app.emit_to("main", "remote-play", &what);
+                let play = Play {
+                    what: what.clone(),
+                    seconds: req.seconds,
+                };
+                let _ = app.emit_to("main", "remote-play", &play);
             }
             Some(json!({ "app": APP, "v": 1, "type": "played", "id": req.id, "what": what, "ok": refused.is_none(), "message": refused }))
         }
@@ -142,37 +174,37 @@ mod tests {
     use super::*;
 
     #[test]
-    fn refuses_what_it_cannot_play() {
+    fn does_what_the_interface_says_it_can() {
+        let can = |pairs: &[(&str, Option<&str>)]| pairs.iter().map(|(k, v)| (k.to_string(), v.map(String::from))).collect();
         let s = Status {
             allowed: true,
             countdowns: 2,
             outro: None,
+            music: None,
+            can: can(&[
+                ("random-countdown", None),
+                ("outro", Some("Lumen has no outro.")),
+                ("fade-music", None),
+            ]),
         };
         assert_eq!(refusal(Some(&s), "random-countdown"), None);
-        assert!(refusal(Some(&s), "outro").unwrap().contains("no outro"));
-        assert!(
-            refusal(
-                Some(&Status {
-                    countdowns: 0,
-                    ..s.clone()
-                }),
-                "random-countdown"
-            )
-            .unwrap()
-            .contains("no countdown")
-        );
-        assert!(
-            refusal(
-                Some(&Status {
-                    allowed: false,
-                    ..s.clone()
-                }),
-                "random-countdown"
-            )
-            .unwrap()
-            .contains("set not to")
-        );
+        assert_eq!(refusal(Some(&s), "fade-music"), None);
+        assert_eq!(refusal(Some(&s), "outro").as_deref(), Some("Lumen has no outro."));
+        assert!(refusal(Some(&s), "shutdown").unwrap().contains("doesn't know"));
+        let off = Status {
+            allowed: false,
+            ..s.clone()
+        };
+        assert!(refusal(Some(&off), "random-countdown").unwrap().contains("set not to"));
         assert!(refusal(None, "outro").unwrap().contains("starting"));
-        assert!(refusal(Some(&s), "shutdown").is_some());
+    }
+
+    #[test]
+    fn reads_the_status_an_older_interface_sends() {
+        // Lumen 1.0.17's interface sends no "music" or "can": its two commands still work.
+        let s: Status = serde_json::from_str(r#"{"allowed":true,"countdowns":1,"outro":null}"#).unwrap();
+        assert_eq!(refusal(Some(&s), "random-countdown"), None);
+        assert!(refusal(Some(&s), "outro").unwrap().contains("no outro"));
+        assert!(refusal(Some(&s), "fade-music").unwrap().contains("doesn't know"));
     }
 }
