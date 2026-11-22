@@ -246,6 +246,13 @@ function UpdatesSection() {
   );
 }
 
+/** Whether version a is after version b ("1.0.10" is after "1.0.9"). */
+const newerVersion = (a: string, b: string) => {
+  const [x, y] = [a, b].map((v) => v.split('.').map((n) => parseInt(n, 10) || 0));
+  for (let i = 0; i < Math.max(x.length, y.length); i++) if ((x[i] ?? 0) !== (y[i] ?? 0)) return (x[i] ?? 0) > (y[i] ?? 0);
+  return false;
+};
+
 const message = (e: unknown) => (e instanceof Error ? e.message : String(e));
 
 /**
@@ -279,12 +286,14 @@ function ZipUpdates() {
       await alertDialog({ title: 'Zip File Invalid', message: message(e) });
     }
   };
+  // After going back to the built-in interface, the kept update is newer: switching to it goes forward.
+  const forward = !!state?.previous && newerVersion(state.previous, state.interface ?? state.app);
   const goBack = async () => {
     if (!state?.previous) return;
     const ok = await confirmDialog({
-      title: `Go back to Lumen ${state.previous}?`,
-      message: `Lumen restarts with version ${state.previous}. Go Back again switches back to ${state.interface ?? state.app}.`,
-      confirmLabel: 'Go Back and Restart',
+      title: `${forward ? 'Switch' : 'Go back'} to Lumen ${state.previous}?`,
+      message: `Lumen restarts with version ${state.previous}. You can switch back to ${state.interface ?? state.app} the same way.`,
+      confirmLabel: forward ? 'Switch and Restart' : 'Go Back and Restart',
     });
     if (ok) await bridge.goBack().catch((e) => alertDialog({ title: 'Couldn’t go back', message: message(e) }));
   };
@@ -296,7 +305,7 @@ function ZipUpdates() {
         </button>
         {state?.previous && (
           <button className="btn" onClick={() => void goBack()}>
-            Go Back to {state.previous}
+            {forward ? 'Switch' : 'Go Back'} to {state.previous}
           </button>
         )}
       </div>

@@ -5,6 +5,7 @@
  * to another library or deleted rewrites, moves or removes its file a moment later. They're copies
  * to find, back up or share (File ▸ Import opens them); Lumen's own library is still the original.
  */
+import { notify } from './notices';
 import { encodeJson, presentationFile, safeFileName } from './fileFormats';
 import type { LumenFolder } from './outputs';
 import { useStore } from './store';
@@ -133,6 +134,7 @@ export async function revealPresentation(id: string): Promise<void> {
   await syncLibraryFiles();
   const file = load()[id];
   if (file) await desktop.revealFinderFile(file.folder, file.name);
+  else notify('Couldn’t write this presentation’s file in Documents ▸ Lumen ▸ Libraries, so there’s nothing to show yet.', 'error');
 }
 
 /** Show in Finder for a library: its folder (or Libraries, before it has any presentations). */

@@ -95,7 +95,7 @@ export function splitText(text: string, parts: number): string[] {
     rest = rest.slice(cut).trim();
   }
   out.push(rest);
-  return out.filter(Boolean);
+  return out;
 }
 
 /** A verse, or a part of one too long for a slide. */

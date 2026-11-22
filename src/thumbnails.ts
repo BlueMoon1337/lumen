@@ -105,13 +105,15 @@ function fromVideo(url: string): Promise<Saved> {
 let running = 0;
 const queue: (() => void)[] = [];
 async function inTurn<T>(run: () => Promise<T>): Promise<T> {
+  // A slot is handed straight to the next in line, so a newcomer can't slip in between.
   if (running >= 2) await new Promise<void>((go) => queue.push(go));
-  running++;
+  else running++;
   try {
     return await run();
   } finally {
-    running--;
-    queue.shift()?.();
+    const next = queue.shift();
+    if (next) next();
+    else running--;
   }
 }
 
