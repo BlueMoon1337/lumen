@@ -27,7 +27,8 @@ describe('Lumen Remote (Player)', () => {
       countdowns: 2,
       outro: null,
       music: null,
-      can: { 'random-countdown': null, outro: 'Lumen has no outro (Media ▸ Outro).', 'fade-music': 'No music is playing in Lumen.' },
+      details: { logo: null },
+      can: { 'random-countdown': null, outro: 'Lumen has no outro (Media ▸ Outro).', 'fade-music': null },
     });
     s().markMedia('outro', 'end', true);
     s().playAudio('tune');
@@ -36,11 +37,15 @@ describe('Lumen Remote (Player)', () => {
     expect(remoteStatus(s()).allowed).toBe(false);
   });
 
-  it('fades out the music when Player asks', () => {
+  it('fades out the music and clears the screen to the logo when Player asks', () => {
+    useStore.setState({ media: [...s().media, { id: 'logo', name: 'Church Logo', kind: 'image', mime: 'image/png' }] });
+    s().setActiveMedia('logo', 'logo');
+    expect(remoteStatus(s()).details).toEqual({ logo: 'Church Logo' });
     s().playAudio('tune');
-    expect(s().live.audioId).toBe('tune');
+    s().setLiveMedia('c1');
+    expect(s().live).toMatchObject({ audioId: 'tune', mediaId: 'c1', logo: false });
     playForRemote({ what: 'fade-music', seconds: 3 });
-    expect(s().live.audioId).toBeNull();
+    expect(s().live).toMatchObject({ audioId: null, mediaId: null, logo: true });
   });
 
   it('plays a random countdown or the outro when Player asks, unless turned off', () => {

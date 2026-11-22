@@ -36,6 +36,9 @@ pub struct Status {
     /// Each command: None when it can be done now, else why not.
     #[serde(default)]
     pub can: HashMap<String, Option<String>>,
+    /// Anything more the interface tells Player (the logo's name…), passed on as it is.
+    #[serde(default)]
+    pub details: serde_json::Value,
 }
 
 /// What the interface is asked to do.
@@ -131,6 +134,7 @@ fn answer(app: &AppHandle, packet: &[u8], name: &str) -> Option<serde_json::Valu
             "outro": status.as_ref().and_then(|s| s.outro.clone()),
             "music": status.as_ref().and_then(|s| s.music.clone()),
             "can": status.as_ref().map(|s| s.can.clone()).unwrap_or_default(),
+            "details": status.as_ref().map(|s| s.details.clone()).unwrap_or_default(),
         })),
         "play" => {
             let what = req.what.unwrap_or_default();
@@ -181,6 +185,7 @@ mod tests {
             countdowns: 2,
             outro: None,
             music: None,
+            details: serde_json::Value::Null,
             can: can(&[
                 ("random-countdown", None),
                 ("outro", Some("Lumen has no outro.")),

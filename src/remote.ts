@@ -4,7 +4,7 @@ import { useStore, type AppState } from './store';
 /**
  * Lumen Remote: Player (github.com/BlueMoon1337/Player), on this computer or another one on the
  * local network, can play a random countdown or the outro, from boxes at either end of its song
- * list, and fade out the music on the Audio layer. The desktop app answers Player (src-tauri/src/remote.rs); this side tells it what there is
+ * list, and fade out the music on the Audio layer and clear the screen to the logo. The desktop app answers Player (src-tauri/src/remote.rs); this side tells it what there is
  * to play, and plays it when asked, as the buttons here do. Settings ▸ Player ▸ "Player can play the
  * countdown and outro, and fade the music" turns it off.
  */
@@ -22,6 +22,8 @@ export interface RemoteStatus {
   outro: string | null;
   /** The track on the Audio layer, if any. */
   music: string | null;
+  /** More for Player's boxes, passed on as it is by the desktop app: the active logo's name. */
+  details: { logo: string | null };
   /**
    * Each command Player can send: null when it can be done now, else why not. The desktop app
    * answers by this, so a new command needs only the interface (an interface update).
@@ -33,15 +35,18 @@ export function remoteStatus(s: Pick<AppState, 'media' | 'settings' | 'live'>): 
   const outro = s.media.find((m) => m.id === s.settings.outroMediaId);
   const music = s.live.audioId ? (s.media.find((m) => m.id === s.live.audioId)?.name ?? 'Music') : null;
   const countdowns = s.media.filter((m) => m.kind === 'video' && m.countdown).length;
+  const logo = s.media.find((m) => m.id === s.settings.logoMediaId);
   return {
     allowed: s.settings.playerRemote !== false,
     countdowns,
     outro: outro ? outro.name : null,
     music,
+    details: { logo: logo ? logo.name : null },
     can: {
       'random-countdown': countdowns ? null : 'Lumen has no countdown videos (Media ▸ Countdowns).',
       outro: outro ? null : 'Lumen has no outro (Media ▸ Outro).',
-      'fade-music': music ? null : 'No music is playing in Lumen.',
+      // Fades the music (if any) and clears the screen to the logo: always something to do.
+      'fade-music': null,
     },
   };
 }
@@ -58,7 +63,11 @@ export function playForRemote({ what, seconds }: RemoteRequest) {
   if (s.settings.playerRemote === false || !COMMANDS.includes(what as RemoteCommand)) return;
   if (what === 'random-countdown') s.playRandomCountdown();
   else if (what === 'outro') s.playOutro();
-  else if (what === 'fade-music') fadeOutMusic(seconds ?? 4);
+  else if (what === 'fade-music') {
+    // The music fades out over Player's Fade Length; everything else clears now, and the logo comes up.
+    fadeOutMusic(seconds ?? 4);
+    useStore.getState().clearToLogo();
+  }
 }
 
 /** In the desktop app's operator window: keeps the desktop app told, and plays what Player asks for. */
