@@ -159,6 +159,11 @@ pub async fn export_app(app: AppHandle, format: String) -> Result<Option<String>
     // The interface update in use (if any) goes along, and names the export's version.
     let native = app.package_info().version.to_string();
     let package = crate::interface::active_package(&app.config().identifier, &native);
+    if let (None, Some(serving)) = (&package, crate::interface::serving()) {
+        return Err(format!(
+            "Lumen {serving}’s update package can’t be found, so it can’t go along with the export. Install it again (Settings ▸ Updates ▸ Install from Zip…), then export."
+        ));
+    }
     let version = package.as_ref().map(|(_, v)| v.clone()).unwrap_or(native);
     let package = package.map(|(p, _)| p);
     let dmg = format == "dmg";

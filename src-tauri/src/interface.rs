@@ -4,20 +4,24 @@
 //! button), made with `npm run interface-package`. Changes to the app itself (this Rust code)
 //! still need a full release.
 //!
-//! An installed interface lives in Lumen's data folder (`interface/current`), and Lumen serves its
-//! pages from there instead of the built-in ones, from the same address, so the library and
-//! settings the pages keep are the same. It's used only while it's newer than the app and the app
-//! is new enough for it (`requires`); a full update to a newer app leaves it unused. The interface
-//! it replaced is kept (`interface/previous`) for Go Back.
+//! Installed packages are kept, as they came, in Lumen's data folder (`interface/packages`), with
+//! `interface/state.json` naming the one in use and the one it replaced (for Go Back). At start-up
+//! Lumen checks the signature of the one in use again and serves its files from memory, in place
+//! of the built-in ones and from the same address (so the library and settings the pages keep are
+//! the same): a changed package is refused, and installing another while Lumen runs never touches
+//! what the running window is using. An interface is used only while it's newer than the app and
+//! the app is new enough for it (`requires`); a full update to a newer app leaves it unused.
 //!
 //! A package is a zip holding `interface.zip` (the interface, with `lumen-interface.json` saying
 //! its version and the oldest app it runs on) and `interface.zip.sig`, its signature by the same
 //! key as Lumen's updates (tauri.conf.json's updater `pubkey`), so only Lumen's own packages install.
 
 use std::borrow::Cow;
+use std::collections::HashMap;
 use std::fs;
 use std::io::{Cursor, Read};
-use std::path::{Component, Path, PathBuf};
+use std::path::{Path, PathBuf};
+use std::sync::OnceLock;
 
 use base64::Engine;
 use serde::{Deserialize, Serialize};
@@ -36,9 +40,6 @@ pub struct Manifest {
 }
 
 pub const MANIFEST: &str = "lumen-interface.json";
-/// The signed package an installed interface came from, kept with it, so File ▸ Export ▸ Lumen App
-/// can take it along.
-pub const KEPT_PACKAGE: &str = "lumen-update-package.zip";
 /// A package an exported copy of Lumen carries inside it (see export_app.rs): installed the first
 /// time that copy opens, so it opens at the version it was exported at.
 pub const BUNDLED: &str = "interface-update.zip";
@@ -82,39 +83,79 @@ fn root(identifier: &str) -> Option<PathBuf> {
     data_dir(identifier).map(|d| d.join("interface"))
 }
 
-fn read_manifest(dir: &Path) -> Option<Manifest> {
-    serde_json::from_slice(&fs::read(dir.join(MANIFEST)).ok()?).ok()
+/// An installed package, as state.json names it.
+#[derive(Clone, Debug, Deserialize, Serialize, PartialEq)]
+pub struct Entry {
+    /// Its file in `interface/packages`.
+    pub file: String,
+    pub version: String,
+    pub requires: String,
 }
 
-/// The installed interface, if the app should use it: newer than the app, and needing no newer app.
-pub fn active(identifier: &str, native: &str) -> Option<(PathBuf, Manifest)> {
-    let dir = root(identifier)?.join("current");
-    let m = read_manifest(&dir)?;
-    let usable =
-        m.app == "Lumen" && compare(&m.version, native).is_gt() && compare(&m.requires, native).is_le() && dir.join("index.html").is_file();
-    usable.then_some((dir, m))
+/// Which installed interface is in use, and which one Go Back returns to (none: the built-in one).
+#[derive(Clone, Debug, Default, Deserialize, Serialize, PartialEq)]
+pub struct Saved {
+    pub current: Option<Entry>,
+    pub previous: Option<Entry>,
 }
 
-/// Serves the installed interface's files, and the built-in ones when there's none (or for any
-/// file it doesn't have).
+fn read_state(root: &Path) -> Saved {
+    fs::read(root.join("state.json"))
+        .ok()
+        .and_then(|b| serde_json::from_slice(&b).ok())
+        .unwrap_or_default()
+}
+
+/// Writes the state whole (to a new file, then renamed over the old one).
+fn write_state(root: &Path, state: &Saved) -> Result<(), String> {
+    let tmp = root.join("state.json.new");
+    fs::write(&tmp, serde_json::to_vec_pretty(state).map_err(|e| e.to_string())?).map_err(|e| e.to_string())?;
+    fs::rename(&tmp, root.join("state.json")).map_err(|e| e.to_string())
+}
+
+/// Whether an interface can run on this app: newer than it, and needing no newer app.
+fn usable(e: &Entry, native: &str) -> bool {
+    compare(&e.version, native).is_gt() && compare(&e.requires, native).is_le()
+}
+
+/// The installed interface state.json says is in use, if the app can use it (not checked: see `load`).
+pub fn active(identifier: &str, native: &str) -> Option<(PathBuf, Entry)> {
+    let root = root(identifier)?;
+    let e = read_state(&root).current.filter(|e| usable(e, native))?;
+    let path = root.join("packages").join(&e.file);
+    path.is_file().then_some((path, e))
+}
+
+/// The interface in use, checked again: its package's signature, that it's the one state.json
+/// says, and that this app can use it. Its files, by path.
+fn load(identifier: &str, native: &str, key: &str) -> Option<(Manifest, HashMap<String, Vec<u8>>)> {
+    let (path, e) = active(identifier, native)?;
+    let package = open_package(&fs::read(path).ok()?, key).ok()?;
+    if package.manifest.version != e.version || package.manifest.requires != e.requires {
+        return None;
+    }
+    let files = package
+        .files
+        .into_iter()
+        .map(|(p, data)| (p.to_string_lossy().replace('\\', "/"), data))
+        .collect();
+    Some((package.manifest, files))
+}
+
+/// The version of the interface being served (set once at start-up), when it's an installed one.
+static SERVED: OnceLock<Option<String>> = OnceLock::new();
+
+/// Serves the installed interface's files (checked at start-up, held in memory), and the built-in
+/// ones when there's none (or for any file it doesn't have).
 pub struct InterfaceAssets<R: Runtime> {
     built_in: Box<dyn Assets<R>>,
-    dir: Option<PathBuf>,
+    files: Option<HashMap<String, Vec<u8>>>,
 }
 
 impl<R: Runtime> InterfaceAssets<R> {
-    pub fn new(built_in: Box<dyn Assets<R>>, dir: Option<PathBuf>) -> Self {
-        Self { built_in, dir }
+    pub fn new(built_in: Box<dyn Assets<R>>, files: Option<HashMap<String, Vec<u8>>>) -> Self {
+        Self { built_in, files }
     }
-}
-
-/// A file of the installed interface: only plain names below its folder.
-fn file_in(dir: &Path, key: &str) -> Option<PathBuf> {
-    let rel = Path::new(key.trim_start_matches('/'));
-    if rel.as_os_str().is_empty() || !rel.components().all(|c| matches!(c, Component::Normal(_))) {
-        return None;
-    }
-    Some(dir.join(rel))
 }
 
 impl<R: Runtime> Assets<R> for InterfaceAssets<R> {
@@ -123,10 +164,8 @@ impl<R: Runtime> Assets<R> for InterfaceAssets<R> {
     }
 
     fn get(&self, key: &AssetKey) -> Option<Cow<'_, [u8]>> {
-        if let Some(path) = self.dir.as_deref().and_then(|d| file_in(d, key.as_ref())) {
-            if let Ok(bytes) = fs::read(path) {
-                return Some(Cow::Owned(bytes));
-            }
+        if let Some(data) = self.files.as_ref().and_then(|f| f.get(key.as_ref().trim_start_matches('/'))) {
+            return Some(Cow::Borrowed(data));
         }
         self.built_in.get(key)
     }
@@ -226,57 +265,101 @@ pub fn open_package(bytes: &[u8], config_key: &str) -> Result<Package, String> {
     Ok(Package { manifest, files })
 }
 
-/// Puts a checked package in place (the interface it replaces kept for Go Back), keeping the
-/// package itself (`bytes`) with it.
+/// Keeps a checked package (`bytes`, as it came) and makes it the interface in use from the next
+/// start, the one it replaces kept for Go Back. What the running window uses isn't touched.
 pub fn install(identifier: &str, package: &Package, bytes: &[u8]) -> Result<(), String> {
     let root = root(identifier).ok_or("Couldn’t find Lumen’s data folder.")?;
-    let staging = root.join("staging");
-    let _ = fs::remove_dir_all(&staging);
-    fs::create_dir_all(&staging).map_err(|e| format!("Couldn’t install the update: {e}"))?;
-    fs::write(staging.join(KEPT_PACKAGE), bytes).map_err(|e| format!("Couldn’t install the update: {e}"))?;
-    for (path, data) in &package.files {
-        let to = staging.join(path);
-        if let Some(dir) = to.parent() {
-            fs::create_dir_all(dir).map_err(|e| format!("Couldn’t install the update: {e}"))?;
-        }
-        fs::write(&to, data).map_err(|e| format!("Couldn’t install the update: {e}"))?;
-    }
-    let current = root.join("current");
-    let previous = root.join("previous");
-    if current.is_dir() {
-        let _ = fs::remove_dir_all(&previous);
-        fs::rename(&current, &previous).map_err(|e| format!("Couldn’t install the update: {e}"))?;
-    } else {
+    let fail = |e: std::io::Error| format!("Couldn’t install the update: {e}");
+    let packages = root.join("packages");
+    fs::create_dir_all(&packages).map_err(fail)?;
+    let m = &package.manifest;
+    let file = format!("Lumen-{}-interface.zip", m.version.replace(['/', '\\'], "-"));
+    let tmp = packages.join(format!("{file}.new"));
+    fs::write(&tmp, bytes).map_err(fail)?;
+    fs::rename(&tmp, packages.join(&file)).map_err(fail)?;
+    let mut state = read_state(&root);
+    let entry = Entry {
+        file,
+        version: m.version.clone(),
+        requires: m.requires.clone(),
+    };
+    if state.current.as_ref().is_some_and(|c| c.file != entry.file) {
+        state.previous = state.current.take();
+    } else if state.current.is_none() {
         // Going back from this one goes back to the interface built into the app.
-        let _ = fs::remove_dir_all(&previous);
+        state.previous = None;
     }
-    fs::rename(&staging, &current).map_err(|e| format!("Couldn’t install the update: {e}"))
+    state.current = Some(entry);
+    write_state(&root, &state)?;
+    tidy(&root, &state);
+    Ok(())
 }
 
-/// Swaps the installed interface with the one it replaced (or, with none kept, goes back to the
-/// built-in one, and from there forward again). Returns the version now in place, None for the
-/// built-in one.
+/// Removes packages no longer named (and the folders older versions of Lumen unpacked into).
+fn tidy(root: &Path, state: &Saved) {
+    let keep: Vec<&str> = [&state.current, &state.previous]
+        .into_iter()
+        .flatten()
+        .map(|e| e.file.as_str())
+        .collect();
+    if let Ok(entries) = fs::read_dir(root.join("packages")) {
+        for entry in entries.flatten() {
+            let name = entry.file_name().to_string_lossy().into_owned();
+            if !keep.contains(&name.as_str()) {
+                let _ = fs::remove_file(entry.path());
+            }
+        }
+    }
+    for old in ["current", "previous", "staging", "swap"] {
+        let _ = fs::remove_dir_all(root.join(old));
+    }
+}
+
+/// Swaps the interface in use with the one it replaced (none: the built-in one), from the next
+/// start. Returns the version now in use, None for the built-in one.
 pub fn go_back(identifier: &str) -> Result<Option<String>, String> {
     let root = root(identifier).ok_or("Couldn’t find Lumen’s data folder.")?;
-    let (current, previous, swap) = (root.join("current"), root.join("previous"), root.join("swap"));
-    if !current.is_dir() {
-        // Using the built-in interface after going back: switch to the update again.
-        if !previous.is_dir() {
-            return Err("There’s no interface update to go back from.".into());
-        }
-        fs::rename(&previous, &current).map_err(|e| e.to_string())?;
-        return Ok(read_manifest(&current).map(|m| m.version));
+    let mut state = read_state(&root);
+    if state.current.is_none() && state.previous.is_none() {
+        return Err("There’s no interface update to go back from.".into());
     }
-    let _ = fs::remove_dir_all(&swap);
-    fs::rename(&current, &swap).map_err(|e| e.to_string())?;
-    let back = if previous.is_dir() {
-        fs::rename(&previous, &current).map_err(|e| e.to_string())?;
-        read_manifest(&current).map(|m| m.version)
-    } else {
-        None
-    };
-    fs::rename(&swap, &previous).map_err(|e| e.to_string())?;
-    Ok(back)
+    std::mem::swap(&mut state.current, &mut state.previous);
+    write_state(&root, &state)?;
+    Ok(state.current.map(|e| e.version))
+}
+
+/// Lumen before this kept an installed interface unpacked (`interface/current`, `previous`), with
+/// its package inside; those packages move into `packages` (one without its package is dropped).
+fn migrate(identifier: &str) {
+    let Some(root) = root(identifier) else { return };
+    if root.join("state.json").is_file() || !root.join("current").is_dir() {
+        return;
+    }
+    let mut state = Saved::default();
+    for (dir, slot) in [("current", 0), ("previous", 1)] {
+        let dir = root.join(dir);
+        let (Ok(bytes), Some(m)) = (
+            fs::read(dir.join("lumen-update-package.zip")),
+            fs::read(dir.join(MANIFEST))
+                .ok()
+                .and_then(|b| serde_json::from_slice::<Manifest>(&b).ok()),
+        ) else {
+            continue;
+        };
+        let file = format!("Lumen-{}-interface.zip", m.version.replace(['/', '\\'], "-"));
+        let _ = fs::create_dir_all(root.join("packages"));
+        if fs::write(root.join("packages").join(&file), bytes).is_ok() {
+            let e = Some(Entry {
+                file,
+                version: m.version,
+                requires: m.requires,
+            });
+            if slot == 0 { state.current = e } else { state.previous = e }
+        }
+    }
+    if write_state(&root, &state).is_ok() {
+        tidy(&root, &state);
+    }
 }
 
 // ------------------------------------------------------------------ commands
@@ -311,22 +394,24 @@ fn config_key(config: &tauri::Config) -> Result<String, String> {
         .ok_or_else(|| "Lumen has no update key.".into())
 }
 
-/// The version of Lumen in use: the installed interface's, or the app's.
+/// The version of Lumen in use: the installed interface's being served, or the app's.
 pub fn effective_version<R: Runtime>(app: &AppHandle<R>) -> String {
-    let native = app.package_info().version.to_string();
-    active(&identifier(app), &native).map(|(_, m)| m.version).unwrap_or(native)
+    SERVED
+        .get()
+        .cloned()
+        .flatten()
+        .unwrap_or_else(|| app.package_info().version.to_string())
 }
 
 #[tauri::command]
 pub fn interface_state(app: AppHandle) -> State {
     let id = identifier(&app);
     let native = app.package_info().version.to_string();
-    let interface = active(&id, &native).map(|(_, m)| m.version);
-    let usable = |m: &Manifest| compare(&m.version, &native).is_gt() && compare(&m.requires, &native).is_le();
+    let interface = SERVED.get().cloned().flatten();
     let kept = root(&id)
-        .and_then(|r| read_manifest(&r.join("previous")))
-        .filter(usable)
-        .map(|m| m.version);
+        .and_then(|r| read_state(&r).previous)
+        .filter(|e| usable(e, &native))
+        .map(|e| e.version);
     let previous = match &interface {
         // Go Back from an update: to the one it replaced, or to the built-in interface.
         Some(_) => Some(kept.unwrap_or_else(|| native.clone())),
@@ -410,11 +495,17 @@ pub fn interface_go_back(app: AppHandle) -> Result<(), String> {
     Ok(())
 }
 
-/// The package kept with the interface in use, and its version, when it's an installed one.
+/// The package of the interface being served, and its version, when it's an installed one.
 pub fn active_package(identifier: &str, native: &str) -> Option<(PathBuf, String)> {
-    let (dir, m) = active(identifier, native)?;
-    let zip = dir.join(KEPT_PACKAGE);
-    zip.is_file().then_some((zip, m.version))
+    let served = SERVED.get().cloned().flatten()?;
+    active(identifier, native)
+        .filter(|(_, e)| e.version == served)
+        .map(|(path, e)| (path, e.version))
+}
+
+/// Whether an installed interface is being served (it should then go along with an export).
+pub fn serving() -> Option<String> {
+    SERVED.get().cloned().flatten()
 }
 
 /// Where an exported copy of Lumen carries its package: in the app's Resources on a Mac, beside
@@ -442,7 +533,7 @@ fn install_bundled(config: &tauri::Config, native: &str) {
     let Ok(key) = config_key(config) else { return };
     let Ok(package) = open_package(&bytes, &key) else { return };
     let current = active(&config.identifier, native)
-        .map(|(_, m)| m.version)
+        .map(|(_, e)| e.version)
         .unwrap_or_else(|| native.to_string());
     let m = &package.manifest;
     if compare(&m.version, &current).is_gt() && compare(&m.requires, native).is_le() {
@@ -455,10 +546,13 @@ fn install_bundled(config: &tauri::Config, native: &str) {
 /// The webview's files: the installed interface's, when there's one to use.
 pub fn wrap_assets<R: Runtime>(context: &mut tauri::Context<R>) {
     let native = context.package_info().version.to_string();
+    let id = context.config().identifier.clone();
+    migrate(&id);
     install_bundled(context.config(), &native);
-    let dir = active(&context.config().identifier, &native).map(|(dir, _)| dir);
+    let loaded = config_key(context.config()).ok().and_then(|key| load(&id, &native, &key));
+    let _ = SERVED.set(loaded.as_ref().map(|(m, _)| m.version.clone()));
     let built_in = context.set_assets(Box::new(NoAssets));
-    context.set_assets(Box::new(InterfaceAssets::new(built_in, dir)));
+    context.set_assets(Box::new(InterfaceAssets::new(built_in, loaded.map(|(_, files)| files))));
 }
 
 #[cfg(test)]
@@ -471,15 +565,6 @@ mod tests {
         assert!(compare("1.0.8", "1.0.8").is_eq());
         assert!(compare("1.0", "1.0.0").is_eq());
         assert!(compare("0.9.9", "1.0.0").is_lt());
-    }
-
-    #[test]
-    fn serves_only_files_inside_the_interface() {
-        let dir = Path::new("/data/interface/current");
-        assert_eq!(file_in(dir, "/index.html"), Some(dir.join("index.html")));
-        assert_eq!(file_in(dir, "/assets/app.js"), Some(dir.join("assets/app.js")));
-        assert_eq!(file_in(dir, "/../secret"), None);
-        assert_eq!(file_in(dir, "/"), None);
     }
 }
 
@@ -512,18 +597,35 @@ mod package_tests {
             std::env::set_var("XDG_DATA_HOME", home.join("data"));
         }
         let id = "com.lumen.test";
+        let native = package.manifest.requires.clone();
         install(id, &package, &bytes).unwrap();
-        assert_eq!(
-            active_package(id, &package.manifest.requires).map(|(_, v)| v),
-            Some(package.manifest.version.clone())
-        );
-        let (dir, m) = active(id, &package.manifest.requires).unwrap();
+        let (m, files) = load(id, &native, key).expect("installed and checked");
         assert_eq!(m.version, package.manifest.version);
-        assert!(dir.join("index.html").is_file());
-        assert!(active(id, &package.manifest.version).is_none(), "not used once the app is as new");
+        assert!(files.contains_key("index.html"));
+        assert!(
+            load(id, &package.manifest.version, key).is_none(),
+            "not used once the app is as new"
+        );
+        // A changed package on disk is refused at start-up.
+        let (path, _) = active(id, &native).unwrap();
+        let good = fs::read(&path).unwrap();
+        fs::write(&path, &tampered).unwrap();
+        assert!(load(id, &native, key).is_none());
+        fs::write(&path, &good).unwrap();
+        // Go Back to the built-in interface, and forward again.
         assert_eq!(go_back(id).unwrap(), None);
-        assert!(active(id, &package.manifest.requires).is_none());
+        assert!(load(id, &native, key).is_none());
         assert_eq!(go_back(id).unwrap(), Some(package.manifest.version.clone()));
+        assert!(load(id, &native, key).is_some());
+        // Unpacked interfaces from before move into packages.
+        let root = root(id).unwrap();
+        fs::remove_file(root.join("state.json")).unwrap();
+        fs::create_dir_all(root.join("current")).unwrap();
+        fs::write(root.join("current/lumen-update-package.zip"), &bytes).unwrap();
+        fs::write(root.join("current").join(MANIFEST), serde_json::to_vec(&package.manifest).unwrap()).unwrap();
+        migrate(id);
+        assert!(!root.join("current").exists());
+        assert!(load(id, &native, key).is_some());
         let _ = fs::remove_dir_all(&home);
     }
 }
