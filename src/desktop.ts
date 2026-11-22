@@ -92,6 +92,8 @@ export function installDesktopBridge() {
     keynoteImage: (id, index) => invoke<ArrayBuffer>('keynote_image', { id, index }),
     keynotePptx: (id) => invoke<ArrayBuffer>('keynote_pptx', { id }),
     keynoteDone: (id) => invoke('keynote_done', { id }),
+    setRemoteStatus: (status) => void invoke('remote_status', { status }),
+    onRemotePlay: (cb) => subscribe('remote-play', cb),
     openAtLogin: () => invoke<boolean>('open_at_login'),
     setOpenAtLogin: (on) => invoke('set_open_at_login', { on }),
     interfaceUpdates: {

@@ -11,6 +11,8 @@ export function RandomCountdown() {
   const playlists = useStore((s) => s.audioPlaylists);
   const chosen = useStore((s) => s.settings.countdownPlaylistId);
   const logoAfter = useStore((s) => s.settings.logoAfterCountdown !== false);
+  const playerRemote = useStore((s) => s.settings.playerRemote !== false);
+  const desktop = !!window.lumenDesktop;
   const hasLogo = useStore((s) => s.media.some((m) => m.id === s.settings.logoMediaId));
   const playlistId = playlists.some((pl) => pl.id === chosen) ? chosen : '';
   const s = useStore.getState();
@@ -51,6 +53,19 @@ export function RandomCountdown() {
           />
           Show the logo when it ends
         </label>
+        {desktop && (
+          <label
+            className="check-row"
+            title="Player's Random Countdown and Outro boxes, on this computer or another one on the network, play them here"
+          >
+            <input
+              type="checkbox"
+              checked={playerRemote}
+              onChange={(e) => s.updateSettings({ playerRemote: e.target.checked ? undefined : false })}
+            />
+            Player can play the countdown and outro
+          </label>
+        )}
         {!playlists.length && (
           <p className="muted small-print">Make an audio playlist in the Audio tab to play music with the countdown.</p>
         )}

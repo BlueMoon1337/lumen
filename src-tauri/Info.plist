@@ -4,6 +4,8 @@
 <dict>
 	<key>NSCameraUsageDescription</key>
 	<string>Lumen shows cameras and capture cards on the Video Input layer.</string>
+	<key>NSLocalNetworkUsageDescription</key>
+	<string>Lumen answers Player on your local network, so Player can play a random countdown or the outro.</string>
 	<key>NSAppleEventsUsageDescription</key>
 	<string>Lumen asks Keynote to export the slides of Keynote presentations you import.</string>
 	<!-- Media plays from Lumen's own server on this computer (127.0.0.1): allowed without HTTPS. -->

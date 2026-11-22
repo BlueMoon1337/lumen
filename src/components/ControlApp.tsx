@@ -9,6 +9,7 @@ import { startLibraryFiles } from '../libraryFiles';
 import { deleteUnusedBlobs } from '../media';
 import { dismiss, useNotices } from '../notices';
 import { startScreenManager } from '../outputs';
+import { startPlayerRemote } from '../remote';
 import { useStore } from '../store';
 import { isTypingTarget } from '../util';
 import { AskHost } from './Ask';
@@ -381,6 +382,8 @@ export default function ControlApp() {
   useFileCommands();
   useAutoAdvance();
   useEffect(() => startScreenManager(), []);
+  // Player can play a random countdown or the outro (src/remote.ts).
+  useEffect(() => startPlayerRemote(), []);
   // Documents ▸ Lumen ▸ Libraries keeps a .lumen copy of each presentation (the desktop app).
   useEffect(() => startLibraryFiles(), []);
   const openScreens = useCallback(() => setDialog('screens'), [setDialog]);

@@ -17,6 +17,7 @@ mod media_server;
 mod menu;
 mod outputs;
 mod presentation;
+mod remote;
 mod screens;
 mod startup;
 mod updates;
@@ -68,6 +69,7 @@ pub fn run() {
         .manage(files::OpenedFiles::default())
         .manage(capture::Capture::default())
         .manage(keynote::KeynoteExports::default())
+        .manage(remote::Remote::default())
         .on_permission_request(camera::on_permission_request)
         .invoke_handler(tauri::generate_handler![
             displays::get_displays,
@@ -119,6 +121,7 @@ pub fn run() {
             keynote::keynote_done,
             startup::open_at_login,
             startup::set_open_at_login,
+            remote::remote_status,
         ])
         .setup(|app| {
             let handle = app.handle();
@@ -153,6 +156,8 @@ pub fn run() {
             camera::enable(&main);
 
             displays::watch(handle.clone());
+            // Player can play a random countdown or the outro (see remote.rs).
+            remote::start(handle.clone());
             window::refresh_windows(handle);
             Ok(())
         })
