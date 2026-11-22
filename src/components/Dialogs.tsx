@@ -176,6 +176,32 @@ function OutroSection() {
   );
 }
 
+/**
+ * Settings ▸ Player: whether Player (the multitrack player), on this computer or another one on the
+ * network, can play a random countdown or the outro here and fade the music (src/remote.ts).
+ */
+function PlayerSection() {
+  const allowed = useStore((st) => st.settings.playerRemote !== false);
+  const s = useStore.getState();
+  return (
+    <section className="settings-section">
+      <h4>Player</h4>
+      <label className="check-row">
+        <input
+          type="checkbox"
+          checked={allowed}
+          onChange={(e) => s.updateSettings({ playerRemote: e.target.checked ? undefined : false })}
+        />
+        Player can play the countdown and outro, and fade the music
+      </label>
+      <p className="muted small-print">
+        Player’s Random Countdown, Fade Out Music and Outro boxes, on this computer or another one on the network, do these here.
+        {allowed ? '' : ' Off: Player’s boxes say so, and nothing it asks for is done.'}
+      </p>
+    </section>
+  );
+}
+
 function StartupSection() {
   const bridge = window.lumenDesktop!;
   const [on, setOn] = useState<boolean | null>(null);
@@ -436,6 +462,7 @@ export function SettingsDialog({ onClose, onScreens }: { onClose: () => void; on
       </section>
       <OutroSection />
       <AudioSection />
+      {window.lumenDesktop && <PlayerSection />}
       <section className="settings-section">
         <h4>Highlight Color</h4>
         <div className="highlight-choices" role="radiogroup" aria-label="Highlight color">

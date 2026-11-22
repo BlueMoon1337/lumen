@@ -7,7 +7,7 @@
 //! do; `{"app":"lumen-remote","v":1,"cmd":"play","what":"random-countdown","id":"…"}` does it
 //! ("outro"; "fade-music" with "seconds"), and Lumen answers whether it did. Lumen only ever
 //! answers: it sends nothing by itself. Which commands there are, whether each can be done now
-//! (and whether Player may: Timers ▸ Countdown Videos) is told by the interface (src/remote.ts),
+//! (and whether Player may: Settings ▸ Player) is told by the interface (src/remote.ts),
 //! which also does them, so a new command needs only the interface.
 
 use serde::{Deserialize, Serialize};
@@ -24,7 +24,7 @@ const APP: &str = "lumen-remote";
 #[derive(Default, Clone, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct Status {
-    /// Timers ▸ Countdown Videos ▸ "Player can play the countdown and outro".
+    /// Settings ▸ Player ▸ "Player can play the countdown and outro, and fade the music".
     pub allowed: bool,
     /// How many countdown videos there are.
     pub countdowns: u32,
@@ -95,7 +95,7 @@ fn refusal(status: Option<&Status>, what: &str) -> Option<String> {
         return Some("Lumen is still starting.".into());
     };
     if !s.allowed {
-        return Some("Lumen is set not to let Player play anything (Timers ▸ Countdown Videos).".into());
+        return Some("Lumen is set not to let Player play anything (Lumen's Settings ▸ Player).".into());
     }
     let unknown = || Some("Lumen doesn't know that command; it may need updating.".to_string());
     if s.can.is_empty() {

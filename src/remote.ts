@@ -5,8 +5,8 @@ import { useStore, type AppState } from './store';
  * Lumen Remote: Player (github.com/BlueMoon1337/Player), on this computer or another one on the
  * local network, can play a random countdown or the outro, from boxes at either end of its song
  * list, and fade out the music on the Audio layer. The desktop app answers Player (src-tauri/src/remote.rs); this side tells it what there is
- * to play, and plays it when asked, as the buttons here do. Settings: Timers ▸ Countdown Videos ▸
- * "Player can play the countdown and outro, and fade the music".
+ * to play, and plays it when asked, as the buttons here do. Settings ▸ Player ▸ "Player can play the
+ * countdown and outro, and fade the music" turns it off.
  */
 
 /** What Player can ask for. */
