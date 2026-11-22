@@ -37,7 +37,7 @@ async function moveToFolder(m: MediaItem): Promise<boolean> {
   if (await mediaFileOf(m.id)) return true;
   const blob = await getMediaBlob(m.id);
   if (!blob) return false;
-  await storeMediaFile(m.id, blob, finderName(m), m.kind, m.mime);
+  await storeMediaFile(m.id, blob, finderName(m), m.kind, m.mime, true);
   return true;
 }
 

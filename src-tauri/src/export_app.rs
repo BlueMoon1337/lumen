@@ -90,7 +90,10 @@ fn copy_dir(from: &Path, to: &Path) -> std::io::Result<()> {
 
 /// A folder to put things together in, removed afterwards.
 fn with_stage<T>(run: impl FnOnce(&Path) -> Result<T, String>) -> Result<T, String> {
-    let stage = std::env::temp_dir().join(format!("lumen-export-{}", std::process::id()));
+    // Its own folder, so two exports at once can't use (and remove) the same one.
+    static COUNT: std::sync::atomic::AtomicUsize = std::sync::atomic::AtomicUsize::new(0);
+    let n = COUNT.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
+    let stage = std::env::temp_dir().join(format!("lumen-export-{}-{n}", std::process::id()));
     let _ = std::fs::remove_dir_all(&stage);
     std::fs::create_dir_all(&stage).map_err(|e| e.to_string())?;
     let result = run(&stage);

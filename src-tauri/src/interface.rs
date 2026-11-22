@@ -332,7 +332,7 @@ pub fn go_back(identifier: &str) -> Result<Option<String>, String> {
 /// its package inside; those packages move into `packages` (one without its package is dropped).
 fn migrate(identifier: &str) {
     let Some(root) = root(identifier) else { return };
-    if root.join("state.json").is_file() || !root.join("current").is_dir() {
+    if root.join("state.json").is_file() || !(root.join("current").is_dir() || root.join("previous").is_dir()) {
         return;
     }
     let mut state = Saved::default();
@@ -526,12 +526,15 @@ fn install_bundled(config: &tauri::Config, native: &str) {
     // Only once: after that, Go Back (or a newer update) is the operator's choice, not undone at the next start.
     let Some(root) = root(&config.identifier) else { return };
     let marker = root.join("bundled-installed");
-    let stamp = format!("{}:{}", path.display(), bytes.len());
+    // By what it is (its size, and its version once read), not where the app is: a copy moved to
+    // Applications after opening from its disk image mustn't install it again.
+    let stamp_of = |version: &str| format!("{version}:{}", bytes.len());
+    let Ok(key) = config_key(config) else { return };
+    let Ok(package) = open_package(&bytes, &key) else { return };
+    let stamp = stamp_of(&package.manifest.version);
     if fs::read_to_string(&marker).is_ok_and(|s| s == stamp) {
         return;
     }
-    let Ok(key) = config_key(config) else { return };
-    let Ok(package) = open_package(&bytes, &key) else { return };
     let current = active(&config.identifier, native)
         .map(|(_, e)| e.version)
         .unwrap_or_else(|| native.to_string());

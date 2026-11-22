@@ -281,7 +281,8 @@ function ZipUpdates() {
           (found.notes ? `\n\n${found.notes}` : ''),
         confirmLabel: found.compared === 'newer' ? 'Install and Restart' : 'Install Anyway',
       });
-      if (ok) await bridge.install(path);
+      if (!ok) return;
+      await bridge.install(path).catch((e) => alertDialog({ title: 'Couldn’t install the update', message: message(e) }));
     } catch (e) {
       await alertDialog({ title: 'Zip File Invalid', message: message(e) });
     }

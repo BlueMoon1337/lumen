@@ -56,9 +56,15 @@ const useMediaVersions = create<Record<string, number>>(() => ({}));
 /** Told when an item's file changes (reconnected) or goes (deleted), e.g. to drop its thumbnail. */
 export const mediaChangeListeners = new Set<(id: string) => void>();
 
-/** Drops what's loaded for an item, so it loads again from its new file. */
-function forget(id: string) {
-  mediaChangeListeners.forEach((f) => f(id));
+/** How many times each item's file has changed, so a load begun before a change is ignored. */
+const generation = new Map<string, number>();
+
+/** Drops what's loaded for an item, so it loads again from its new file (and, when its contents
+ * changed, makes its thumbnail again). */
+function forget(id: string, contentsChanged = true) {
+  if (contentsChanged) mediaChangeListeners.forEach((f) => f(id));
+  generation.set(id, (generation.get(id) ?? 0) + 1);
+  pending.delete(id);
   const cached = loaded.get(id);
   if (cached?.url.startsWith('blob:')) URL.revokeObjectURL(cached.url);
   loaded.delete(id);
@@ -91,11 +97,19 @@ export const keepsFiles = () => !!window.lumenDesktop?.lumenFolder;
  * in Documents ▸ Lumen ▸ Media ▸ Assets (audio: Media ▸ Audio), named `fileName` (or numbered,
  * if a different file has that name), and played from there; in a browser, the browser keeps it.
  */
-export async function storeMediaFile(id: string, blob: Blob, fileName: string, kind: 'image' | 'video' | 'audio', type = blob.type) {
+export async function storeMediaFile(
+  id: string,
+  blob: Blob,
+  fileName: string,
+  kind: 'image' | 'video' | 'audio',
+  type = blob.type,
+  /** The same contents, only kept differently (moved into Documents ▸ Lumen): its thumbnail stays. */
+  sameContents = false,
+) {
   const desktop = window.lumenDesktop;
   if (!desktop?.finderFile || !keepsFiles()) {
     await putMediaBlob(id, blob.type || !type ? blob : new Blob([blob], { type }));
-    forget(id);
+    forget(id, !sameContents);
     return;
   }
   await lumenBase();
@@ -109,7 +123,7 @@ export async function storeMediaFile(id: string, blob: Blob, fileName: string, k
   if (!file.saved) await desktop.writeFinderFile(folder, file.name, new Uint8Array(await blob.arrayBuffer()));
   const kept: MediaFile = { folder, name: file.name, type: type || blob.type };
   await request('readwrite', (s) => s.put(kept, id));
-  forget(id);
+  forget(id, !sameContents);
 }
 
 export const deleteMediaBlob = (id: string) => {
@@ -145,26 +159,32 @@ export function loadMedia(id: string): Promise<LoadedMedia | null> {
   if (cached) return Promise.resolve(cached);
   let p = pending.get(id);
   if (!p) {
+    // A load begun before the file changed (reconnected) doesn't keep its out-of-date result.
+    const gen = generation.get(id) ?? 0;
+    const current = () => (generation.get(id) ?? 0) === gen;
     p = request<unknown>('readonly', (s) => s.get(id))
       .then(async (value) => {
         if (value instanceof Blob) {
           const media = { url: URL.createObjectURL(value), isVideo: value.type.startsWith('video/') };
-          loaded.set(id, media);
+          if (current()) loaded.set(id, media);
           return media;
         }
         if (!isMediaFile(value) || !window.lumenDesktop?.lumenFileExists) {
-          setMissing(id, value === undefined);
+          if (current()) setMissing(id, value === undefined);
           return null;
         }
         const there = await window.lumenDesktop.lumenFileExists(value.folder, value.name);
+        if (!current()) return null;
         setMissing(id, !there);
         if (!there) return null;
         const media = { url: await fileUrl(value), isVideo: value.type.startsWith('video/') };
-        loaded.set(id, media);
+        if (current()) loaded.set(id, media);
         return media;
       })
       .catch(() => null)
-      .finally(() => pending.delete(id));
+      .finally(() => {
+        if (pending.get(id) === p) pending.delete(id);
+      });
     pending.set(id, p);
   }
   return p;
