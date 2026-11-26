@@ -279,19 +279,24 @@ export function BibleView() {
     type: 'submenu',
     label: bookLabel(book),
     entries: () =>
-      book.verses.map((count, c): MenuEntry => ({
-        type: 'submenu',
-        label: String(c + 1),
-        entries: () => [
-          { type: 'item', value: `${book.code}:${c + 1}:0`, label: 'Whole chapter' },
-          { type: 'separator' },
-          ...Array.from({ length: count }, (_, v): MenuEntry => ({
-            type: 'item',
-            value: `${book.code}:${c + 1}:${v + 1}`,
-            label: String(v + 1),
-          })),
-        ],
-      })),
+      book.verses.map(
+        (count, c): MenuEntry => ({
+          type: 'submenu',
+          label: String(c + 1),
+          entries: () => [
+            { type: 'item', value: `${book.code}:${c + 1}:0`, label: 'Whole chapter' },
+            { type: 'separator' },
+            ...Array.from(
+              { length: count },
+              (_, v): MenuEntry => ({
+                type: 'item',
+                value: `${book.code}:${c + 1}:${v + 1}`,
+                label: String(v + 1),
+              }),
+            ),
+          ],
+        }),
+      ),
   }));
   const menuValue = 'error' in range ? '' : `${range.book.code}:${range.chapter}:${range.wholeChapters ? 0 : range.verse}`;
   const pickPassage = (value: string) => {
@@ -723,12 +728,14 @@ function BibleOptions({
               label="Template"
               className="bible-template"
               value={template.id}
-              entries={themes.map((t): MenuEntry => ({
-                type: 'item',
-                value: t.id,
-                label: t.name,
-                thumbnail: <SlidePreview text={t.textName ?? 'Text'} caption={t.captionBox?.name ?? 'Reference'} theme={t} />,
-              }))}
+              entries={themes.map(
+                (t): MenuEntry => ({
+                  type: 'item',
+                  value: t.id,
+                  label: t.name,
+                  thumbnail: <SlidePreview text={t.textName ?? 'Text'} caption={t.captionBox?.name ?? 'Reference'} theme={t} />,
+                }),
+              )}
               onChange={(themeId) => update({ themeId })}
             />
             <button className="btn small" onClick={() => s.setUI({ editingThemeId: template.id })}>

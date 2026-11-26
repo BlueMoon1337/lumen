@@ -148,6 +148,8 @@ function restore(doc: Doc) {
         messageId: findMessage(doc.messages, s.live.messageId) ? s.live.messageId : null,
         audioId: s.live.audioId && doc.media.some((m) => m.id === s.live.audioId) ? s.live.audioId : null,
         announcement: s.live.announcement && presentations[s.live.announcement.presentationId] ? s.live.announcement : null,
+        // The logo stays up only if there's still a logo to show.
+        logo: s.live.logo && !!doc.settings.logoMediaId && doc.media.some((m) => m.id === doc.settings.logoMediaId),
       },
     });
   } finally {

@@ -6,7 +6,7 @@ import { countdownFade, songCrossfade } from '../countdowns';
 import { canShowInFinder, FINDER_LABEL, missingEntries, offerReconnect, showInFinder, useIsMissing } from '../finder';
 import { loadMedia, useMissingMedia } from '../media';
 import { notify } from '../notices';
-import { AUDIO_LIBRARY, useStore } from '../store';
+import { AUDIO_LIBRARY, mimeFromName, useStore } from '../store';
 import type { MediaItem, MediaPlaylist } from '../types';
 import { formatDuration } from '../util';
 import { NamePopup, openContextMenu, openPopupAtMenu, openPopupBelow, type ContextEntries } from './ContextMenu';
@@ -19,7 +19,8 @@ const st = () => useStore.getState();
 /** Imports audio files into the Audio Library, and into a playlist if one is given. */
 const importAudio = async (files?: File[], playlistId?: string) => {
   const chosen = files ?? (await pickFiles('audio/*'));
-  const audio = chosen.filter((f) => f.type.startsWith('audio/'));
+  // The system gives some files (a .flac, say) no type: their name says it.
+  const audio = chosen.filter((f) => (f.type || mimeFromName(f.name) || '').startsWith('audio/'));
   if (chosen.length && !audio.length) return notify('Those files aren’t audio.', 'error');
   const added = await st().addMediaFiles(audio);
   if (playlistId && added.length)

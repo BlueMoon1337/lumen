@@ -43,7 +43,7 @@ export function parseUsx(xml: string): UsxBook {
   };
 
   const tokens = /<(\/?)([\w:-]+)([^>]*?)(\/?)>|<!--[\s\S]*?-->|<\?[\s\S]*?\?>|([^<]+)/g;
-  for (let m: RegExpExecArray | null; (m = tokens.exec(xml));) {
+  for (let m: RegExpExecArray | null; (m = tokens.exec(xml)); ) {
     const [, closing, name, attrs, selfClosing, text] = m;
     if (text !== undefined) {
       append(decodeXml(text));

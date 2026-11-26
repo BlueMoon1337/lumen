@@ -201,7 +201,13 @@ fn others(app: &AppHandle, front: &WebviewWindow) -> Vec<WebviewWindow> {
         .webview_windows()
         .into_values()
         .filter(|w| w.label() != front.label())
-        .filter(|w| w.is_visible().unwrap_or(false) && !w.is_minimized().unwrap_or(false) && !w.is_fullscreen().unwrap_or(false))
+        // Outputs filling a display (simple fullscreen on a Mac doesn't report as fullscreen) stay put.
+        .filter(|w| {
+            w.is_visible().unwrap_or(false)
+                && !w.is_minimized().unwrap_or(false)
+                && !w.is_fullscreen().unwrap_or(false)
+                && !crate::outputs::fills_display(app, w.label())
+        })
         .collect();
     list.sort_by_key(|w| (w.label() != "main", w.label().to_string()));
     list

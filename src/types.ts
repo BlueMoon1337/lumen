@@ -77,7 +77,19 @@ export interface ColorLabel {
 
 /** How one slide replaces the one before it. */
 export type TransitionKind =
-  'cut' | 'dissolve' | 'fade' | 'push' | 'slide' | 'reveal' | 'wipe' | 'split' | 'iris' | 'zoom' | 'blur' | 'flip' | 'cube';
+  | 'cut'
+  | 'dissolve'
+  | 'fade'
+  | 'push'
+  | 'slide'
+  | 'reveal'
+  | 'wipe'
+  | 'split'
+  | 'iris'
+  | 'zoom'
+  | 'blur'
+  | 'flip'
+  | 'cube';
 
 /** Which way a transition moves. A split opens sideways (left, right) or up and down (up, down). */
 export type TransitionDirection = 'left' | 'right' | 'up' | 'down';

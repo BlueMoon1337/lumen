@@ -222,12 +222,14 @@ export function CaptureDialog({ onClose }: { onClose: () => void }) {
   });
   const isPreset = CAPTURE_ENCODINGS.some((e) => sameEncoding(e, settings.encoding));
   const encodingEntries: MenuEntry[] = [
-    ...CAPTURE_ENCODINGS.map((e): MenuEntry => ({
-      type: 'item',
-      value: encodingValue(e),
-      label: encodingLabel(e),
-      title: `${e.width} × ${e.height}`,
-    })),
+    ...CAPTURE_ENCODINGS.map(
+      (e): MenuEntry => ({
+        type: 'item',
+        value: encodingValue(e),
+        label: encodingLabel(e),
+        title: `${e.width} × ${e.height}`,
+      }),
+    ),
     ...(isPreset
       ? []
       : [

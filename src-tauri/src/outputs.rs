@@ -10,7 +10,7 @@ use std::sync::atomic::{AtomicU32, Ordering};
 use tauri::window::Color;
 use tauri::{AppHandle, Emitter, Manager, Monitor, WebviewUrl, WebviewWindow, WebviewWindowBuilder, Window, WindowEvent};
 
-#[derive(Deserialize)]
+#[derive(Clone, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct OutputRequest {
     key: String,
@@ -24,6 +24,8 @@ pub struct OutputRequest {
 struct Open {
     label: String,
     display: Option<u32>,
+    /// It fills its display (one other than the operator's), rather than being a window.
+    fills: bool,
     route: String,
 }
 
@@ -32,6 +34,40 @@ struct Open {
 pub struct Outputs {
     open: Mutex<HashMap<String, Open>>,
     next: AtomicU32,
+    /// One update at a time: two at once could open the same output twice.
+    busy: tauri::async_runtime::Mutex<()>,
+    /// The last setup asked for, and the operator window's display then, so outputs can be put
+    /// right when the operator window moves to another display.
+    last: Mutex<Vec<OutputRequest>>,
+    operator: Mutex<Option<u32>>,
+}
+
+/// Whether a window is an output filling a display (window arranging leaves those alone).
+pub fn fills_display(app: &AppHandle, label: &str) -> bool {
+    app.state::<Outputs>()
+        .open
+        .lock()
+        .unwrap()
+        .values()
+        .any(|o| o.label == label && o.fills)
+}
+
+/// The operator window moved: if it's now on another display, outputs that would cover it (or
+/// that can now fill the display it left) are opened again the right way.
+fn operator_moved(app: &AppHandle) {
+    let now = app
+        .get_webview_window("main")
+        .and_then(|w| w.current_monitor().ok().flatten())
+        .map(|m| monitor_id(&m));
+    let state = app.state::<Outputs>();
+    if *state.operator.lock().unwrap() == now {
+        return;
+    }
+    let requests = state.last.lock().unwrap().clone();
+    let app = app.clone();
+    tauri::async_runtime::spawn(async move {
+        let _ = set_outputs(app, requests).await;
+    });
 }
 
 fn tell_operator(app: &AppHandle) {
@@ -47,12 +83,15 @@ pub fn open_outputs(outputs: tauri::State<'_, Outputs>) -> Vec<String> {
 /// Opens, moves, re-points and closes output windows to match the operator window's setup.
 #[tauri::command]
 pub async fn set_outputs(app: AppHandle, outputs: Vec<OutputRequest>) -> Result<(), String> {
+    let state = app.state::<Outputs>();
+    let _busy = state.busy.lock().await;
     let monitors = app.available_monitors().map_err(|e| e.to_string())?;
     let operator = app
         .get_webview_window("main")
         .and_then(|w| w.current_monitor().ok().flatten())
         .map(|m| monitor_id(&m));
-    let state = app.state::<Outputs>();
+    *state.last.lock().unwrap() = outputs.clone();
+    *state.operator.lock().unwrap() = operator;
 
     // Decide under the lock; touch windows after it, because a closing window reports back through `on_window_event`.
     let mut close = Vec::new();
@@ -69,8 +108,10 @@ pub async fn set_outputs(app: AppHandle, outputs: Vec<OutputRequest>) -> Result<
         });
         for r in &outputs {
             let display = r.display_id.filter(|id| monitors.iter().any(|m| monitor_id(m) == *id));
+            // On another display it fills it; on the operator's it's a window, so it can't cover the controls.
+            let fills = display.is_some() && display != operator;
             match open.get_mut(&r.key) {
-                Some(o) if o.display == display && app.get_webview_window(&o.label).is_some() => {
+                Some(o) if o.display == display && o.fills == fills && app.get_webview_window(&o.label).is_some() => {
                     // Same display: keep the window; only its outputs (the address) may have changed.
                     update.push((o.label.clone(), r.title.clone(), (o.route != r.route).then(|| r.route.clone())));
                     o.route = r.route.clone();
@@ -107,11 +148,13 @@ pub async fn set_outputs(app: AppHandle, outputs: Vec<OutputRequest>) -> Result<
         let monitor = display.and_then(|id| monitors.iter().find(|m| monitor_id(m) == id));
         match build(&app, &label, r, monitor, operator) {
             Ok(_) => {
+                let fills = display.is_some() && display != operator;
                 state.open.lock().unwrap().insert(
                     r.key.clone(),
                     Open {
                         label,
                         display,
+                        fills,
                         route: r.route.clone(),
                     },
                 );
@@ -198,6 +241,9 @@ fn keep_menu_bar_and_dock(win: &WebviewWindow) {
 
 pub fn on_window_event(window: &Window, event: &WindowEvent) {
     let app = window.app_handle();
+    if window.label() == "main" && matches!(event, WindowEvent::Moved(_) | WindowEvent::ScaleFactorChanged { .. }) {
+        operator_moved(app);
+    }
     // Window lists the open windows, with a checkmark on the one in front.
     if matches!(event, WindowEvent::Focused(_) | WindowEvent::Destroyed) {
         crate::window::refresh_windows(app);
