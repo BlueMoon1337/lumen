@@ -257,16 +257,14 @@ export function planOutputs(setup: ScreenSetup, displays: DetectedDisplay[]): Pl
   const used = new Set<DetectedDisplay>();
   const order = [...setup.screens.filter((s) => s.kind === 'audience'), ...setup.screens.filter((s) => s.kind === 'stage')];
   const entries = order.flatMap((screen) =>
-    usedOutputs(screen).map(
-      (output, index): PlannedOutput => ({
-        key: `${screen.id}:${output.id}`,
-        kind: screen.kind,
-        screen,
-        output,
-        index,
-        status: output.placeholder ? 'placeholder' : 'window',
-      }),
-    ),
+    usedOutputs(screen).map((output, index): PlannedOutput => ({
+      key: `${screen.id}:${output.id}`,
+      kind: screen.kind,
+      screen,
+      output,
+      index,
+      status: output.placeholder ? 'placeholder' : 'window',
+    })),
   );
 
   for (const e of entries) {

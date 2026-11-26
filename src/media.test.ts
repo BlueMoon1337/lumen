@@ -188,8 +188,14 @@ describe('outros', () => {
   it('leave the media bin alone when removed from the Countdowns or Outro tab', () => {
     s().setActiveMedia('outro', 'v1');
     s().updateMedia('v2', { countdown: true });
-    removeFromTab(s().media.find((m) => m.id === 'v1')!, 'outro');
-    removeFromTab(s().media.find((m) => m.id === 'v2')!, 'countdown');
+    removeFromTab(
+      s().media.find((m) => m.id === 'v1')!,
+      'outro',
+    );
+    removeFromTab(
+      s().media.find((m) => m.id === 'v2')!,
+      'countdown',
+    );
     expect(s().media.map((m) => m.id)).toEqual(['v1', 'v2', 'i1', 'v3']);
     expect(s().media.find((m) => m.id === 'v1')?.outro).toBeFalsy();
     expect(s().media.find((m) => m.id === 'v2')?.countdown).toBe(false);
@@ -217,7 +223,10 @@ describe('logos', () => {
     expect(s().media.find((m) => m.id === 'v2')).toMatchObject({ logo: true, playback: 'stop' });
     expect(buildFrame(s()).logoMediaId).toBe('v2');
     // Out of the Logo tab: it stays in the media bin, and isn't the logo any more.
-    removeFromTab(s().media.find((m) => m.id === 'v2')!, 'logo');
+    removeFromTab(
+      s().media.find((m) => m.id === 'v2')!,
+      'logo',
+    );
     expect(s().media.some((m) => m.id === 'v2')).toBe(true);
     expect(s().settings.logoMediaId).toBeUndefined();
     expect(isLogoName('Church Logo White')).toBe(true);
@@ -303,7 +312,10 @@ describe('backgrounds', () => {
         .media.filter((m) => m.background)
         .map((m) => m.id),
     ).toEqual(['v2', 'i1']);
-    removeFromTab(s().media.find((m) => m.id === 'v2')!, 'background');
+    removeFromTab(
+      s().media.find((m) => m.id === 'v2')!,
+      'background',
+    );
     expect(s().media.find((m) => m.id === 'v2')?.background).toBe(false);
     expect(s().media.some((m) => m.id === 'v2')).toBe(true);
     expect(isBackgroundName('Worship Background 4K')).toBe(true);

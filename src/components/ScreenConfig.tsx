@@ -531,15 +531,13 @@ function HardwareTab({
       detail: !output.display && !output.placeholder && shownOn ? shownOn.label : undefined,
     },
     { type: 'header', label: 'System' },
-    ...displays.map(
-      (d): MenuEntry => ({
-        type: 'item',
-        value: `display:${refKey(d)}`,
-        label: d.label,
-        detail: `(${d.width} x ${d.height})${d.current ? ' · Lumen is on this screen' : ''}`,
-        thumbnail: <DisplayMap displays={displays} highlight={d} />,
-      }),
-    ),
+    ...displays.map((d): MenuEntry => ({
+      type: 'item',
+      value: `display:${refKey(d)}`,
+      label: d.label,
+      detail: `(${d.width} x ${d.height})${d.current ? ' · Lumen is on this screen' : ''}`,
+      thumbnail: <DisplayMap displays={displays} highlight={d} />,
+    })),
     { type: 'header', label: 'NDI' },
     {
       type: 'submenu',

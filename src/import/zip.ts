@@ -49,7 +49,7 @@ export function readZip(bytes: Uint8Array, filter: (name: string) => boolean = (
     const name = utf8.decode(bytes.subarray(p + 46, p + 46 + nameLen));
 
     // Zip64 extra field (0x0001): 8-byte values for each header field that overflowed, in this order.
-    for (let e = p + 46 + nameLen; e + 4 <= p + 46 + nameLen + extraLen; ) {
+    for (let e = p + 46 + nameLen; e + 4 <= p + 46 + nameLen + extraLen;) {
       const tag = u16(e);
       const size = u16(e + 2);
       if (tag === 0x0001) {
